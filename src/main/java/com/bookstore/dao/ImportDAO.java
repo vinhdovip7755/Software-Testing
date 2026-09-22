@@ -74,7 +74,7 @@ public class ImportDAO {
         boolean result = false;
         try {
             Connection c = DatabaseConnection.getConnection();
-            String sql = "UPDATE import_ticket SET status = ?, approver_id = ?, approved_date = NOW() WHERE import_ticket_id = ?";
+            String sql = "UPDATE import_ticket SET status = ?, approver_id = ?, approved_date = NOW() WHERE import_ticket_id = ? AND status = 1";
 
             PreparedStatement ps = c.prepareStatement(sql);
             ps.setInt(1, newStatus);
@@ -87,5 +87,16 @@ public class ImportDAO {
             e.printStackTrace();
         }
         return result;
+    }
+
+    public boolean delete(int importId) {
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement("DELETE FROM import_ticket WHERE import_ticket_id = ?")) {
+            ps.setInt(1, importId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

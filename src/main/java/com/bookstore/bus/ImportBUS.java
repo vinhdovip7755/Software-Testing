@@ -127,7 +127,10 @@ public class ImportBUS {
             for (ImportDetailDTO detail : details) {
                 if (detail != null) {
                     detail.setImportID(newImportID);
-                    detailDAO.add(detail);
+                    if (!detailDAO.add(detail)) {
+                        importDAO.delete(newImportID);
+                        return false;
+                    }
                 }
             }
             return true;

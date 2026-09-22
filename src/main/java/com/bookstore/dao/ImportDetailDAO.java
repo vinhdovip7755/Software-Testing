@@ -11,7 +11,7 @@ import java.util.List;
 
 public class ImportDetailDAO {
 
-    public void add(ImportDetailDTO detail) {
+    public boolean add(ImportDetailDTO detail) {
         try {
             Connection c = DatabaseConnection.getConnection();
             String sql = "INSERT INTO import_ticket_detail (import_ticket_id, book_id, import_quantity, import_price, cover_price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)";
@@ -23,10 +23,12 @@ public class ImportDetailDAO {
             ps.setDouble(5, detail.getCoverPrice());
             ps.setDouble(6, detail.getDiscountPercent());
 
-            ps.executeUpdate();
+            boolean added = ps.executeUpdate() > 0;
             DatabaseConnection.closeConnection(c);
+            return added;
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
     }
 
