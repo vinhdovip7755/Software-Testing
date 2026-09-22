@@ -301,12 +301,12 @@ public class SupplierPanel extends JPanel implements Refreshable {
                         + "- Địa chỉ: " + supplierDTO.getSupplierAddress() + "\n"
                         + "- SĐT: " + supplierDTO.getSupplierPhone() + "\n\n"
                         + "Số sách bị ảnh hưởng: " + affectedBooks + "\n"
-                        + "Bạn có muốn tiếp tục cập nhật không?";
+                        + "Bạn có muốn tiếp tục Cập nhật không?";
 
                 int choice = JOptionPane.showConfirmDialog(
                         this,
                         confirmMessage,
-                        "Xác nhận cập nhật nhà cung cấp",
+                        "Xác nhận Cập nhật nhà cung cấp",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE
                 );
@@ -377,7 +377,7 @@ public class SupplierPanel extends JPanel implements Refreshable {
         addressField.setText(supplier.getSupplierAddress());
         phoneField.setText(supplier.getSupplierPhone());
         formTitleLabel.setText("CHỈNH SỬA NHÀ CUNG CẤP");
-        saveButton.setText("CẬP NHẬT");
+        saveButton.setText("Cập nhật");
     }
 
     private void resetForm() {

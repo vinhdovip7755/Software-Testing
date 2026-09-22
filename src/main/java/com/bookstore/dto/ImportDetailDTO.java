@@ -6,6 +6,9 @@ public class ImportDetailDTO {
     private int quantity;
     private double price; // Giá nhập
     private String bookName;
+    private double coverPrice;
+    private double discountPercent;
+
     public ImportDetailDTO() {}
 
     public ImportDetailDTO(int importID, int bookID, int quantity, double price) {
@@ -13,6 +16,15 @@ public class ImportDetailDTO {
         this.bookID = bookID;
         this.quantity = quantity;
         this.price = price;
+    }
+
+    public ImportDetailDTO(int importID, int bookID, int quantity, double price, double coverPrice, double discountPercent) {
+        this.importID = importID;
+        this.bookID = bookID;
+        this.quantity = quantity;
+        this.price = price;
+        this.coverPrice = coverPrice;
+        this.discountPercent = discountPercent;
     }
 
     public int getImportID() { return importID; }
@@ -29,4 +41,10 @@ public class ImportDetailDTO {
 
     public double getPrice() { return price; }
     public void setPrice(double price) { this.price = price; }
+
+    public double getCoverPrice() { return coverPrice; }
+    public void setCoverPrice(double coverPrice) { this.coverPrice = coverPrice; }
+
+    public double getDiscountPercent() { return discountPercent; }
+    public void setDiscountPercent(double discountPercent) { this.discountPercent = discountPercent; }
 }

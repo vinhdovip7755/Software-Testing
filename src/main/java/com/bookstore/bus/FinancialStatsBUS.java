@@ -9,6 +9,11 @@ import java.util.List;
 public class FinancialStatsBUS {
     private final FinancialStatsDAO financialStatsDAO = new FinancialStatsDAO();
 
+    
+    public FinancialStatsDTO getThongKeTong() {
+        return financialStatsDAO.getThongKeTong();
+    }
+
     public List<FinancialStatsDTO> getThongKeTheoNgay(Date tuNgay, Date denNgay) {
         return financialStatsDAO.getThongKeTheoNgay(tuNgay, denNgay);
     }

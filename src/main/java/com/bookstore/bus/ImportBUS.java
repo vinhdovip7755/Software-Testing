@@ -1,9 +1,11 @@
 package com.bookstore.bus;
 
 import com.bookstore.dao.BookDAO;
+import com.bookstore.dao.BookLotDAO;
 import com.bookstore.dao.ImportDAO;
 import com.bookstore.dao.ImportDetailDAO;
 import com.bookstore.dao.PriceDAO;
+import com.bookstore.dto.BookLotDTO;
 import com.bookstore.dto.ImportTicketDTO;
 import com.bookstore.dto.ImportDetailDTO;
 import com.bookstore.dto.InventoryLogDTO;
@@ -18,6 +20,7 @@ public class ImportBUS {
     private BookDAO bookDAO = new BookDAO();
     private InventoryLogBUS logBUS = new InventoryLogBUS();
     private PriceDAO priceDAO = new PriceDAO();
+    private BookLotDAO bookLotDAO = new BookLotDAO();
 
     public List<ImportTicketDTO> getAllImports() {
         return importDAO.getAll();
@@ -80,6 +83,25 @@ public class ImportBUS {
                 }
 
                 bookDAO.updateQuantity(d.getBookID(), newStock);
+
+                BookLotDTO lot = new BookLotDTO();
+                lot.setBookId(d.getBookID());
+                lot.setImportTicketId(importId);
+                lot.setImportDate(new java.sql.Timestamp(System.currentTimeMillis()));
+                lot.setCoverPrice(d.getCoverPrice());
+                lot.setDiscountPercent(d.getDiscountPercent());
+                lot.setImportPrice(d.getPrice());
+                
+                PriceDTO activePrice = priceDAO.getActivePriceByBookId(d.getBookID());
+                if (activePrice != null) {
+                    lot.setSellingPrice(activePrice.getSellingPrice());
+                } else {
+                    lot.setSellingPrice(0);
+                }
+                lot.setQuantityInitial(d.getQuantity());
+                lot.setQuantityRemain(d.getQuantity());
+                
+                bookLotDAO.add(lot);
 
                 InventoryLogDTO log = new InventoryLogDTO();
                 log.setAction("Nhập hàng");

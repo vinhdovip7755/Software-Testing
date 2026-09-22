@@ -15,6 +15,9 @@ import com.bookstore.dto.AuthorDTO;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.CategoryDTO;
 import com.bookstore.dto.SupplierDTO;
+import com.bookstore.bus.AuthorBUS;
+import com.bookstore.bus.CategoryBUS;
+import com.bookstore.bus.SupplierBUS;
 
 public class BookFormDialog extends JDialog {
     private static final Color BG_COLOR = Color.WHITE;
@@ -24,6 +27,8 @@ public class BookFormDialog extends JDialog {
     private JTextField nameField;
     private JTextArea descriptionArea;
     private JTextField translatorField;
+    private JTextField yearField;
+    private JTextField coverPriceField;
     private JPanel authorPanel;
     private JComboBox<String> categoryCombo;
     private JComboBox<String> supplierCombo;
@@ -43,6 +48,9 @@ public class BookFormDialog extends JDialog {
 
     private Set<Integer> selectedAuthorIds = new HashSet<>();
     private Set<String> selectedTags = new HashSet<>();
+    private final AuthorBUS authorBUS = new AuthorBUS();
+    private final CategoryBUS categoryBUS = new CategoryBUS();
+    private final SupplierBUS supplierBUS = new SupplierBUS();
 
     public BookFormDialog(Frame parent, String title, BookDTO book,
                           List<AuthorDTO> authors,
@@ -180,11 +188,11 @@ public class BookFormDialog extends JDialog {
 
         categoryCombo = new JComboBox<>(getCategoryNames());
         categoryCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        addFormField(panel, "Thể loại *", categoryCombo, true);
+        addFormField(panel, "Thể loại *", createQuickAddField(categoryCombo, e -> quickAddCategory()), true);
 
         supplierCombo = new JComboBox<>(getSupplierNames());
         supplierCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        addFormField(panel, "Nhà cung cấp *", supplierCombo, true);
+        addFormField(panel, "Nhà cung cấp *", createQuickAddField(supplierCombo, e -> quickAddSupplier()), true);
 
         JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 0));
         statusPanel.setBackground(BG_COLOR);
@@ -207,6 +215,8 @@ public class BookFormDialog extends JDialog {
         addFormField(panel, "Trạng thái *", statusPanel, true);
 
         addFormField(panel, "Người dịch", translatorField = new JTextField(), false);
+        addFormField(panel, "Giá bìa", coverPriceField = new JTextField(), false);
+        addFormField(panel, "Năm xuất bản", yearField = new JTextField(), false);
 
         tagPanel = new JPanel();
         tagPanel.setLayout(new BoxLayout(tagPanel, BoxLayout.Y_AXIS));
@@ -247,23 +257,37 @@ public class BookFormDialog extends JDialog {
             }
         }
 
-        JButton addAuthorButton = new JButton("+ Thêm tác giả");
-        addAuthorButton.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        addAuthorButton.setForeground(BUTTON_COLOR);
-        addAuthorButton.setBackground(BG_COLOR);
-        addAuthorButton.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BUTTON_COLOR, 1),
-                BorderFactory.createEmptyBorder(6, 12, 6, 12)
-        ));
-        addAuthorButton.setFocusPainted(false);
-        addAuthorButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addAuthorButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-        addAuthorButton.addActionListener(e -> showAuthorSelector());
+        JPanel authorButtonPanel = new JPanel(new GridLayout(1, 2, 8, 0));
+        authorButtonPanel.setBackground(BG_COLOR);
+        authorButtonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        authorButtonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
 
-        authorPanel.add(addAuthorButton);
+        JButton addAuthorButton = new JButton("+ Thêm tác giả");
+        styleAuthorActionButton(addAuthorButton);
+        addAuthorButton.addActionListener(e -> showAuthorSelector());
+        authorButtonPanel.add(addAuthorButton);
+
+        JButton quickAddAuthorButton = new JButton("+ Thêm nhanh");
+        styleAuthorActionButton(quickAddAuthorButton);
+        quickAddAuthorButton.addActionListener(e -> quickAddAuthor());
+        authorButtonPanel.add(quickAddAuthorButton);
+        authorPanel.add(authorButtonPanel);
 
         authorPanel.revalidate();
         authorPanel.repaint();
+    }
+
+    private void styleAuthorActionButton(JButton button) {
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        button.setForeground(BUTTON_COLOR);
+        button.setBackground(BG_COLOR);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BUTTON_COLOR, 1),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)
+        ));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(0, 34));
     }
 
     private void refreshTagPanel() {
@@ -645,6 +669,101 @@ public class BookFormDialog extends JDialog {
         parent.add(Box.createVerticalStrut(12));
     }
 
+    private JPanel createQuickAddField(JComboBox<String> combo, ActionListener listener) {
+        JPanel panel = new JPanel(new BorderLayout(8, 0));
+        panel.setBackground(BG_COLOR);
+        JButton button = new JButton("+ Thêm nhanh");
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        button.setForeground(BUTTON_COLOR);
+        button.setBackground(BG_COLOR);
+        button.setBorder(BorderFactory.createLineBorder(BUTTON_COLOR));
+        button.addActionListener(listener);
+        panel.add(combo, BorderLayout.CENTER);
+        panel.add(button, BorderLayout.EAST);
+        return panel;
+    }
+
+    private void quickAddAuthor() {
+        JTextField name = new JTextField();
+        JTextField nationality = new JTextField();
+        JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
+        form.add(new JLabel("Tên tác giả:"));
+        form.add(name);
+        form.add(new JLabel("Quốc tịch:"));
+        form.add(nationality);
+
+        int result = JOptionPane.showConfirmDialog(this, form, "Thêm tác giả nhanh",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result != JOptionPane.OK_OPTION) return;
+
+        AuthorDTO author = new AuthorDTO();
+        author.setAuthorName(name.getText().trim());
+        author.setNationality(nationality.getText().trim());
+        String message = authorBUS.addAuthor(author);
+        if (!message.toLowerCase().contains("thành công")) {
+            JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        authors = authorBUS.selectAllAuthors();
+        for (AuthorDTO item : authors) {
+            if (item.getAuthorName().equalsIgnoreCase(author.getAuthorName())) {
+                selectedAuthorIds.add(item.getAuthorId());
+                break;
+            }
+        }
+        refreshAuthorPanel();
+    }
+
+    private void quickAddCategory() {
+        String name = JOptionPane.showInputDialog(this, "Tên thể loại:", "Thêm thể loại nhanh",
+                JOptionPane.PLAIN_MESSAGE);
+        if (name == null || name.trim().isEmpty()) return;
+
+        CategoryDTO category = new CategoryDTO();
+        category.setCategoryName(name.trim());
+        String message = categoryBUS.addCategory(category);
+        if (!message.toLowerCase().contains("thành công")) {
+            JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        categories = categoryBUS.selectAllCategories();
+        categoryCombo.setModel(new DefaultComboBoxModel<>(getCategoryNames()));
+        categoryCombo.setSelectedItem(name.trim());
+    }
+
+    private void quickAddSupplier() {
+        JTextField name = new JTextField();
+        JTextField phone = new JTextField();
+        JTextField address = new JTextField();
+        JPanel form = new JPanel(new GridLayout(3, 2, 8, 8));
+        form.add(new JLabel("Tên nhà cung cấp:"));
+        form.add(name);
+        form.add(new JLabel("Số điện thoại:"));
+        form.add(phone);
+        form.add(new JLabel("Địa chỉ:"));
+        form.add(address);
+
+        int result = JOptionPane.showConfirmDialog(this, form, "Thêm nhà cung cấp nhanh",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (result != JOptionPane.OK_OPTION) return;
+
+        SupplierDTO supplier = new SupplierDTO();
+        supplier.setSupplierName(name.getText().trim());
+        supplier.setSupplierPhone(phone.getText().trim());
+        supplier.setSupplierAddress(address.getText().trim());
+        String message = supplierBUS.addSupplier(supplier);
+        if (!message.toLowerCase().contains("thành công")) {
+            JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        suppliers = supplierBUS.selectAll();
+        supplierCombo.setModel(new DefaultComboBoxModel<>(getSupplierNames()));
+        supplierCombo.setSelectedItem(name.getText().trim());
+    }
+
     private void addFormSection(JPanel parent, String labelText, JPanel content, boolean required) {
         JPanel row = new JPanel(new BorderLayout(10, 5));
         row.setBackground(BG_COLOR);
@@ -710,6 +829,17 @@ public class BookFormDialog extends JDialog {
             return;
         }
 
+        double coverPrice;
+        int publicationYear;
+        try {
+            coverPrice = coverPriceField.getText().trim().isEmpty() ? 0 : Double.parseDouble(coverPriceField.getText().trim());
+            publicationYear = yearField.getText().trim().isEmpty() ? 0 : Integer.parseInt(yearField.getText().trim());
+            if (coverPrice < 0 || publicationYear < 0 || publicationYear > 3000) throw new NumberFormatException();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Giá bìa và năm xuất bản không hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc chắn muốn lưu thông tin sách này?",
                 "Xác nhận",
@@ -724,6 +854,8 @@ public class BookFormDialog extends JDialog {
             book = new BookDTO();
             book.setBookId(0);
             book.setBookName(nameField.getText().trim());
+            book.setCoverPrice(coverPrice);
+            book.setPublicationYear(publicationYear);
             book.setSellingPrice(0);
             book.setQuantity(0);
             book.setTranslator(translatorField.getText().trim().isEmpty() ? null : translatorField.getText().trim());
@@ -737,6 +869,8 @@ public class BookFormDialog extends JDialog {
             book.getAuthorIdsList().addAll(selectedAuthorIds);
         } else {
             book.setBookName(nameField.getText().trim());
+            book.setCoverPrice(coverPrice);
+            book.setPublicationYear(publicationYear);
             book.setTranslator(translatorField.getText().trim().isEmpty() ? null : translatorField.getText().trim());
             book.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
             book.setStatus(activeRadio.isSelected() ? 1 : 0);
@@ -754,18 +888,14 @@ public class BookFormDialog extends JDialog {
     private void loadBookData() {
         nameField.setText(book.getBookName());
         translatorField.setText(book.getTranslator() != null ? book.getTranslator() : "");
+        coverPriceField.setText(book.getCoverPrice() == 0 ? "" : String.valueOf((long) book.getCoverPrice()));
+        yearField.setText(book.getPublicationYear() == 0 ? "" : String.valueOf(book.getPublicationYear()));
         descriptionArea.setText(book.getDescription() != null ? book.getDescription() : "");
         if (book.getImage() != null && !book.getImage().trim().isEmpty()) {
-            String imageString = book.getImage();
-            File imageFile = new File(imageString);
-
-            if (!imageFile.exists()) {
-                imageFile = new File("data/book_covers/" + imageString);
-            }
-
+            File imageFile = new File(book.getImage());
             if (imageFile.exists()) {
+                selectedImagePath = imageFile.getAbsolutePath();
                 setSelectedImage(imageFile);
-                selectedImagePath = imageString;
             }
         }
 

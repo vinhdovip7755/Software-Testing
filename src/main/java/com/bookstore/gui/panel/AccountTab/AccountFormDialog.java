@@ -62,6 +62,13 @@ public class AccountFormDialog extends JDialog {
             EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
             if (selectedEmp != null) {
                 txtRole.setText(selectedEmp.getRoleName());
+                if (this.account == null) {
+                    if (selectedEmp.getBirthday() != null) {
+                        txtPassword.setText(new java.text.SimpleDateFormat("ddMMyyyy").format(selectedEmp.getBirthday()));
+                    } else {
+                        txtPassword.setText("123456");
+                    }
+                }
             } else {
                 txtRole.setText("");
             }
@@ -108,11 +115,33 @@ public class AccountFormDialog extends JDialog {
         autoAdd(mainPanel, new JLabel("Chọn nhân viên:"), 0, 0, 0, gbc);
         autoAdd(mainPanel, cboEmployee, 1, 0, 1.0, gbc);
 
-        autoAdd(mainPanel, new JLabel("Username:"), 0, 1, 0, gbc);
+        autoAdd(mainPanel, new JLabel("Tên đăng nhập:"), 0, 1, 0, gbc);
         autoAdd(mainPanel, txtUsername, 1, 1, 1.0, gbc);
 
-        autoAdd(mainPanel, new JLabel("Password:"), 0, 2, 0, gbc);
-        autoAdd(mainPanel, txtPassword, 1, 2, 1.0, gbc);
+        autoAdd(mainPanel, new JLabel("Mật khẩu:"), 0, 2, 0, gbc);
+        if (this.account == null) {
+            autoAdd(mainPanel, txtPassword, 1, 2, 1.0, gbc);
+        } else {
+            JButton btnReset = new JButton("Khôi phục mật khẩu (Ngày sinh)");
+            btnReset.addActionListener(ev -> {
+                EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
+                String newPass = "123456";
+                String msg = "Nhân viên chưa có ngày sinh trên hệ thống. Bạn có chắc muốn đặt lại mật khẩu về mặc định?";
+                
+                if (selectedEmp != null && selectedEmp.getBirthday() != null) {
+                    newPass = new java.text.SimpleDateFormat("ddMMyyyy").format(selectedEmp.getBirthday());
+                    msg = "Bạn có chắc muốn đặt lại mật khẩu tài khoản này về ngày sinh của nhân viên?";
+                }
+
+                int cf = JOptionPane.showConfirmDialog(this, msg, "Xác nhận khôi phục", JOptionPane.YES_NO_OPTION);
+                if (cf == JOptionPane.YES_OPTION) {
+                    this.account.setPassword(newPass);
+                    accountBUS.updateAccount(this.account, true);
+                    JOptionPane.showMessageDialog(this, "Đã khôi phục mật khẩu thành công!");
+                }
+            });
+            autoAdd(mainPanel, btnReset, 1, 2, 1.0, gbc);
+        }
 
         autoAdd(mainPanel, new JLabel("Chức vụ:"), 0, 3, 0, gbc);
         autoAdd(mainPanel, txtRole, 1, 3, 1.0, gbc);

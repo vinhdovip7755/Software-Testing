@@ -6,6 +6,7 @@ import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
 import com.bookstore.util.Refreshable;
 import com.bookstore.util.SharedData;
+import com.bookstore.util.PermissionUtil;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
@@ -279,18 +280,15 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         btnApproveSelected.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
         btnApproveSelected.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        pRight.add(btnCancelSelected);
-        pRight.add(btnApproveSelected);
+        if (PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
+            pRight.add(btnCancelSelected);
+            pRight.add(btnApproveSelected);
+        }
 
         panel.add(pLeft, BorderLayout.WEST);
         panel.add(pRight, BorderLayout.EAST);
 
         btnApproveSelected.addActionListener(e -> {
-            int currentRoleId = SharedData.currentUser != null ? SharedData.currentUser.getRoleId() : 1;
-            if (currentRoleId != 1) {
-                JOptionPane.showMessageDialog(this, "Chỉ Admin mới có quyền duyệt phiếu nhập!");
-                return;
-            }
             processMultipleTickets(true);
         });
 

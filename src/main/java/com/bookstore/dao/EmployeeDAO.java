@@ -6,6 +6,7 @@ import com.bookstore.util.DatabaseConnection;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,12 +25,18 @@ public class EmployeeDAO {
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                employee = new EmployeeDTO();
-                employee.setEmployeeId(rs.getInt("employee_id"));
-                employee.setEmployeeName(rs.getString("employee_name"));
-                employee.setStatus(rs.getInt("status"));
-                employee.setRoleId(rs.getInt("role_id"));
-                employee.setRoleName(rs.getString("r.role_name"));
+                employee = new EmployeeDTO(
+                        rs.getInt("employee_id"),
+                        rs.getString("employee_name"),
+                        rs.getString("employee_phone"),
+                        rs.getDate("birthday"),
+                        rs.getDouble("base_salary"),
+                        rs.getDouble("salary_factor"),
+                        rs.getDate("day_in"),
+                        rs.getInt("status"),
+                        rs.getInt("role_id"),
+                        rs.getString("r.role_name")
+                );
             }
             DatabaseConnection.closeConnection(c);
         } catch (Exception e) {
@@ -40,10 +47,7 @@ public class EmployeeDAO {
 
     public List<EmployeeDTO> selectAllEmployees() {
         List<EmployeeDTO> list = new ArrayList<>();
-        String sql = "SELECT e.*, r.role_name " +
-                "FROM employee e " +
-                "JOIN role r ON e.role_id = r.role_id " +
-                "ORDER BY e.employee_id DESC";
+        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON e.role_id = r.role_id WHERE e.employee_name != 'Admin'";
 
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql);
@@ -161,11 +165,11 @@ public class EmployeeDAO {
         return 0;
     }
 
-    public boolean insertEmployee(EmployeeDTO e) {
+    public int insertEmployee(EmployeeDTO e) {
         String sql = "INSERT INTO employee (employee_name, employee_phone, birthday, base_salary, day_in, role_id) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";
         try (java.sql.Connection conn = com.bookstore.util.DatabaseConnection.getConnection();
-             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, e.getEmployeeName());
             ps.setString(2, e.getEmployeePhone());
@@ -174,11 +178,16 @@ public class EmployeeDAO {
             ps.setDate(5, e.getDayIn() != null ? new java.sql.Date(e.getDayIn().getTime()) : null);
             ps.setInt(6, e.getRoleId());
 
-            return ps.executeUpdate() > 0;
+            int affected = ps.executeUpdate();
+            if (affected > 0) {
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) return rs.getInt(1);
+                }
+            }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return false;
+        return 0;
     }
 
     public List<EmployeeDTO> getEmployeesWithoutAccount() {

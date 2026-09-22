@@ -11,10 +11,12 @@ import java.util.List;
 public class BillDAO {
     public int createBillTransaction(BillDTO bill, List<BillDetailDTO> details) {
         String sqlBill = "INSERT INTO bill(total_bill_price, tax, employee_id, customer_id, payment_method_id, earned_points) VALUES (?, ?, ?, ?, ?, ?)";
-        String sqlDetail = "INSERT INTO bill_detail (bill_id, book_id, quantity, unit_price) VALUES (?, ?, ?, ?)";
+        String sqlDetail = "INSERT INTO bill_detail (bill_id, book_id, quantity, unit_price, lot_id) VALUES (?, ?, ?, ?, ?)";
         String sqlCheckStock = "SELECT quantity FROM book WHERE book_id = ? FOR UPDATE";
         String sqlUpdateStock = "UPDATE book SET quantity = quantity - ? WHERE book_id = ?";
         String sqlLog = "INSERT INTO inventory_log (action, change_quantity, remain_quantity, reference_id, book_id) VALUES (?, ?, ?, ?, ?)";
+        String sqlFindLots = "SELECT lot_id, quantity_remain FROM book_lot WHERE book_id = ? AND quantity_remain > 0 ORDER BY import_date ASC FOR UPDATE";
+        String sqlUpdateLot = "UPDATE book_lot SET quantity_remain = quantity_remain - ? WHERE lot_id = ?";
 
         Connection c = null;
         PreparedStatement psBill = null;
@@ -22,8 +24,11 @@ public class BillDAO {
         PreparedStatement psCheck = null;
         PreparedStatement psUpdate = null;
         PreparedStatement psLog = null;
+        PreparedStatement psFindLots = null;
+        PreparedStatement psUpdateLot = null;
         ResultSet rs = null;
         ResultSet rsStock = null;
+        ResultSet rsLots = null;
 
         try {
             c = DatabaseConnection.getConnection();
@@ -53,14 +58,10 @@ public class BillDAO {
                 psCheck = c.prepareStatement(sqlCheckStock);
                 psUpdate = c.prepareStatement(sqlUpdateStock);
                 psLog = c.prepareStatement(sqlLog);
+                psFindLots = c.prepareStatement(sqlFindLots);
+                psUpdateLot = c.prepareStatement(sqlUpdateLot);
 
                 for (BillDetailDTO detail : details) {
-                    psDetail.setInt(1, generatedBillId);
-                    psDetail.setInt(2, detail.getBookId());
-                    psDetail.setInt(3, detail.getQuantity());
-                    psDetail.setDouble(4, detail.getUnitPrice());
-                    psDetail.executeUpdate();
-
                     psCheck.setInt(1, detail.getBookId());
                     rsStock = psCheck.executeQuery();
                     int currentStock = 0;
@@ -71,6 +72,36 @@ public class BillDAO {
 
                     if (currentStock < detail.getQuantity()) {
                         throw new SQLException("Sách ID " + detail.getBookId() + " không đủ tồn kho! (Còn: " + currentStock + ", Khách mua: " + detail.getQuantity() + ")");
+                    }
+
+                    int requiredQty = detail.getQuantity();
+
+                    psFindLots.setInt(1, detail.getBookId());
+                    rsLots = psFindLots.executeQuery();
+
+                    while (rsLots.next() && requiredQty > 0) {
+                        int lotId = rsLots.getInt("lot_id");
+                        int remainInLot = rsLots.getInt("quantity_remain");
+
+                        int deductQty = Math.min(requiredQty, remainInLot);
+
+                        psUpdateLot.setInt(1, deductQty);
+                        psUpdateLot.setInt(2, lotId);
+                        psUpdateLot.executeUpdate();
+
+                        psDetail.setInt(1, generatedBillId);
+                        psDetail.setInt(2, detail.getBookId());
+                        psDetail.setInt(3, deductQty);
+                        psDetail.setDouble(4, detail.getUnitPrice());
+                        psDetail.setInt(5, lotId);
+                        psDetail.executeUpdate();
+
+                        requiredQty -= deductQty;
+                    }
+                    rsLots.close();
+
+                    if (requiredQty > 0) {
+                        throw new SQLException("Sách ID " + detail.getBookId() + " không đủ tồn kho trong lô!");
                     }
 
                     int remainQuantity = currentStock - detail.getQuantity();
@@ -148,12 +179,15 @@ public class BillDAO {
             }
             return 0;
         } finally {
+            try { if (rsLots != null) rsLots.close(); } catch (Exception e) {}
             try { if (rsStock != null) rsStock.close(); } catch (Exception e) {}
             try { if (rs != null) rs.close(); } catch (Exception e) {}
             try { if (psLog != null) psLog.close(); } catch (Exception e) {}
             try { if (psUpdate != null) psUpdate.close(); } catch (Exception e) {}
             try { if (psCheck != null) psCheck.close(); } catch (Exception e) {}
             try { if (psDetail != null) psDetail.close(); } catch (Exception e) {}
+            try { if (psFindLots != null) psFindLots.close(); } catch (Exception e) {}
+            try { if (psUpdateLot != null) psUpdateLot.close(); } catch (Exception e) {}
             try { if (psBill != null) psBill.close(); } catch (Exception e) {}
             try { if (c != null) { c.setAutoCommit(true); c.close(); } } catch (Exception e) {}
         }

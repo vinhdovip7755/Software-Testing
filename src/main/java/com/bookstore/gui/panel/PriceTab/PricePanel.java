@@ -476,7 +476,7 @@ public class PricePanel extends JPanel implements Refreshable {
                 boolean success = bus.createNewPrice(p.getBookId(), p.getBasePrice(), newProfitRate, predictedPrice);
 
                 if (success) {
-                    JOptionPane.showMessageDialog(this, "Đã cập nhật giá bán thành công!");
+                    JOptionPane.showMessageDialog(this, "Đã Cập nhật giá bán thành công!");
                     refresh();
                 } else {
                     JOptionPane.showMessageDialog(this, "Lỗi: Không thể lưu giá mới vào Database!");
@@ -504,7 +504,7 @@ public class PricePanel extends JPanel implements Refreshable {
                     JOptionPane.showMessageDialog(this, "Đã chốt giá hàng loạt thành công!");
                     refresh();
                 } else {
-                    JOptionPane.showMessageDialog(this, "Có lỗi xảy ra khi cập nhật giá hàng loạt!");
+                    JOptionPane.showMessageDialog(this, "Có lỗi xảy ra khi Cập nhật giá hàng loạt!");
                 }
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Lỗi: Vui lòng nhập số hợp lệ!");

@@ -23,11 +23,12 @@ public class ImportPanel extends JPanel implements Refreshable {
     private JTable tblProduct;
     private DefaultTableModel productModel;
     private JLabel lbProductImage, lbBookName, lbCategory, lbPrice, lbQuantity;
-    private JButton btnAddToImport;
+    private JButton btnAddToImport, btnQuickAddBook;
 
     private JTable tblCart;
     private DefaultTableModel cartModel;
     private SearchableComboBox<String> cboTicketSupplier;
+    private JTextField txtTicketDiscount;
     private JTextField txtEmployee, txtApprover;
     private JLabel lbFinalTotal;
     private JButton btnRefresh, btnDelete, btnEdit, btnComplete;
@@ -83,8 +84,14 @@ public class ImportPanel extends JPanel implements Refreshable {
         txtSearch.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Tìm kiếm theo tên hoặc mã sách...");
         txtSearch.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, new FlatSVGIcon("icon/search_icon.svg").derive(20,20));
         btnResetFilter = createActionButton("Làm mới", AppConstant.GREEN_COLOR_CODE);
+        btnQuickAddBook = createActionButton("+ Thêm Nhanh Sách", "#1976D2");
+        JPanel pActionBtns = new JPanel(new GridLayout(1, 2, 5, 0));
+        pActionBtns.setOpaque(false);
+        pActionBtns.add(btnQuickAddBook);
+        pActionBtns.add(btnResetFilter);
+        
         pSearchRow.add(txtSearch, BorderLayout.CENTER);
-        pSearchRow.add(btnResetFilter, BorderLayout.EAST);
+        pSearchRow.add(pActionBtns, BorderLayout.EAST);
         pFilter.add(pSearchRow);
 
         String[] headers = {"Mã", "Tên sách", "Thể loại", "SL Tồn"};
@@ -172,16 +179,21 @@ public class ImportPanel extends JPanel implements Refreshable {
         cboTicketSupplier.setBorder(BorderFactory.createTitledBorder("Nhà Cung Cấp"));
         cboTicketSupplier.setBackground(Color.WHITE);
 
+        txtTicketDiscount = new JTextField("0");
+        txtTicketDiscount.setBorder(BorderFactory.createTitledBorder("% Chiết khấu chung"));
+        txtTicketDiscount.setBackground(Color.WHITE);
+        txtTicketDiscount.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+
         pInfo.add(cboTicketSupplier);
         pInfo.add(txtEmployee);
-        pInfo.add(new JLabel(""));
+        pInfo.add(txtTicketDiscount);
         pInfo.add(txtApprover);
 
         JPanel pActions = new JPanel(new GridLayout(1, 3, 10, 0));
         pActions.setOpaque(false);
         btnRefresh = createActionButton("Làm mới phiếu", AppConstant.GREEN_COLOR_CODE);
         btnDelete = createActionButton("Xóa sách", "#E53935");
-        btnEdit = createActionButton("Sửa số lượng/giá", "#FBC02D");
+        btnEdit = createActionButton("Sửa số lượng/% CK", "#FBC02D");
         pActions.add(btnRefresh); pActions.add(btnDelete); pActions.add(btnEdit);
 
         JPanel pTopRight = new JPanel(new BorderLayout(0, 10));
@@ -342,16 +354,29 @@ public class ImportPanel extends JPanel implements Refreshable {
         BookDTO book = listBooks.stream().filter(b -> b.getBookId() == bookId).findFirst().orElse(null);
         if (book == null) return;
 
-        JPanel pInput = new JPanel(new GridLayout(2, 2, 10, 10));
-        JTextField txtQty = new JTextField(); JTextField txtPrice = new JTextField();
-        pInput.add(new JLabel("Số lượng nhập:")); pInput.add(txtQty);
-        pInput.add(new JLabel("Giá nhập (VNĐ):")); pInput.add(txtPrice);
+        double ticketDiscount = 0;
+        try {
+            ticketDiscount = Double.parseDouble(txtTicketDiscount.getText());
+            if (ticketDiscount < 0 || ticketDiscount > 100) throw new Exception();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "% Chiết khấu chung của Phiếu nhập không hợp lệ! Vui lòng kiểm tra lại.");
+            return;
+        }
 
-        if (JOptionPane.showConfirmDialog(this, pInput, "Nhập số lượng & Giá", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+        JPanel pInput = new JPanel(new GridLayout(2, 2, 10, 10));
+        JTextField txtQty = new JTextField();
+        JTextField txtPrice = new JTextField();
+        txtPrice.setText("0");
+        pInput.add(new JLabel("Số lượng nhập:")); pInput.add(txtQty);
+        pInput.add(new JLabel("Giá nhập (VND):")); pInput.add(txtPrice);
+
+        if (JOptionPane.showConfirmDialog(this, pInput, "Nhập số lượng và Giá", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
             try {
                 int qty = Integer.parseInt(txtQty.getText());
-                double price = Double.parseDouble(txtPrice.getText());
-                if (qty <= 0 || price < 0) throw new Exception();
+                double basePrice = Double.parseDouble(txtPrice.getText());
+                if (qty <= 0 || basePrice < 0) throw new Exception();
+                
+                double price = basePrice * (1 - ticketDiscount / 100.0);
 
                 boolean exists = false;
                 for (int i = 0; i < cartModel.getRowCount(); i++) {
@@ -365,7 +390,7 @@ public class ImportPanel extends JPanel implements Refreshable {
                 }
                 if (!exists) cartModel.addRow(new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price) });
                 calculateTotal();
-            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Vui lòng nhập số hợp lệ!"); }
+            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Vui lòng nhập số lượng hợp lệ!"); }
         }
     }
 
@@ -397,10 +422,12 @@ public class ImportPanel extends JPanel implements Refreshable {
 
             ImportDetailDTO[] details = new ImportDetailDTO[cartModel.getRowCount()];
             for (int i = 0; i < cartModel.getRowCount(); i++) {
-                details[i] = new ImportDetailDTO(0,
-                        Integer.parseInt(cartModel.getValueAt(i, 0).toString()),
-                        Integer.parseInt(cartModel.getValueAt(i, 2).toString()),
-                        MoneyFormatter.toDouble(cartModel.getValueAt(i, 3).toString()));
+                int bookId = Integer.parseInt(cartModel.getValueAt(i, 0).toString());
+                int qty = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
+                double importPrice = MoneyFormatter.toDouble(cartModel.getValueAt(i, 3).toString());
+                
+                BookDTO book = bookBUS.selectById(bookId);
+                details[i] = new ImportDetailDTO(0, bookId, qty, importPrice);
             }
 
             if (importBUS.importBooks(ticket, details)) {
@@ -408,6 +435,22 @@ public class ImportPanel extends JPanel implements Refreshable {
                 cartModel.setRowCount(0); calculateTotal();
             } else JOptionPane.showMessageDialog(this, "Lỗi khi lưu phiếu!");
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void quickAddBook() {
+        AuthorBUS authorBUS = new AuthorBUS();
+        List<AuthorDTO> authors = authorBUS.selectAllAuthors();
+        List<CategoryDTO> categories = categoryBUS.selectAllCategories();
+        List<SupplierDTO> suppliers = supplierBUS.selectAll();
+        java.util.Set<String> allTags = new java.util.HashSet<>();
+
+        com.bookstore.gui.panel.ProductTab.BookFormDialog dialog = 
+            new com.bookstore.gui.panel.ProductTab.BookFormDialog(
+                (JFrame) SwingUtilities.getWindowAncestor(this),
+                "Thêm Sách Mới", null, authors, categories, suppliers, allTags
+            );
+        dialog.setVisible(true);
+        refresh(); // Refresh list after closed
     }
 
     private void addEvents() {
@@ -426,6 +469,7 @@ public class ImportPanel extends JPanel implements Refreshable {
         });
 
         btnAddToImport.addActionListener(e -> addToImport());
+        btnQuickAddBook.addActionListener(e -> quickAddBook());
         btnRefresh.addActionListener(e -> { cartModel.setRowCount(0); calculateTotal(); });
         btnDelete.addActionListener(e -> deleteRow());
         btnComplete.addActionListener(e -> createTicket());

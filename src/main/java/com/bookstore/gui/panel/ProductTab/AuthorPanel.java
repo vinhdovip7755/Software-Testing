@@ -342,7 +342,7 @@ public class AuthorPanel extends JPanel implements Refreshable{
         nameField.setText(author.getAuthorName());
         countryField.setText(author.getNationality());
         formTitleLabel.setText("CHỈNH SỬA TÁC GIẢ");
-        saveButton.setText("CẬP NHẬT");
+        saveButton.setText("Cập nhật");
     }
 
     private void resetForm() {

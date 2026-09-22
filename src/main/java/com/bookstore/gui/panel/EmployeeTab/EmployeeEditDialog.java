@@ -47,7 +47,7 @@ public class EmployeeEditDialog extends JDialog {
         setResizable(false);
         getContentPane().setBackground(Color.WHITE);
 
-        JLabel lbHeader = new JLabel("CẬP NHẬT NHÂN VIÊN", SwingConstants.CENTER);
+        JLabel lbHeader = new JLabel("Cập nhật NHÂN VIÊN", SwingConstants.CENTER);
         lbHeader.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 18));
         lbHeader.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         lbHeader.setBorder(new EmptyBorder(20, 0, 10, 0));
@@ -167,8 +167,18 @@ public class EmployeeEditDialog extends JDialog {
     private void fillData() {
         if (employee != null) {
             txtName.setText(employee.getEmployeeName());
+            txtName.setEditable(false);
+            txtName.setBackground(Color.decode("#F5F5F5"));
+            txtName.setToolTipText("Không được sửa thông tin cá nhân (Họ tên)");
+
             txtPhone.setText(employee.getEmployeePhone());
+            txtPhone.setEditable(false);
+            txtPhone.setBackground(Color.decode("#F5F5F5"));
+            txtPhone.setToolTipText("Không được sửa thông tin cá nhân (Số điện thoại)");
+
             dateChooser.setDate(employee.getBirthday());
+            dateChooser.setEnabled(false);
+            dateChooser.setToolTipText("Không được sửa thông tin cá nhân (Ngày sinh)");
 
             txtBaseSalary.setText(String.format("%.0f", employee.getBaseSalary()));
             txtSalaryFactor.setText(String.valueOf(employee.getSalaryFactor()));
@@ -208,12 +218,13 @@ public class EmployeeEditDialog extends JDialog {
                 }
             }
 
-            String result = employeeBUS.updateEmployee(temp);
-            JOptionPane.showMessageDialog(this, result);
-
-            if (result.contains("thành công")) {
+                        String result = employeeBUS.updateEmployee(temp);
+            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
+                JOptionPane.showMessageDialog(this, "Cập nhật thành công!");
                 parentPanel.refresh();
                 dispose();
+            } else {
+                JOptionPane.showMessageDialog(this, result);
             }
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Lương hoặc hệ số lương không hợp lệ (không nhập quá nhiều dấu chấm)!");

@@ -10,7 +10,7 @@ import java.util.List;
 public class BookDAO {
     public List<BookDTO> selectAllBooks() {
         List<BookDTO> list = new ArrayList<>();
-        String sql = "SELECT b.*, IFNULL(bp.selling_price, 0) AS current_selling_price, c.category_name, " +
+        String sql = "SELECT b.*, IFNULL(bp.selling_price, b.selling_price) AS current_selling_price, c.category_name, " +
                 "GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ',') as author_names, " +
                 "GROUP_CONCAT(DISTINCT ba.author_id SEPARATOR ',') as author_ids " +
                 "FROM book b " +
@@ -34,20 +34,22 @@ public class BookDAO {
     }
 
     public int add(BookDTO book) {
-        String sql = "INSERT INTO book(book_name, quantity, translator, image, description, status, category_id, tag_detail, supplier_id) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO book(book_name, publication_year, selling_price, quantity, translator, image, description, status, category_id, tag_detail, supplier_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, book.getBookName());
-            ps.setInt(2, book.getQuantity());
-            ps.setString(3, book.getTranslator());
-            ps.setString(4, book.getImage());
-            ps.setString(5, book.getDescription());
-            ps.setInt(6, book.getStatus());
-            ps.setInt(7, book.getCategoryId());
-            ps.setString(8, book.getTagDetail());
-            ps.setInt(9, book.getSupplierId());
+            ps.setInt(2, book.getPublicationYear());
+            ps.setDouble(3, book.getCoverPrice());
+            ps.setInt(4, book.getQuantity());
+            ps.setString(5, book.getTranslator());
+            ps.setString(6, book.getImage());
+            ps.setString(7, book.getDescription());
+            ps.setInt(8, book.getStatus());
+            ps.setInt(9, book.getCategoryId());
+            ps.setString(10, book.getTagDetail());
+            ps.setInt(11, book.getSupplierId());
 
             int rowsAffected = ps.executeUpdate();
 
@@ -65,21 +67,23 @@ public class BookDAO {
     }
 
     public boolean update(BookDTO book) {
-        String sql = "UPDATE book SET book_name = ?, quantity = ?, translator = ?, image = ?, description = ?, status = ?, category_id = ?, tag_detail = ?, supplier_id = ? " +
+        String sql = "UPDATE book SET book_name = ?, publication_year = ?, selling_price = ?, quantity = ?, translator = ?, image = ?, description = ?, status = ?, category_id = ?, tag_detail = ?, supplier_id = ? " +
                 "WHERE book_id = ?";
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
 
             ps.setString(1, book.getBookName());
-            ps.setInt(2, book.getQuantity());
-            ps.setString(3, book.getTranslator());
-            ps.setString(4, book.getImage());
-            ps.setString(5, book.getDescription());
-            ps.setInt(6, book.getStatus());
-            ps.setInt(7, book.getCategoryId());
-            ps.setString(8, book.getTagDetail());
-            ps.setInt(9, book.getSupplierId());
-            ps.setInt(10, book.getBookId());
+            ps.setInt(2, book.getPublicationYear());
+            ps.setDouble(3, book.getCoverPrice());
+            ps.setInt(4, book.getQuantity());
+            ps.setString(5, book.getTranslator());
+            ps.setString(6, book.getImage());
+            ps.setString(7, book.getDescription());
+            ps.setInt(8, book.getStatus());
+            ps.setInt(9, book.getCategoryId());
+            ps.setString(10, book.getTagDetail());
+            ps.setInt(11, book.getSupplierId());
+            ps.setInt(12, book.getBookId());
 
             int rowsAffected = ps.executeUpdate();
             return rowsAffected > 0;
@@ -136,6 +140,8 @@ public class BookDAO {
                 rs.getString("tag_detail"),
                 rs.getInt("supplier_id")
         );
+        book.setPublicationYear(rs.getInt("publication_year"));
+        book.setCoverPrice(rs.getDouble("selling_price"));
         book.setAuthorIdsFromString(rs.getString("author_ids"));
         book.setAuthorsName(rs.getString("author_names"));
         return book;
@@ -143,7 +149,7 @@ public class BookDAO {
 
     public List<BookDTO> getByCategoryId(int categoryId) {
         List<BookDTO> list = new ArrayList<>();
-        String sql = "SELECT b.*, IFNULL(bp.selling_price, 0) AS current_selling_price, c.category_name, " +
+        String sql = "SELECT b.*, IFNULL(bp.selling_price, b.selling_price) AS current_selling_price, c.category_name, " +
                 "GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as author_names, " +
                 "GROUP_CONCAT(DISTINCT ba.author_id SEPARATOR ',') as author_ids " +
                 "FROM book b " +
@@ -172,7 +178,7 @@ public class BookDAO {
     public List<BookDTO> getByCategoryName(String categoryName) {
         List<BookDTO> list = new ArrayList<>();
 
-        String sql = "SELECT b.*, IFNULL(bp.selling_price, 0) AS current_selling_price, c.category_name, " +
+        String sql = "SELECT b.*, IFNULL(bp.selling_price, b.selling_price) AS current_selling_price, c.category_name, " +
                 "GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as author_names, " +
                 "GROUP_CONCAT(DISTINCT ba.author_id SEPARATOR ',') as author_ids " +
                 "FROM book b " +
@@ -200,7 +206,7 @@ public class BookDAO {
 
     public List<BookDTO> searchByName(String bookname) {
         List<BookDTO> list = new ArrayList<>();
-        String sql = "SELECT b.*, IFNULL(bp.selling_price, 0) AS current_selling_price, c.category_name, " +
+        String sql = "SELECT b.*, IFNULL(bp.selling_price, b.selling_price) AS current_selling_price, c.category_name, " +
                 "GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as author_names, " +
                 "GROUP_CONCAT(DISTINCT ba.author_id SEPARATOR ',') as author_ids " +
                 "FROM book b " +

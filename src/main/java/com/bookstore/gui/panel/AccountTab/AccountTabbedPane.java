@@ -1,7 +1,7 @@
 package com.bookstore.gui.panel.AccountTab;
 
-import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
+import com.bookstore.util.PermissionUtil;
 import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
@@ -11,6 +11,7 @@ public class AccountTabbedPane extends JPanel implements Refreshable {
     private JTabbedPane tabbedPane = new JTabbedPane();
     private AccountPanel accountPanel;
     private RolePanel rolePanel;
+    private ProfilePanel profilePanel;
 
     public AccountTabbedPane() {
         initUI();
@@ -18,33 +19,49 @@ public class AccountTabbedPane extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
-        Component selectedTab = tabbedPane.getSelectedComponent();
-        if (selectedTab instanceof Refreshable r) {
-            r.refresh();
+        if (tabbedPane.getParent() == this) {
+            Component selectedTab = tabbedPane.getSelectedComponent();
+            if (selectedTab instanceof Refreshable r) {
+                r.refresh();
+            }
+        } else if (profilePanel != null) {
+            profilePanel.refresh();
         }
     }
 
     private void initUI() {
         setLayout(new BorderLayout());
-        tabbedPane.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_AREA_ALIGNMENT, FlatClientProperties.TABBED_PANE_ALIGN_CENTER);
+        
+        boolean hasManageAccount = PermissionUtil.hasViewPermission("MANAGE_ACCOUNT");
+        boolean hasManageRole = PermissionUtil.hasViewPermission("MANAGE_ROLE");
 
-        if (PermissionUtil.hasViewPermission("MANAGE_ACCOUNT")) {
-            accountPanel = new AccountPanel();
-            tabbedPane.addTab("Tài Khoản", accountPanel);
-        }
+        profilePanel = new ProfilePanel();
 
-        if (PermissionUtil.hasViewPermission("MANAGE_ROLE")) {
-            rolePanel = new RolePanel();
-            tabbedPane.addTab("Quyền", rolePanel);
-        }
+        if (hasManageAccount || hasManageRole) {
+            tabbedPane.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_AREA_ALIGNMENT, FlatClientProperties.TABBED_PANE_ALIGN_CENTER);
 
-        add(tabbedPane, BorderLayout.CENTER);
-
-        tabbedPane.addChangeListener(e -> {
-            Component selectedTab = tabbedPane.getSelectedComponent();
-            if (selectedTab instanceof Refreshable r) {
-                r.refresh();
+            if (hasManageAccount) {
+                accountPanel = new AccountPanel();
+                tabbedPane.addTab("Tài Khoản", accountPanel);
             }
-        });
+
+            if (hasManageRole) {
+                rolePanel = new RolePanel();
+                tabbedPane.addTab("Quyền", rolePanel);
+            }
+
+            tabbedPane.addTab("Cá nhân", profilePanel);
+
+            add(tabbedPane, BorderLayout.CENTER);
+
+            tabbedPane.addChangeListener(e -> {
+                Component selectedTab = tabbedPane.getSelectedComponent();
+                if (selectedTab instanceof Refreshable r) {
+                    r.refresh();
+                }
+            });
+        } else {
+            add(profilePanel, BorderLayout.CENTER);
+        }
     }
 }

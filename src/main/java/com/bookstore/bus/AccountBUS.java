@@ -54,4 +54,51 @@ public class AccountBUS {
 
         return accountDAO.insert(acc) ? "Thêm tài khoản thành công!" : "Thêm thất bại!";
     }
+        public String verifyEmployeeInfoByPhone(String name, String phone, java.util.Date dob) {
+        com.bookstore.dao.EmployeeDAO empDAO = new com.bookstore.dao.EmployeeDAO();
+        com.bookstore.dto.EmployeeDTO emp = null;
+        for (com.bookstore.dto.EmployeeDTO e : empDAO.selectAllEmployees()) {
+            if (phone.equals(e.getEmployeePhone())) {
+                emp = e;
+                break;
+            }
+        }
+        if (emp == null) return "Không tìm thấy nhân viên với số điện thoại này!";
+        if (!name.equalsIgnoreCase(emp.getEmployeeName())) return "Họ tên không khớp!";
+        if (emp.getBirthday() == null) return "Hệ thống chưa có ngày sinh của nhân viên này!";
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        if (!sdf.format(dob).equals(sdf.format(emp.getBirthday()))) return "Ngày sinh không chính xác!";
+        return "OK";
+    }
+
+    public String resetPasswordByPhone(String phone, String newPass) {
+        com.bookstore.dao.EmployeeDAO empDAO = new com.bookstore.dao.EmployeeDAO();
+        com.bookstore.dto.EmployeeDTO emp = null;
+        for (com.bookstore.dto.EmployeeDTO e : empDAO.selectAllEmployees()) {
+            if (phone.equals(e.getEmployeePhone())) {
+                emp = e;
+                break;
+            }
+        }
+        if (emp == null) return "Không tìm thấy nhân viên!";
+        com.bookstore.dto.AccountDTO acc = null;
+        for(com.bookstore.dto.AccountDTO a : accountDAO.selectAllAccounts()) {
+            if(a.getEmployeeId() == emp.getEmployeeId()) {
+                acc = a;
+                break;
+            }
+        }
+        if (acc == null) return "Nhân viên chưa có tài khoản!";
+        acc.setPassword(newPass);
+        boolean success = accountDAO.updateAccount(acc, true);
+        return success ? "OK" : "Lỗi Cập nhật mật khẩu!";
+    }
+
+    public String updateUsername(String oldUsername, String newUsername) {
+        com.bookstore.dto.AccountDTO acc = accountDAO.selectByUsername(oldUsername);
+        if (acc == null) return "Không tìm thấy tài khoản!";
+        acc.setUsername(newUsername);
+        boolean success = accountDAO.updateAccount(acc, false);
+        return success ? "OK" : "Lỗi Cập nhật tên đăng nhập!";
+    }
 }

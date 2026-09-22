@@ -57,7 +57,7 @@ public class EmployeeBUS {
             return "Lương cơ bản phải lớn hơn hoặc bằng 0!";
         }
 
-        return employeeDAO.insertEmployee(e) ? "Thêm nhân viên thành công!" : "Thêm thất bại!";
+        return employeeDAO.insertEmployee(e) > 0 ? "Thêm nhân viên thành công!" : "Thêm thất bại!";
     }
 
     public List<EmployeeDTO> getEmployeesWithoutAccount() {

@@ -57,6 +57,16 @@ public class ProductPanel extends JPanel implements Refreshable {
 
         initUI();
         loadTableData();
+        applyPermissions();
+    }
+
+    private void applyPermissions() {
+        com.bookstore.dto.PermissionDTO perm = com.bookstore.util.SharedData.userPermissions.get("MANAGE_PRODUCT");
+        boolean hasAction = (perm != null && perm.isAction());
+        // btnAddProduct.setVisible(hasAction);
+        // btnEditProduct.setVisible(hasAction);
+        // btnDeleteProduct.setVisible(hasAction);
+        // btnImportExcel.setVisible(hasAction);
     }
 
     @Override
@@ -646,7 +656,7 @@ public class ProductPanel extends JPanel implements Refreshable {
                     BookDTO book = mapImportedRowToBook(row);
                     String result = bookBUS.addBook(book);
 
-                    if (result.contains("thành công")) {
+                    if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
                         bookBUS.addAuthorsToBook(book.getBookId(), book.getAuthorIdsList());
                         successCount++;
                     } else {
@@ -851,7 +861,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
                 String result = bookBUS.addBook(bookDTO);
 
-                if (result.contains("thành công")) {
+                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
                     if (newBook.getAuthorIdsList() != null && !newBook.getAuthorIdsList().isEmpty()) {
                         bookBUS.addAuthorsToBook(bookDTO.getBookId(), newBook.getAuthorIdsList());
                     }
@@ -905,7 +915,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
                 String result = bookBUS.updateBook(bookDTO);
 
-                if (result.contains("thành công")) {
+                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
                     bookBUS.removeAllAuthorsFromBook(book.getBookId());
                     if (updatedBook.getAuthorIdsList() != null && !updatedBook.getAuthorIdsList().isEmpty()) {
                         bookBUS.addAuthorsToBook(book.getBookId(), updatedBook.getAuthorIdsList());

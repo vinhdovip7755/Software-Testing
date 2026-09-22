@@ -33,8 +33,8 @@ public class EmployeeDetailDialog extends JDialog {
         add(lbHeader, BorderLayout.NORTH);
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-        String birthdayStr = (employee.getBirthday() != null) ? sdf.format(employee.getBirthday()) : "Chưa cập nhật";
-        String dayInStr = (employee.getDayIn() != null) ? sdf.format(employee.getDayIn()) : "Chưa cập nhật";
+        String birthdayStr = (employee.getBirthday() != null) ? sdf.format(employee.getBirthday()) : "Chưa Cập nhật";
+        String dayInStr = (employee.getDayIn() != null) ? sdf.format(employee.getDayIn()) : "Chưa Cập nhật";
         String statusStr = employee.getStatus() == 1 ? "Còn làm việc" : "Đã nghỉ việc";
 
         double totalSalary = employee.getBaseSalary() * employee.getSalaryFactor();

@@ -65,14 +65,31 @@ public class LoginFrame extends JFrame {
                 "arc: 10;" +
                 "margin: 10,20,10,20");
 
+        JLabel lbForgotPass = new JLabel("<html><u>Quên mật khẩu?</u></html>");
+        lbForgotPass.setForeground(Color.BLUE);
+        lbForgotPass.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        lbForgotPass.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                new ForgotPasswordDialog(LoginFrame.this).setVisible(true);
+            }
+        });
+
+        JPanel forgotPasswordPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        forgotPasswordPanel.setBackground(Color.WHITE);
+        forgotPasswordPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        forgotPasswordPanel.setMaximumSize(new Dimension(1000, 25));
+        forgotPasswordPanel.add(lbForgotPass);
+
         loginCard.add(lbTitle);
         loginCard.add(Box.createVerticalStrut(30));
         loginCard.add(createInputGroup("Tên đăng nhập:", txtUsername));
         loginCard.add(Box.createVerticalStrut(15));
         loginCard.add(createInputGroup("Mật khẩu:", txtPassword));
-        loginCard.add(Box.createVerticalStrut(30));
+        loginCard.add(Box.createVerticalStrut(8));
+        loginCard.add(forgotPasswordPanel);
+        loginCard.add(Box.createVerticalStrut(20));
         loginCard.add(btnLogin);
-        loginCard.setPreferredSize(new Dimension(450, 400));
+        loginCard.setPreferredSize(new Dimension(450, 420));
 
         mainPanel.add(loginCard);
 
@@ -131,12 +148,12 @@ public class LoginFrame extends JFrame {
                 PermissionBUS permissionBUS = new PermissionBUS();
                 SharedData.userPermissions = permissionBUS.getPermissionsByRoleId(employee.getRoleId());
                 JOptionPane.showMessageDialog(this, "Xin chào " + employee.getEmployeeName() + "!",
-                        "Đăng nhập thành công", JOptionPane.INFORMATION_MESSAGE);
+                    "Đăng nhập thành công", JOptionPane.INFORMATION_MESSAGE);
                 this.dispose();
                 new MainFrame().setVisible(true);
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(),
+                JOptionPane.showMessageDialog(this, e.getMessage(),
                     "Đăng nhập thất bại", JOptionPane.ERROR_MESSAGE);
         }
     }

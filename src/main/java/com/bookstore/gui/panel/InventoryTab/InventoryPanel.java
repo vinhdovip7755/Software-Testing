@@ -1,7 +1,9 @@
 package com.bookstore.gui.panel.InventoryTab;
 
 import com.bookstore.bus.BookBUS;
+import com.bookstore.dao.BookLotDAO;
 import com.bookstore.dto.BookDTO;
+import com.bookstore.dto.BookLotDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -23,7 +25,10 @@ import java.util.Set;
 public class InventoryPanel extends JPanel implements Refreshable {
     private JTable table;
     private DefaultTableModel tableModel;
+    private JTable lotTable;
+    private DefaultTableModel lotTableModel;
     private BookBUS bookBUS = new BookBUS();
+    private BookLotDAO bookLotDAO = new BookLotDAO();
     private List<BookDTO> currentList = new ArrayList<>();
 
     private JLabel lbTotalBooks, lbCategories, lbLowStock;
@@ -109,9 +114,36 @@ public class InventoryPanel extends JPanel implements Refreshable {
         btnResetFilter.putClientProperty(FlatClientProperties.STYLE, "arc: 15; borderWidth: 0;");
         btnResetFilter.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
+        
+        JButton btnViewDetail = new JButton("Xem chi tiết");
+        btnViewDetail.setPreferredSize(new Dimension(130, 45));
+        btnViewDetail.setBackground(Color.decode("#1976D2"));
+        btnViewDetail.setForeground(Color.WHITE);
+        btnViewDetail.putClientProperty(FlatClientProperties.STYLE, "arc: 15; borderWidth: 0;");
+        btnViewDetail.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnViewDetail.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn một cuốn sách để xem chi tiết lô!");
+                return;
+            }
+            BookDTO selectedBook = (BookDTO) tableModel.getValueAt(row, 0);
+            loadLotData(selectedBook.getBookId());
+            
+            JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Chi tiết lô nhập: " + selectedBook.getBookName(), Dialog.ModalityType.APPLICATION_MODAL);
+            dialog.setSize(800, 400);
+            dialog.setLocationRelativeTo(this);
+            JScrollPane scroll = new JScrollPane(lotTable);
+            scroll.setBorder(BorderFactory.createEmptyBorder());
+            scroll.getViewport().setBackground(Color.WHITE);
+            dialog.add(scroll);
+            dialog.setVisible(true);
+        });
+
         panel.add(txtSearch);
         panel.add(cboStatus);
         panel.add(btnResetFilter);
+        panel.add(btnViewDetail);
 
         DocumentListener dl = new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { filterData(); }
@@ -213,15 +245,61 @@ public class InventoryPanel extends JPanel implements Refreshable {
         table.getColumnModel().getColumn(1).setCellRenderer(new CategoryRenderer());
         table.getColumnModel().getColumn(3).setCellRenderer(new StockRenderer());
         table.getColumnModel().getColumn(4).setCellRenderer(new StatusRenderer());
-
         table.getColumnModel().getColumn(0).setPreferredWidth(300);
+
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int row = table.getSelectedRow();
+                if (row >= 0) {
+                    BookDTO selectedBook = (BookDTO) tableModel.getValueAt(row, 0);
+                    loadLotData(selectedBook.getBookId());
+                } else {
+                    lotTableModel.setRowCount(0);
+                }
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(Color.WHITE);
 
+        // Lot Table
+        String[] lotColumns = {"LÔ ID", "NGÀY NHẬP", "GIÁ NHẬP", "GIÁ BÁN", "SỐ LƯỢNG", "HIỆN TẠI", "TRẠNG THÁI"};
+        lotTableModel = new DefaultTableModel(lotColumns, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        lotTable = new JTable(lotTableModel);
+        lotTable.setRowHeight(40);
+        lotTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        lotTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lotTable.getTableHeader().setForeground(Color.GRAY);
+        lotTable.getTableHeader().setBackground(Color.WHITE);
+        lotTable.setShowVerticalLines(false);
+        lotTable.setSelectionBackground(Color.decode("#E3F2FD"));
+        lotTable.setSelectionForeground(Color.BLACK);
+        lotTable.setFocusable(false);
+        
+        lotTable.getColumnModel().getColumn(6).setCellRenderer(new LotStatusRenderer());
+
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
+    }
+
+    private void loadLotData(int bookId) {
+        lotTableModel.setRowCount(0);
+        List<BookLotDTO> lots = bookLotDAO.getByBookId(bookId);
+        for (BookLotDTO lot : lots) {
+            String status = lot.getQuantityRemain() > 0 ? (lot.getQuantityRemain() < 10 ? "SẮP HẾT" : "ĐỦ HÀNG") : "HẾT HÀNG";
+            lotTableModel.addRow(new Object[]{
+                    lot.getLotId(),
+                    lot.getImportDate(),
+                    String.format("%,.0f", lot.getImportPrice()),
+                    String.format("%,.0f", lot.getSellingPrice()),
+                    lot.getQuantityInitial(),
+                    lot.getQuantityRemain(),
+                    status
+            });
+        }
     }
 
     private void loadData() {
@@ -343,6 +421,32 @@ public class InventoryPanel extends JPanel implements Refreshable {
             panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
 
             if (status.equals("SẮP HẾT HÀNG") || status.equals("HẾT HÀNG")) {
+                label.setText("⚠  " + status);
+                label.setForeground(Color.decode("#FF5722"));
+                label.setBackground(Color.decode("#FBE9E7"));
+            } else {
+                label.setText(" " + status + " ");
+                label.setForeground(Color.decode("#1B5E20"));
+                label.setBackground(Color.decode("#E8F5E9"));
+            }
+            label.setOpaque(true);
+            label.setBorder(new EmptyBorder(5, 10, 5, 10));
+            panel.add(label);
+            return panel;
+        }
+    }
+
+    static class LotStatusRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            JLabel label = new JLabel();
+            label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            String status = value != null ? value.toString() : "";
+
+            JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            panel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+
+            if (status.equals("SẮP HẾT") || status.equals("HẾT HÀNG")) {
                 label.setText("⚠  " + status);
                 label.setForeground(Color.decode("#FF5722"));
                 label.setBackground(Color.decode("#FBE9E7"));

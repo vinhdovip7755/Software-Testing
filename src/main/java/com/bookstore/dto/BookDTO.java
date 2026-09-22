@@ -6,6 +6,8 @@ import java.util.List;
 public class BookDTO {
     private int bookId;
     private String bookName;
+    private int publicationYear;
+    private double coverPrice;
     private double sellingPrice;
     private int quantity;
     private List<Integer> authorIdsList = new ArrayList<>();
@@ -46,6 +48,22 @@ public class BookDTO {
 
     public String getBookName() {
         return bookName;
+    }
+
+    public int getPublicationYear() {
+        return publicationYear;
+    }
+
+    public void setPublicationYear(int publicationYear) {
+        this.publicationYear = publicationYear;
+    }
+
+    public double getCoverPrice() {
+        return coverPrice;
+    }
+
+    public void setCoverPrice(double coverPrice) {
+        this.coverPrice = coverPrice;
     }
 
     public void setBookName(String bookName) {

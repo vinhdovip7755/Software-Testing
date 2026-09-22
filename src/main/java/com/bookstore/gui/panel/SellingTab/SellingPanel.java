@@ -229,6 +229,10 @@ public class SellingPanel extends JPanel implements Refreshable {
         btnCustomer.setBackground(Color.WHITE);
         btnCustomer.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnCustomer.setHorizontalAlignment(SwingConstants.LEFT);
+        
+        JPanel pCustomer = new JPanel(new BorderLayout());
+        pCustomer.setOpaque(false);
+        pCustomer.add(btnCustomer, BorderLayout.CENTER);
 
         txtPromo = new JTextField("Không có CTKM nào áp dụng");
         txtPromo.setEditable(false);
@@ -244,7 +248,7 @@ public class SellingPanel extends JPanel implements Refreshable {
         txtRank.setBackground(Color.WHITE);
 
         pInfo.add(txtEmployee);
-        pInfo.add(btnCustomer);
+        pInfo.add(pCustomer);
         pInfo.add(txtPromo);
         pInfo.add(txtRank);
 

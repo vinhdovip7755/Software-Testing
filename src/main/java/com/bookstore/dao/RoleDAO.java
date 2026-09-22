@@ -14,7 +14,7 @@ public class RoleDAO {
 
     public List<RoleDTO> selectAllRoles() {
         List<RoleDTO> list = new ArrayList<>();
-        String sql = "SELECT * FROM role ORDER BY role_id ASC";
+        String sql = "SELECT * FROM role WHERE role_name != 'Admin' ORDER BY role_id ASC";
 
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql);

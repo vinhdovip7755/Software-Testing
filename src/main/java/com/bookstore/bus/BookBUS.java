@@ -10,6 +10,12 @@ public class BookBUS {
     private final BookDAO bookDAO = new BookDAO();
     private final BookAuthorDAO bookAuthorDAO = new BookAuthorDAO();
 
+            public BookDTO selectById(int bookId) {
+        for (BookDTO b : bookDAO.selectAllBooks()) {
+            if (b.getBookId() == bookId) return b;
+        }
+        return null;
+    }
     public List<BookDTO> selectAllBooks() {
         return bookDAO.selectAllBooks();
     }

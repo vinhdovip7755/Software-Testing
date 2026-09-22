@@ -11,7 +11,7 @@ import java.awt.*;
 public class CustomerSearchDialog extends JDialog {
     private JTextField txtPhone;
     private JLabel lbName, lbRank, lbPoints;
-    private JButton btnSelect, btnGuest, btnFind;
+    private JButton btnSelect, btnGuest, btnFind, btnCreateNew;
 
     private CustomerDTO selectedCustomer = null;
     private CustomerBUS customerBUS = new CustomerBUS();
@@ -22,7 +22,7 @@ public class CustomerSearchDialog extends JDialog {
     }
 
     private void initUI() {
-        setSize(450,350);
+        setSize(550, 350);
         setLocationRelativeTo(getParent());
         setLayout(new BorderLayout(10,10));
         setResizable(false);
@@ -69,7 +69,7 @@ public class CustomerSearchDialog extends JDialog {
         pCenter.setBorder(BorderFactory.createEmptyBorder(10,20,10,20));
         pCenter.add(pResult, BorderLayout.CENTER);
 
-        JPanel pBottom = new JPanel(new GridLayout(1,2,10,10));
+        JPanel pBottom = new JPanel(new GridLayout(1, 3, 10, 10));
         pBottom.setBorder(BorderFactory.createEmptyBorder(0,20,10,20));
         pBottom.setOpaque(false);
 
@@ -79,6 +79,17 @@ public class CustomerSearchDialog extends JDialog {
         btnGuest.addActionListener(e -> {
             this.selectedCustomer = null;
             dispose();
+        });
+        
+        btnCreateNew = new JButton("+ Tạo mới");
+        btnCreateNew.setPreferredSize(new Dimension(1, 40));
+        btnCreateNew.setBackground(Color.decode("#FBC02D"));
+        btnCreateNew.setForeground(Color.WHITE);
+        btnCreateNew.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        btnCreateNew.setVisible(false);
+        btnCreateNew.addActionListener(e -> {
+            new CustomerEditDialog((JFrame) SwingUtilities.getWindowAncestor(this), null, null).setVisible(true);
+            performSearch();
         });
 
         btnSelect = new JButton("Chọn khách hàng này");
@@ -94,6 +105,7 @@ public class CustomerSearchDialog extends JDialog {
         });
 
         pBottom.add(btnGuest);
+        pBottom.add(btnCreateNew);
         pBottom.add(btnSelect);
 
         add(pSearch, BorderLayout.NORTH);
@@ -109,12 +121,13 @@ public class CustomerSearchDialog extends JDialog {
         }
 
         CustomerDTO customer = customerBUS.selectByPhone(phone);
+        
         if (customer != null) {
             this.selectedCustomer = customer;
             lbName.setText("Tên khách hàng: " + customer.getCustomerName());
             lbName.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
 
-            String rankName = customer.getRankName() != null ? customer.getRankName() : "Chưa cập nhật";
+            String rankName = customer.getRankName() != null ? customer.getRankName() : "Chưa Cập nhật";
             lbRank.setText("Hạng thành viên: " + rankName);
 
             lbRank.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
@@ -123,6 +136,7 @@ public class CustomerSearchDialog extends JDialog {
 
             lbName.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
             btnSelect.setEnabled(true);
+            if (btnCreateNew != null) btnCreateNew.setVisible(false);
         } else {
             this.selectedCustomer = null;
             lbName.setText("Không tìm thấy khách hàng");
@@ -130,6 +144,7 @@ public class CustomerSearchDialog extends JDialog {
             lbRank.setText("Hạng thành viên: -");
             lbPoints.setText("Điểm tích lũy: -");
             btnSelect.setEnabled(false);
+            if (btnCreateNew != null) btnCreateNew.setVisible(true);
         }
     }
 
@@ -144,4 +159,3 @@ public class CustomerSearchDialog extends JDialog {
         return selectedCustomer;
     }
 }
-

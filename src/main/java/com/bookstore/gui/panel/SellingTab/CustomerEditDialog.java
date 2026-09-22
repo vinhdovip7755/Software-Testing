@@ -43,7 +43,7 @@ public class CustomerEditDialog extends JDialog {
         setResizable(false);
         getContentPane().setBackground(Color.WHITE);
 
-        String headerText = isEditMode ? "CẬP NHẬT KHÁCH HÀNG" : "THÊM KHÁCH HÀNG MỚI";
+        String headerText = isEditMode ? "Cập nhật KHÁCH HÀNG" : "THÊM KHÁCH HÀNG MỚI";
         lbHeader = new JLabel(headerText, SwingConstants.CENTER);
         lbHeader.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 18));
         lbHeader.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));

@@ -5,52 +5,62 @@ import com.bookstore.dto.FinancialStatsDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
 import com.toedter.calendar.JDateChooser;
+import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.text.NumberFormat;
-import java.util.ArrayList;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 public class FinancialStatsPanel extends JPanel implements Refreshable {
-    private static final int SUMMARY_CARD_HEIGHT = 130;
-    private static final int QUARTER_CARD_HEIGHT = SUMMARY_CARD_HEIGHT / 2;
-    private final JComboBox<String> cboThongKeTheo = new JComboBox<>(new String[]{"Ngày", "Tháng", "Quý", "Năm"});
-    private final JDateChooser dchTuNgay = new JDateChooser(new Date());
-    private final JDateChooser dchDenNgay = new JDateChooser(new Date());
+    private final FinancialStatsBUS thongKeBus = new FinancialStatsBUS();
+    private final NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
+    
+    private final JDateChooser dchTuNgay = new JDateChooser();
+    private final JDateChooser dchDenNgay = new JDateChooser();
     private final JButton btnThongKe = new JButton("Thống kê");
 
-    private final JLabel lblDoanhThuValue = new JLabel();
-    private final JLabel lblChiPhiValue = new JLabel();
-    private final JLabel lblLoiNhuanValue = new JLabel();
-    private final JLabel lblVonNhapHangValue = new JLabel();
+    private final JLabel lblDoanhThuFiltered = createValueLabel();
+    private final JLabel lblVonNhapHangFiltered = createValueLabel();
+    private final JLabel lblLoiNhuanFiltered = createValueLabel();
+
+    private final JLabel lblDoanhThuTotal = createValueLabel();
+    private final JLabel lblVonNhapHangTotal = createValueLabel();
+    private final JLabel lblLoiNhuanTotal = createValueLabel();
+
+    private JLabel createValueLabel() {
+        JLabel lbl = new JLabel(".....VND", SwingConstants.CENTER);
+        lbl.setForeground(new Color(40, 40, 40));
+        return lbl;
+    }
+
     private final JLabel lblQuyCaoNhat = new JLabel("Quý doanh thu cao nhất: --");
     private final JLabel lblQuyThapNhat = new JLabel("Quý doanh thu thấp nhất: --");
 
     private final DefaultTableModel tableModel = new DefaultTableModel(
-            new Object[]{"Thời gian", "Doanh thu", "Lợi nhuận", "Chi phí", "Vốn nhập hàng"},
-            0
+            new Object[]{"Thời gian", "Doanh thu", "Lợi nhuận", "Chi phí", "Vốn nhập hàng"}, 0
     ) {
-        @Override
-        public boolean isCellEditable(int row, int column) {
-            return false;
-        }
+        @Override public boolean isCellEditable(int row, int column) { return false; }
     };
-
     private final JTable tblChiTiet = new JTable(tableModel);
-    private final FinancialStatsBUS thongKeBus = new FinancialStatsBUS();
-    private List<FinancialStatsDTO> currentData = new ArrayList<>();
 
-    private final NumberFormat currencyFormat = NumberFormat.getNumberInstance(Locale.US);
+    private TitledBorder filteredBorder;
 
     public FinancialStatsPanel() {
         initUI();
         bindEvents();
+        // Set default dates
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+        dchTuNgay.setDate(cal.getTime());
+        dchDenNgay.setDate(new Date());
         loadThongKe();
     }
 
@@ -61,114 +71,109 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
 
     private void initUI() {
         setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        setBackground(Color.WHITE);
+        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        add(createFilterPanel(), BorderLayout.NORTH);
-        add(createDashboardPanel(), BorderLayout.CENTER);
-    }
+        JPanel pnlTop = new JPanel();
+        pnlTop.setLayout(new BoxLayout(pnlTop, BoxLayout.Y_AXIS));
+        pnlTop.setOpaque(false);
 
-    private JPanel createFilterPanel() {
-        JPanel pnlFilter = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 8));
-        pnlFilter.setBorder(BorderFactory.createEmptyBorder(4, 4, 8, 4));
-        dchTuNgay.setDateFormatString("dd/MM/yyyy");
-        dchDenNgay.setDateFormatString("dd/MM/yyyy");
-
-        Font filterFont = new Font(AppConstant.FONT_NAME, Font.PLAIN, 14);
-        cboThongKeTheo.setFont(filterFont);
-        cboThongKeTheo.setPreferredSize(new Dimension(140, 36));
-        dchTuNgay.setFont(filterFont);
-        dchTuNgay.setPreferredSize(new Dimension(150, 36));
-        dchDenNgay.setFont(filterFont);
-        dchDenNgay.setPreferredSize(new Dimension(150, 36));
-        btnThongKe.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
-        btnThongKe.setPreferredSize(new Dimension(120, 38));
-
-        pnlFilter.add(new JLabel("Thống kê theo:"));
-        pnlFilter.add(cboThongKeTheo);
+        // 1. Filter Panel
+        JPanel pnlFilter = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        pnlFilter.setOpaque(false);
+        
         pnlFilter.add(new JLabel("Từ ngày:"));
+        dchTuNgay.setPreferredSize(new Dimension(150, 35));
         pnlFilter.add(dchTuNgay);
         pnlFilter.add(new JLabel("Đến ngày:"));
+        dchDenNgay.setPreferredSize(new Dimension(150, 35));
         pnlFilter.add(dchDenNgay);
+        
+        btnThongKe.setPreferredSize(new Dimension(100, 35));
+        btnThongKe.setBackground(Color.decode(AppConstant.GREEN_COLOR_CODE));
+        btnThongKe.setForeground(Color.WHITE);
+        btnThongKe.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         pnlFilter.add(btnThongKe);
+        
+        pnlTop.add(pnlFilter);
+        pnlTop.add(Box.createVerticalStrut(15));
 
-        return pnlFilter;
-    }
+        // 2. Filtered Stats Panel
+        JPanel pnlFilteredStats = new JPanel(new GridLayout(1, 3, 20, 0));
+        pnlFilteredStats.setOpaque(false);
+        filteredBorder = BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(Color.decode(AppConstant.GREEN_COLOR_CODE), 2),
+                "Thống kê từ ngày... đến ngày..."
+        );
+        filteredBorder.setTitleFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        pnlFilteredStats.setBorder(BorderFactory.createCompoundBorder(
+                filteredBorder,
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
+        
+        pnlFilteredStats.add(createInnerBox("Doanh thu", lblDoanhThuFiltered));
+        pnlFilteredStats.add(createInnerBox("Vốn nhập hàng", lblVonNhapHangFiltered));
+        pnlFilteredStats.add(createInnerBox("Lợi nhuận", lblLoiNhuanFiltered));
 
-    private JPanel createDashboardPanel() {
-        JPanel pnlDashboard = new JPanel(new BorderLayout(10, 10));
+        pnlTop.add(pnlFilteredStats);
+        pnlTop.add(Box.createVerticalStrut(15));
 
-        JPanel pnlTop = new JPanel(new BorderLayout(0, 10));
+        // 3. Total Stats Panel
+        JPanel pnlTotalStats = new JPanel(new GridLayout(1, 3, 20, 0));
+        pnlTotalStats.setOpaque(false);
+        TitledBorder totalBorder = BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(Color.decode(AppConstant.GREEN_COLOR_CODE), 2),
+                "Thống kê tổng"
+        );
+        totalBorder.setTitleFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        pnlTotalStats.setBorder(BorderFactory.createCompoundBorder(
+                totalBorder,
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
+        
+        pnlTotalStats.add(createInnerBox("Doanh thu", lblDoanhThuTotal));
+        pnlTotalStats.add(createInnerBox("Vốn nhập hàng", lblVonNhapHangTotal));
+        pnlTotalStats.add(createInnerBox("Lợi nhuận", lblLoiNhuanTotal));
 
-        JPanel pnlCards = new JPanel(new GridLayout(2, 2, 10, 10));
-        pnlCards.add(createSummaryCard("Doanh thu", lblDoanhThuValue, new Color(37, 99, 235)));
-        pnlCards.add(createSummaryCard("Chi phí", lblChiPhiValue, new Color(220, 38, 38)));
-        pnlCards.add(createSummaryCard("Lợi nhuận", lblLoiNhuanValue, new Color(22, 163, 74)));
-        pnlCards.add(createSummaryCard("Vốn nhập hàng", lblVonNhapHangValue, new Color(234, 88, 12)));
-        JPanel pnlQuarterInfo = new JPanel(new GridLayout(2, 1, 12, 10));
-        pnlQuarterInfo.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
-        pnlQuarterInfo.setPreferredSize(new Dimension(0, QUARTER_CARD_HEIGHT + 18));
+        pnlTop.add(pnlTotalStats);
+        pnlTop.add(Box.createVerticalStrut(15));
 
-        Font quarterFont = new Font(AppConstant.FONT_NAME, Font.BOLD, 16);
+        // 4. Quarter Info
+        JPanel pnlQuarterInfo = new JPanel(new GridLayout(2, 1, 0, 5));
+        pnlQuarterInfo.setOpaque(false);
+        Font quarterFont = new Font(AppConstant.FONT_NAME, Font.BOLD, 14);
 
         lblQuyCaoNhat.setOpaque(true);
         lblQuyCaoNhat.setBackground(new Color(236, 253, 245));
         lblQuyCaoNhat.setForeground(new Color(21, 128, 61));
         lblQuyCaoNhat.setFont(quarterFont);
-        lblQuyCaoNhat.setPreferredSize(new Dimension(0, QUARTER_CARD_HEIGHT));
-        lblQuyCaoNhat.setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
+        lblQuyCaoNhat.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
         lblQuyThapNhat.setOpaque(true);
         lblQuyThapNhat.setBackground(new Color(254, 242, 242));
         lblQuyThapNhat.setForeground(new Color(185, 28, 28));
         lblQuyThapNhat.setFont(quarterFont);
-        lblQuyThapNhat.setPreferredSize(new Dimension(0, QUARTER_CARD_HEIGHT));
-        lblQuyThapNhat.setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
+        lblQuyThapNhat.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
         pnlQuarterInfo.add(lblQuyCaoNhat);
         pnlQuarterInfo.add(lblQuyThapNhat);
+        pnlTop.add(pnlQuarterInfo);
+        
+        add(pnlTop, BorderLayout.NORTH);
 
-        pnlTop.add(pnlCards, BorderLayout.NORTH);
-        pnlTop.add(pnlQuarterInfo, BorderLayout.CENTER);
-
-        JPanel tablePanel = createTablePanel();
-
-        pnlDashboard.add(pnlTop, BorderLayout.NORTH);
-        pnlDashboard.add(tablePanel, BorderLayout.CENTER);
-
-        return pnlDashboard;
-    }
-
-    private JPanel createSummaryCard(String title, JLabel valueLabel, Color color) {
-        JPanel card = new JPanel(new BorderLayout());
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(220, 220, 220)),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)
-        ));
-        card.setPreferredSize(new Dimension(0, SUMMARY_CARD_HEIGHT));
-
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 18f));
-
-        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.BOLD, 26f));
-        valueLabel.setForeground(color);
-
-        card.add(titleLabel, BorderLayout.NORTH);
-        card.add(valueLabel, BorderLayout.CENTER);
-
-        return card;
-    }
-
-    private JPanel createTablePanel() {
-        tblChiTiet.setRowHeight(42);
-        tblChiTiet.setShowGrid(false);
-        tblChiTiet.setIntercellSpacing(new Dimension(0, 0));
+        // 5. Table
+        tblChiTiet.setRowHeight(35);
+        tblChiTiet.setShowGrid(true);
+        tblChiTiet.setGridColor(Color.decode("#E0E0E0"));
         tblChiTiet.setSelectionBackground(Color.decode("#d4ffee"));
         tblChiTiet.setSelectionForeground(Color.BLACK);
+        tblChiTiet.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
 
         JTableHeader header = tblChiTiet.getTableHeader();
         header.setBackground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         header.setForeground(Color.WHITE);
-        header.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 13));
+        header.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        header.setPreferredSize(new Dimension(header.getWidth(), 40));
         header.setReorderingAllowed(false);
 
         tblChiTiet.getColumnModel().getColumn(1).setCellRenderer(new CurrencyCellRenderer());
@@ -177,11 +182,26 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         tblChiTiet.getColumnModel().getColumn(4).setCellRenderer(new CurrencyCellRenderer());
 
         JScrollPane scrollPane = new JScrollPane(tblChiTiet);
-        scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(scrollPane, BorderLayout.CENTER);
-        return panel;
+        scrollPane.getViewport().setBackground(Color.WHITE);
+        add(scrollPane, BorderLayout.CENTER);
+    }
+
+    private JPanel createInnerBox(String title, JLabel lblValue) {
+        JPanel box = new JPanel(new BorderLayout());
+        box.setOpaque(false);
+        TitledBorder border = BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(Color.decode(AppConstant.GREEN_COLOR_CODE), 1),
+                title
+        );
+        border.setTitleFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        box.setBorder(BorderFactory.createCompoundBorder(
+                border,
+                BorderFactory.createEmptyBorder(20, 10, 20, 10)
+        ));
+        
+        lblValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 26));
+        box.add(lblValue, BorderLayout.CENTER);
+        return box;
     }
 
     private void bindEvents() {
@@ -191,58 +211,52 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
     private void loadThongKe() {
         Date tuNgay = dchTuNgay.getDate();
         Date denNgay = dchDenNgay.getDate();
-        String kieuThongKe = (String) cboThongKeTheo.getSelectedItem();
 
         try {
-            if ("Ngày".equals(kieuThongKe)) {
-                thongKeBus.validateThongKeTheoNgay(tuNgay, denNgay);
-                currentData = thongKeBus.getThongKeTheoNgay(tuNgay, denNgay);
-            } else {
-                thongKeBus.validateThongKeTheoNam(tuNgay);
-                int year = thongKeBus.extractYear(tuNgay);
-                currentData = thongKeBus.getThongKeTheoThang(year);
-            }
+            thongKeBus.validateThongKeTheoNgay(tuNgay, denNgay);
         } catch (IllegalArgumentException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        Date ngayChon = tuNgay == null ? new Date() : tuNgay;
-        int year = thongKeBus.extractYear(ngayChon);
+        // Update title with formatted dates
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+        filteredBorder.setTitle("Thống kê từ ngày " + sdf.format(tuNgay) + " đến ngày " + sdf.format(denNgay));
+        repaint();
 
-        updateSummaryCards();
-        updateQuarterSummary(year);
-        updateTable();
-    }
+        // 1. Load Filtered Data
+        List<FinancialStatsDTO> currentData = thongKeBus.getThongKeTheoNgay(tuNgay, denNgay);
+        double fDoanhThu = currentData.stream().mapToDouble(FinancialStatsDTO::getDoanhThu).sum();
+        double fChiPhi = currentData.stream().mapToDouble(FinancialStatsDTO::getChiPhi).sum();
+        double fVon = currentData.stream().mapToDouble(FinancialStatsDTO::getVonNhapHang).sum();
+        double fLoiNhuan = fDoanhThu - fChiPhi;
 
-    private void updateSummaryCards() {
-        double tongDoanhThu = currentData.stream().mapToDouble(FinancialStatsDTO::getDoanhThu).sum();
-        double tongChiPhi = currentData.stream().mapToDouble(FinancialStatsDTO::getChiPhi).sum();
-        double tongLoiNhuan = currentData.stream().mapToDouble(FinancialStatsDTO::getLoiNhuan).sum();
-        double tongVonNhapHang = currentData.stream().mapToDouble(FinancialStatsDTO::getVonNhapHang).sum();
+        lblDoanhThuFiltered.setText(formatCurrency(fDoanhThu));
+        lblVonNhapHangFiltered.setText(formatCurrency(fVon));
+        lblLoiNhuanFiltered.setText(formatCurrency(fLoiNhuan));
+        lblLoiNhuanFiltered.setForeground(fLoiNhuan < 0 ? new Color(198, 40, 40) : new Color(22, 163, 74));
 
-        lblDoanhThuValue.setText(formatCurrency(tongDoanhThu));
-        lblChiPhiValue.setText(formatCurrency(tongChiPhi));
-        lblLoiNhuanValue.setText(formatCurrency(tongLoiNhuan));
-        lblVonNhapHangValue.setText(formatCurrency(tongVonNhapHang));
-        lblLoiNhuanValue.setForeground(tongLoiNhuan < 0 ? new Color(198, 40, 40) : new Color(22, 163, 74));
-    }
+        // 2. Load Total Data
+        FinancialStatsDTO totalData = thongKeBus.getThongKeTong();
+        lblDoanhThuTotal.setText(formatCurrency(totalData.getDoanhThu()));
+        lblVonNhapHangTotal.setText(formatCurrency(totalData.getVonNhapHang()));
+        lblLoiNhuanTotal.setText(formatCurrency(totalData.getLoiNhuan()));
+        lblLoiNhuanTotal.setForeground(totalData.getLoiNhuan() < 0 ? new Color(198, 40, 40) : new Color(22, 163, 74));
 
-    private void updateQuarterSummary(int year) {
+        // 3. Update Quarter Info
+        int year = thongKeBus.extractYear(tuNgay);
         FinancialStatsBUS.QuyDoanhThuSummary summary = thongKeBus.getQuyDoanhThuSummary(year);
         if (summary == null) {
             lblQuyCaoNhat.setText("Quý doanh thu cao nhất (" + year + "): Không có dữ liệu");
             lblQuyThapNhat.setText("Quý doanh thu thấp nhất (" + year + "): Không có dữ liệu");
-            return;
+        } else {
+            lblQuyCaoNhat.setText("Quý doanh thu cao nhất (" + summary.getNam() + "): Q" + summary.getQuyCaoNhat()
+                    + " - " + formatCurrency(summary.getDoanhThuQuyCaoNhat()));
+            lblQuyThapNhat.setText("Quý doanh thu thấp nhất (" + summary.getNam() + "): Q" + summary.getQuyThapNhat()
+                    + " - " + formatCurrency(summary.getDoanhThuQuyThapNhat()));
         }
 
-        lblQuyCaoNhat.setText("Quý doanh thu cao nhất (" + summary.getNam() + "): Q" + summary.getQuyCaoNhat()
-                + " - " + formatCurrency(summary.getDoanhThuQuyCaoNhat()));
-        lblQuyThapNhat.setText("Quý doanh thu thấp nhất (" + summary.getNam() + "): Q" + summary.getQuyThapNhat()
-                + " - " + formatCurrency(summary.getDoanhThuQuyThapNhat()));
-    }
-
-    private void updateTable() {
+        // 4. Update Table
         tableModel.setRowCount(0);
         for (FinancialStatsDTO item : currentData) {
             tableModel.addRow(new Object[]{
@@ -273,14 +287,7 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
 
     private class ProfitCellRenderer extends CurrencyCellRenderer {
         @Override
-        public Component getTableCellRendererComponent(
-                JTable table,
-                Object value,
-                boolean isSelected,
-                boolean hasFocus,
-                int row,
-                int column
-        ) {
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             if (!isSelected && value instanceof Number number) {
                 c.setForeground(number.doubleValue() < 0 ? new Color(198, 40, 40) : new Color(22, 163, 74));

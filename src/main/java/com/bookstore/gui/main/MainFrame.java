@@ -62,6 +62,7 @@
             mainContentPanel.add(new EmployeePanel(), "EMPLOYEE");
             mainContentPanel.add(new StatisticsTabbedPane(), "STATS");
             mainContentPanel.add(new AccountTabbedPane(), "ACCOUNT");
+        mainContentPanel.add(new com.bookstore.gui.panel.AccountTab.ProfilePanel(), "PROFILE");
 
             add(mainContentPanel, BorderLayout.CENTER);
             cardLayout.show(mainContentPanel, "WELCOME");
@@ -124,7 +125,15 @@
             lbUserInfo.setFont(new Font(AppConstant.FONT_NAME, Font.ITALIC, 15));
             lbUserInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
             lbUserInfo.setHorizontalAlignment(SwingConstants.CENTER);
-            sidebar.add(lbUserInfo);
+                    lbUserInfo.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        lbUserInfo.setToolTipText("Nhấn để xem/sửa Hồ sơ cá nhân");
+        lbUserInfo.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                switchTab("PROFILE");
+            }
+        });
+        sidebar.add(lbUserInfo);
             sidebar.add(Box.createVerticalStrut(20));
 
             JSeparator separator1 = new JSeparator();
@@ -151,7 +160,7 @@
             menuMap.put(btnBill, new String[]{"MANAGE_BILL"});
             menuMap.put(btnEmployee, new String[]{"MANAGE_EMPLOYEE"});
             menuMap.put(btnStats, new String[]{"STATISTICS"});
-            menuMap.put(btnAccount, new String[]{"MANAGE_ACCOUNT", "MANAGE_ROLE"});
+            
 
             btnLogout = new JButton("Đăng xuất");
             btnLogout.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
@@ -277,6 +286,8 @@
                 JButton btn = entry.getKey();
                 String[] actionCodes = entry.getValue();
 
+
+
                 boolean isVisible = false;
 
                 for (String code : actionCodes) {
@@ -285,6 +296,10 @@
                         isVisible = true;
                         break;
                     }
+                }
+
+                if (btn == btnAccount && SharedData.currentUser != null) {
+                    isVisible = true;
                 }
                 btn.setVisible(isVisible);
             }

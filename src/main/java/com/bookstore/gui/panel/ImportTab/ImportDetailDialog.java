@@ -6,6 +6,7 @@ import com.bookstore.dto.ImportTicketDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
 import com.bookstore.util.SharedData;
+import com.bookstore.util.PermissionUtil;
 import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
@@ -117,7 +118,7 @@ public class ImportDetailDialog extends JDialog {
             btnCancel.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
             actionPanel.add(btnCancel);
 
-            if (roleId == 1) {
+            if (PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
                 JButton btnApprove = new JButton("Duyệt Nhập Kho");
                 btnApprove.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
                 btnApprove.setForeground(Color.WHITE);

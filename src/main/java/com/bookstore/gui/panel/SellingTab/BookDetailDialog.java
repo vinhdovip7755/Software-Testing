@@ -70,7 +70,7 @@ public class BookDetailDialog extends JDialog {
                 lbImage.setText("Không có ảnh");
             }
         } else {
-            lbImage.setText("Chưa cập nhật");
+            lbImage.setText("Chưa Cập nhật");
         }
 
         pImageWrapper.add(lbImage, BorderLayout.NORTH);

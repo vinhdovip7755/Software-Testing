@@ -39,6 +39,14 @@ public class EmployeePanel extends JPanel implements Refreshable {
 
     public EmployeePanel() {
         initUI();
+        applyPermissions();
+    }
+
+    private void applyPermissions() {
+        com.bookstore.dto.PermissionDTO perm = com.bookstore.util.SharedData.userPermissions.get("MANAGE_EMPLOYEE");
+        boolean hasAction = (perm != null && perm.isAction());
+        btnAddEmployee.setVisible(hasAction);
+        btnEditEmployee.setVisible(hasAction);
     }
 
     @Override
@@ -214,7 +222,7 @@ public class EmployeePanel extends JPanel implements Refreshable {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
 
         for (EmployeeDTO emp : list) {
-            String birthdayStr = emp.getBirthday() != null ? sdf.format(emp.getBirthday()) : "Chưa cập nhật";
+            String birthdayStr = emp.getBirthday() != null ? sdf.format(emp.getBirthday()) : "Chưa Cập nhật";
             String statusStr = emp.getStatus() == 1 ? "Còn làm việc" : "Nghỉ việc";
 
             employeeModel.addRow(new Object[]{
