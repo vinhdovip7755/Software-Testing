@@ -2,7 +2,6 @@ package com.bookstore.dao;
 
 import com.bookstore.dto.FinancialStatsDTO;
 import com.bookstore.util.DatabaseConnection;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,13 +13,20 @@ import java.util.List;
 
 public class FinancialStatsDAO {
 
-    
     public FinancialStatsDTO getThongKeTong() {
         String sql = "SELECT SUM(x.doanh_thu) AS doanh_thu, SUM(x.chi_phi) AS chi_phi, SUM(x.von_nhap_hang) AS von_nhap_hang " +
                 "FROM (" +
-                "  SELECT SUM(total_bill_price) AS doanh_thu, 0 AS chi_phi, 0 AS von_nhap_hang FROM bill " +
+                "  SELECT SUM(total_bill_price / (1 + tax)) AS doanh_thu, 0 AS chi_phi, 0 AS von_nhap_hang FROM bill " +
                 "  UNION ALL " +
-                "  SELECT 0 AS doanh_thu, SUM(total_import_price) AS chi_phi, SUM(total_import_price) AS von_nhap_hang FROM import_ticket " +
+                "  SELECT 0 AS doanh_thu, SUM(bd.quantity * bl.import_price) AS chi_phi, 0 AS von_nhap_hang " +
+                "  FROM bill b " +
+                "  JOIN bill_detail bd ON bd.bill_id = b.bill_id " +
+                "  JOIN book_lot bl ON bl.lot_id = bd.lot_id " +
+                "  UNION ALL " +
+                "  SELECT 0 AS doanh_thu, 0 AS chi_phi, SUM(d.import_quantity * d.import_price) AS von_nhap_hang " +
+                "  FROM import_ticket i " +
+                "  JOIN import_ticket_detail d ON d.import_ticket_id = i.import_ticket_id " +
+                "  WHERE i.status = 2 AND i.approved_date IS NOT NULL " +
                 ") x";
         try (Connection con = DatabaseConnection.getConnection();
              PreparedStatement pst = con.prepareStatement(sql)) {
@@ -40,7 +46,7 @@ public class FinancialStatsDAO {
         String sql = "SELECT x.thoi_gian, SUM(x.doanh_thu) AS doanh_thu, SUM(x.chi_phi) AS chi_phi, SUM(x.von_nhap_hang) AS von_nhap_hang " +
                 "FROM (" +
                 "  SELECT DATE(created_date) AS thoi_gian, " +
-                "         SUM(total_bill_price) AS doanh_thu, " +
+                "         SUM(total_bill_price / (1 + tax)) AS doanh_thu, " +
                 "         0 AS chi_phi, 0 AS von_nhap_hang " +
                 "  FROM bill " +
                 "  WHERE DATE(created_date) BETWEEN ? AND ? " +
@@ -81,17 +87,17 @@ public class FinancialStatsDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    Date thoiGian = rs.getDate("thoi_gian");
+                    String time = rs.getString("thoi_gian");
+                    try {
+                        time = viewFormat.format(java.sql.Date.valueOf(time));
+                    } catch(Exception e) {}
                     double doanhThu = rs.getDouble("doanh_thu");
                     double chiPhi = rs.getDouble("chi_phi");
-                    double vonNhapHang = rs.getDouble("von_nhap_hang");
-                    list.add(new FinancialStatsDTO(viewFormat.format(thoiGian), doanhThu, chiPhi, vonNhapHang));
+                    double von = rs.getDouble("von_nhap_hang");
+                    list.add(new FinancialStatsDTO(time, doanhThu, chiPhi, von));
                 }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
+        } catch (Exception e) { e.printStackTrace(); }
         return list;
     }
 
@@ -100,7 +106,7 @@ public class FinancialStatsDAO {
         String sql = "SELECT x.thang, SUM(x.doanh_thu) AS doanh_thu, SUM(x.chi_phi) AS chi_phi, SUM(x.von_nhap_hang) AS von_nhap_hang " +
                 "FROM (" +
                 "  SELECT MONTH(created_date) AS thang, " +
-                "         SUM(total_bill_price) AS doanh_thu, " +
+                "         SUM(total_bill_price / (1 + tax)) AS doanh_thu, " +
                 "         0 AS chi_phi, 0 AS von_nhap_hang " +
                 "  FROM bill " +
                 "  WHERE YEAR(created_date) = ? " +
@@ -137,14 +143,11 @@ public class FinancialStatsDAO {
                     int thang = rs.getInt("thang");
                     double doanhThu = rs.getDouble("doanh_thu");
                     double chiPhi = rs.getDouble("chi_phi");
-                    double vonNhapHang = rs.getDouble("von_nhap_hang");
-                    list.add(new FinancialStatsDTO("Tháng " + thang + "/" + nam, doanhThu, chiPhi, vonNhapHang));
+                    double von = rs.getDouble("von_nhap_hang");
+                    list.add(new FinancialStatsDTO("Tháng " + thang, doanhThu, chiPhi, von));
                 }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
+        } catch (Exception e) { e.printStackTrace(); }
         return list;
     }
 }
