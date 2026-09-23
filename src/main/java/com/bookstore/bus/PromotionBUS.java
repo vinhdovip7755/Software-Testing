@@ -14,6 +14,10 @@ public class PromotionBUS {
     private PromotionDAO promotionDAO = new PromotionDAO();
     private BookDAO bookDAO = new BookDAO();
 
+    public String getPromotionNameByBookId(int bookId) {
+        return promotionDAO.getPromotionNameByBookId(bookId);
+    }
+    
     public double getPromotionPercentByBookId(int bookId) {
         return promotionDAO.getPromotionPercentByBookId(bookId);
     }

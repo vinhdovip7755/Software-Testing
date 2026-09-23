@@ -233,7 +233,7 @@ public class CategoryPanel extends JPanel implements Refreshable {
             int confirm = JOptionPane.showConfirmDialog(
                     this,
                     "Mọi sách ở \"" + oldCategory.getCategoryName() + "\" sẽ đổi tên thành \"" + newCategoryName + "\".\nBạn có muốn tiếp tục không?",
-                    "Xác nhận sửa thể loại",
+                    "Xácầnhận sửa thể loại",
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE
             );

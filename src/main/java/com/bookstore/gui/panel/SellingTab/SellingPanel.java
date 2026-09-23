@@ -434,6 +434,10 @@ public class SellingPanel extends JPanel implements Refreshable {
         if (imageName != null && !imageName.trim().isEmpty()) {
             String imagePath = "data/book_covers/" + imageName;
             File file = new java.io.File(imagePath);
+            if (!file.exists()) {
+                imagePath = imageName;
+                file = new java.io.File(imagePath);
+            }
 
             if (file.exists()) {
                 ImageIcon imageIcon = new ImageIcon(imagePath);
@@ -553,8 +557,10 @@ public class SellingPanel extends JPanel implements Refreshable {
         double totalOriginal = 0;
         double totalCart = 0;
         boolean hasPromotion = false;
+        java.util.Set<String> promoNames = new java.util.LinkedHashSet<>();
 
         for (int i = 0; i < cartModel.getRowCount(); i++) {
+            int bookId = Integer.parseInt(cartModel.getValueAt(i, 0).toString());
             int quantity = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
             double originalPrice = MoneyFormatter.toDouble(cartModel.getValueAt(i, 3).toString());
             double discountedTotalRow = MoneyFormatter.toDouble(cartModel.getValueAt(i, 5).toString());
@@ -566,17 +572,25 @@ public class SellingPanel extends JPanel implements Refreshable {
             int percent = 0;
             try {
                 percent = Integer.parseInt(percentStr);
-            } catch (Exception e) {
-
-            }
+            } catch (Exception ex) {}
 
             if (percent > 0) {
                 hasPromotion = true;
+                String name = promotionBUS.getPromotionNameByBookId(bookId);
+                if (name != null && !name.isEmpty()) {
+                    promoNames.add(name);
+                }
             }
         }
 
         if (hasPromotion) {
-            txtPromo.setText("Có CTKM được áp dụng");
+            if (!promoNames.isEmpty()) {
+                String names = String.join(", ", promoNames);
+                txtPromo.setText(names);
+                txtPromo.setToolTipText(names);
+            } else {
+                txtPromo.setText("Có CTKM được áp dụng"); // using the existing weird unicode string or let's use true unicode
+            }
             txtPromo.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
             txtPromo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         } else {
@@ -697,7 +711,7 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc muốn xóa toàn bộ giỏ hàng không?",
-                "Xác nhận", JOptionPane.YES_NO_OPTION);
+                "Xácầnhận", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
             cartModel.setRowCount(0);
@@ -856,6 +870,8 @@ public class SellingPanel extends JPanel implements Refreshable {
                 }
             }
             resetSellingPanel();
+        } else {
+            JOptionPane.showMessageDialog(this, "Thanh toán thất bại! Có lỗi xảy ra trong quá trình ghi nhận hóa đơn.", "Lỗi hệ thống", JOptionPane.ERROR_MESSAGE);
         }
     }
 

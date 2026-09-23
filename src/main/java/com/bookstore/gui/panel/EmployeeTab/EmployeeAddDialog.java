@@ -184,7 +184,7 @@ public class EmployeeAddDialog extends JDialog {
             String result = employeeBUS.addEmployee(temp);
             JOptionPane.showMessageDialog(this, result);
 
-            if (result.contains("thành công")) {
+            if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                 parentPanel.refresh();
                 dispose();
             }

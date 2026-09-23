@@ -306,7 +306,7 @@ public class SupplierPanel extends JPanel implements Refreshable {
                 int choice = JOptionPane.showConfirmDialog(
                         this,
                         confirmMessage,
-                        "Xác nhận Cập nhật nhà cung cấp",
+                        "Xácầnhận Cập nhật nhà cung cấp",
                         JOptionPane.YES_NO_OPTION,
                         JOptionPane.WARNING_MESSAGE
                 );

@@ -656,7 +656,7 @@ public class ProductPanel extends JPanel implements Refreshable {
                     BookDTO book = mapImportedRowToBook(row);
                     String result = bookBUS.addBook(book);
 
-                    if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
+                    if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                         bookBUS.addAuthorsToBook(book.getBookId(), book.getAuthorIdsList());
                         successCount++;
                     } else {
@@ -846,6 +846,8 @@ public class ProductPanel extends JPanel implements Refreshable {
             try {
                 BookDTO bookDTO = new BookDTO();
                 bookDTO.setBookName(newBook.getBookName());
+                bookDTO.setCoverPrice(newBook.getCoverPrice());
+                bookDTO.setPublicationYear(newBook.getPublicationYear());
                 bookDTO.setSellingPrice(newBook.getSellingPrice());
                 bookDTO.setQuantity(newBook.getQuantity());
                 bookDTO.setTranslator(newBook.getTranslator());
@@ -861,7 +863,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
                 String result = bookBUS.addBook(bookDTO);
 
-                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
+                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                     if (newBook.getAuthorIdsList() != null && !newBook.getAuthorIdsList().isEmpty()) {
                         bookBUS.addAuthorsToBook(bookDTO.getBookId(), newBook.getAuthorIdsList());
                     }
@@ -900,6 +902,8 @@ public class ProductPanel extends JPanel implements Refreshable {
                 BookDTO bookDTO = new BookDTO();
                 bookDTO.setBookId(book.getBookId());
                 bookDTO.setBookName(updatedBook.getBookName());
+                bookDTO.setCoverPrice(updatedBook.getCoverPrice());
+                bookDTO.setPublicationYear(updatedBook.getPublicationYear());
                 bookDTO.setSellingPrice(updatedBook.getSellingPrice());
                 bookDTO.setQuantity(updatedBook.getQuantity());
                 bookDTO.setTranslator(updatedBook.getTranslator());
@@ -915,7 +919,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
                 String result = bookBUS.updateBook(bookDTO);
 
-                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
+                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                     bookBUS.removeAllAuthorsFromBook(book.getBookId());
                     if (updatedBook.getAuthorIdsList() != null && !updatedBook.getAuthorIdsList().isEmpty()) {
                         bookBUS.addAuthorsToBook(book.getBookId(), updatedBook.getAuthorIdsList());
@@ -1146,6 +1150,10 @@ public class ProductPanel extends JPanel implements Refreshable {
         if (book != null && book.getImage() != null && !book.getImage().trim().isEmpty()) {
             String imagePath = "data/book_covers/" + book.getImage();
             File imageFile = new File(imagePath);
+            if (!imageFile.exists()) {
+                imagePath = book.getImage();
+                imageFile = new File(imagePath);
+            }
 
             if (imageFile.exists()) {
                 ImageIcon icon = new ImageIcon(imagePath);

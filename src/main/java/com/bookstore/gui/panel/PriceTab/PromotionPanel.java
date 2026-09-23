@@ -21,7 +21,8 @@ public class PromotionPanel extends JPanel {
     private JPanel cardPanel;
     private WhiteBoxPanel whiteBox;
     private DefaultTableModel model;
-    private JTextField txtSearch, txtDateMin, txtDateMax;
+    private JTextField txtSearch;
+    private com.toedter.calendar.JDateChooser dchDateMin, dchDateMax;
     private JScrollPane scroll;
     private boolean hasSearched = false;
     private CardLayout searchCard = new CardLayout();
@@ -200,18 +201,17 @@ public class PromotionPanel extends JPanel {
         dateGroup.setOpaque(false);
         dateGroup.setBorder(null);
 
-        txtDateMin = new JTextField();
-        txtDateMax = new JTextField();
-        Dimension dateSize = new Dimension(100, 30);
-        txtDateMin.setPreferredSize(dateSize);
-        txtDateMax.setPreferredSize(dateSize);
+        dchDateMin = new com.toedter.calendar.JDateChooser();
+        dchDateMax = new com.toedter.calendar.JDateChooser();
+        dchDateMin.setDateFormatString("yyyy-MM-dd");
+        dchDateMax.setDateFormatString("yyyy-MM-dd");
+        java.awt.Dimension dateSize = new java.awt.Dimension(130, 30);
+        dchDateMin.setPreferredSize(dateSize);
+        dchDateMax.setPreferredSize(dateSize);
 
-        setupTextFieldStyle(txtDateMin, "Từ...");
-        setupTextFieldStyle(txtDateMax, "đến...");
-
-        dateGroup.add(txtDateMin);
-        dateGroup.add(Box.createRigidArea(new Dimension(40, 0)));
-        dateGroup.add(txtDateMax);
+        dateGroup.add(dchDateMin);
+        dateGroup.add(javax.swing.Box.createRigidArea(new java.awt.Dimension(20, 0)));
+        dateGroup.add(dchDateMax);
 
         cardPanel.add(dateGroup, "DATE");
 
@@ -389,13 +389,10 @@ public class PromotionPanel extends JPanel {
             }
         } else if (rbThoiGian.isSelected()) {
             type = "Thời gian";
-            input = txtDateMin.getText().trim() + "|" + txtDateMax.getText().trim();
-            String regex = "^\\d{4}-\\d{2}-\\d{2}$";
-            if ((!txtDateMin.getText().isEmpty() && !txtDateMin.getText().matches(regex)) ||
-                    (!txtDateMax.getText().isEmpty() && !txtDateMax.getText().matches(regex))) {
-                JOptionPane.showMessageDialog(this, "Ngày phải có dạng YYYY-MM-DD!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            String startStr = dchDateMin.getDate() != null ? sdf.format(dchDateMin.getDate()) : "";
+            String endStr = dchDateMax.getDate() != null ? sdf.format(dchDateMax.getDate()) : "";
+            input = startStr + "|" + endStr;
         } else {
             input = txtSearch.getText().trim();
         }

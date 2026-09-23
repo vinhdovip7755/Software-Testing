@@ -133,7 +133,7 @@ public class AccountFormDialog extends JDialog {
                     msg = "Bạn có chắc muốn đặt lại mật khẩu tài khoản này về ngày sinh của nhân viên?";
                 }
 
-                int cf = JOptionPane.showConfirmDialog(this, msg, "Xác nhận khôi phục", JOptionPane.YES_NO_OPTION);
+                int cf = JOptionPane.showConfirmDialog(this, msg, "Xácầnhận khôi phục", JOptionPane.YES_NO_OPTION);
                 if (cf == JOptionPane.YES_OPTION) {
                     this.account.setPassword(newPass);
                     accountBUS.updateAccount(this.account, true);

@@ -51,7 +51,7 @@ public class ForgotPasswordDialog extends JDialog {
         txtNewPassword.setEnabled(false);
 
         txtConfirmPassword = new JPasswordField();
-        txtConfirmPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Xác nhận mật khẩu mới");
+        txtConfirmPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Xácầnhận mật khẩu mới");
         txtConfirmPassword.setEnabled(false);
 
         btnVerify = new JButton("Kiểm tra thông tin");
@@ -99,7 +99,7 @@ public class ForgotPasswordDialog extends JDialog {
         mainPanel.add(txtNewPassword, gbc);
 
         gbc.gridy = gridy++;
-        mainPanel.add(new JLabel("Xác nhận mật khẩu mới:"), gbc);
+        mainPanel.add(new JLabel("Xácầnhận mật khẩu mới:"), gbc);
         gbc.gridy = gridy++;
         mainPanel.add(txtConfirmPassword, gbc);
 
@@ -161,7 +161,7 @@ public class ForgotPasswordDialog extends JDialog {
         }
 
         if (!newPass.equals(confirmPass)) {
-            JOptionPane.showMessageDialog(this, "Mật khẩu xác nhận không khớp!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Mật khẩu xácầnhận không khớp!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

@@ -135,7 +135,7 @@ public class CustomerEditDialog extends JDialog {
 
         JOptionPane.showMessageDialog(this, result);
 
-        if (result.contains("thành công")) {
+        if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
             parentPanel.refresh();
             dispose();
         }

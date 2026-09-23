@@ -11,6 +11,29 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PromotionDAO {
+    public String getPromotionNameByBookId(int bookId) {
+        String promoName = null;
+        String sql = "SELECT p.promotion_name FROM promotion p " +
+                "JOIN promotion_detail pd ON p.promotion_id = pd.promotion_id " +
+                "WHERE pd.book_id = ? " +
+                "AND p.status = 1 " +
+                "AND NOW() BETWEEN p.start_date AND p.end_date " +
+                "ORDER BY p.percent DESC LIMIT 1";
+
+        try (java.sql.Connection c = com.bookstore.util.DatabaseConnection.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    promoName = rs.getString("promotion_name");
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
+        return promoName;
+    }
+    
     public double getPromotionPercentByBookId(int bookId) {
         double percent = 0;
         String sql = "SELECT p.percent FROM promotion p " +

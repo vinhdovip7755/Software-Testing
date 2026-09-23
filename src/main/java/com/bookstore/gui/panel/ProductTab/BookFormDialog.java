@@ -469,7 +469,7 @@ public class BookFormDialog extends JDialog {
         JButton cancelButton = createStyledButton("Hủy", Color.decode("#757575"));
         cancelButton.addActionListener(e -> dialog.dispose());
 
-        JButton okButton = createStyledButton("Xác nhận", BUTTON_COLOR);
+        JButton okButton = createStyledButton("Xácầnhận", BUTTON_COLOR);
         okButton.addActionListener(e -> {
             selectedAuthorIds.clear();
             for (Map.Entry<Integer, JCheckBox> entry : allCheckBoxes.entrySet()) {
@@ -538,7 +538,7 @@ public class BookFormDialog extends JDialog {
         JButton cancelButton = createStyledButton("Hủy", Color.decode("#757575"));
         cancelButton.addActionListener(e -> dialog.dispose());
 
-        JButton okButton = createStyledButton("Xác nhận", BUTTON_COLOR);
+        JButton okButton = createStyledButton("Xácầnhận", BUTTON_COLOR);
         okButton.addActionListener(e -> {
             selectedTags.clear();
             for (Map.Entry<String, JToggleButton> entry : toggleButtons.entrySet()) {
@@ -842,7 +842,7 @@ public class BookFormDialog extends JDialog {
 
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc chắn muốn lưu thông tin sách này?",
-                "Xác nhận",
+                "Xácầnhận",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.QUESTION_MESSAGE);
 
@@ -856,12 +856,34 @@ public class BookFormDialog extends JDialog {
             book.setBookName(nameField.getText().trim());
             book.setCoverPrice(coverPrice);
             book.setPublicationYear(publicationYear);
-            book.setSellingPrice(0);
+            book.setSellingPrice(coverPrice);
             book.setQuantity(0);
             book.setTranslator(translatorField.getText().trim().isEmpty() ? null : translatorField.getText().trim());
-            book.setImage(selectedImagePath);
+            
+            // Logic to copy image to data/book_covers and save only filename
+            String finalImageName = null;
+            if (selectedImagePath != null && !selectedImagePath.trim().isEmpty()) {
+                java.io.File sourceFile = new java.io.File(selectedImagePath);
+                java.io.File destFolder = new java.io.File("data/book_covers");
+                if (!destFolder.exists()) destFolder.mkdirs();
+                
+                if (sourceFile.exists()) {
+                    if (sourceFile.getAbsolutePath().startsWith(destFolder.getAbsolutePath())) {
+                        finalImageName = sourceFile.getName();
+                    } else {
+                        finalImageName = System.currentTimeMillis() + "_" + sourceFile.getName();
+                        java.io.File destFile = new java.io.File(destFolder, finalImageName);
+                        try {
+                            java.nio.file.Files.copy(sourceFile.toPath(), destFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        } catch (java.io.IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                }
+            }
+            book.setImage(finalImageName);
+            
             book.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
-            book.setImage(selectedImagePath);
             book.setStatus(activeRadio.isSelected() ? 1 : 0);
             book.setCategoryId(categories.get(categoryCombo.getSelectedIndex() - 1).getCategoryId());
             book.setSupplierId(suppliers.get(supplierCombo.getSelectedIndex() - 1).getSupplierId());
@@ -871,6 +893,7 @@ public class BookFormDialog extends JDialog {
             book.setBookName(nameField.getText().trim());
             book.setCoverPrice(coverPrice);
             book.setPublicationYear(publicationYear);
+            book.setSellingPrice(coverPrice);
             book.setTranslator(translatorField.getText().trim().isEmpty() ? null : translatorField.getText().trim());
             book.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
             book.setStatus(activeRadio.isSelected() ? 1 : 0);
@@ -892,7 +915,10 @@ public class BookFormDialog extends JDialog {
         yearField.setText(book.getPublicationYear() == 0 ? "" : String.valueOf(book.getPublicationYear()));
         descriptionArea.setText(book.getDescription() != null ? book.getDescription() : "");
         if (book.getImage() != null && !book.getImage().trim().isEmpty()) {
-            File imageFile = new File(book.getImage());
+            File imageFile = new File("data/book_covers/" + book.getImage());
+            if (!imageFile.exists()) {
+                imageFile = new File(book.getImage());
+            }
             if (imageFile.exists()) {
                 selectedImagePath = imageFile.getAbsolutePath();
                 setSelectedImage(imageFile);

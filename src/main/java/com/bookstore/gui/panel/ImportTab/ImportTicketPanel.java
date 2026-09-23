@@ -328,7 +328,7 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         String actionName = isApproveAction ? "DUYỆT" : "HỦY";
         String msg = "Bạn đã chọn " + totalSelected + " phiếu, nhưng chỉ có " + validIds.size() + " phiếu hợp lệ (Đang chờ).\n\nBạn có chắc chắn muốn " + actionName + " " + validIds.size() + " phiếu này?";
 
-        if (JOptionPane.showConfirmDialog(this, msg, "Xác nhận", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+        if (JOptionPane.showConfirmDialog(this, msg, "Xácầnhận", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
             int approverId = SharedData.currentUser != null ? SharedData.currentUser.getEmployeeId() : 1;
             int successCount = 0;
 

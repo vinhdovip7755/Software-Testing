@@ -205,8 +205,8 @@ public class EmployeeEditDialog extends JDialog {
             String baseSalaryStr = txtBaseSalary.getText().trim();
             temp.setBaseSalary(baseSalaryStr.isEmpty() ? 0 : Double.parseDouble(baseSalaryStr));
 
-            String salaryFactorStr = txtSalaryFactor.getText().trim();
-            temp.setSalaryFactor(salaryFactorStr.isEmpty() ? 1 : Double.parseDouble(salaryFactorStr));
+            String sửalaryFactorStr = txtSalaryFactor.getText().trim();
+            temp.setSalaryFactor(sửalaryFactorStr.isEmpty() ? 1 : Double.parseDouble(sửalaryFactorStr));
 
             temp.setStatus(chkStatus.isSelected() ? 1 : 0);
 
@@ -219,7 +219,7 @@ public class EmployeeEditDialog extends JDialog {
             }
 
                         String result = employeeBUS.updateEmployee(temp);
-            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
+            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                 JOptionPane.showMessageDialog(this, "Cập nhật thành công!");
                 parentPanel.refresh();
                 dispose();

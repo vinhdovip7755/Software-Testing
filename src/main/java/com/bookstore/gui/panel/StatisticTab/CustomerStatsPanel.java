@@ -73,7 +73,7 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
         dcTo.setDateFormatString("dd/MM/yyyy");
         dcTo.setPreferredSize(new Dimension(150, 35));
 
-        btnFilterDate = new JButton("Lọc ngày");
+        btnFilterDate = new JButton("Lọcầngày");
         btnFilterDate.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         btnFilterDate.setForeground(Color.WHITE);
         btnFilterDate.setBackground(Color.decode(RED_PINK));

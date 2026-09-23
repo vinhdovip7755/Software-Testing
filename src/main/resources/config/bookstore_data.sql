@@ -44,7 +44,7 @@ insert into permission(role_id, action_id, is_view, is_action) values
 (3, 3, 1, 0);
 
 insert into permission(role_id, action_id, is_view, is_action) values
-(4, 9, 1, 1),
+(4, 9, 1, 0),
 (4, 10, 1, 1),
 (4, 11, 1, 0),
 (4, 3, 1, 1),

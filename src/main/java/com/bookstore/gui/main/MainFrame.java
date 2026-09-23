@@ -198,7 +198,7 @@
             btnLogout.addActionListener(e -> {
                 int confirm = JOptionPane.showConfirmDialog(this,
                         "Bạn có chắc chắn muốn đăng xuất?",
-                        "Xác nhận đăng xuất", JOptionPane.YES_NO_OPTION);
+                        "Xácầnhận đăng xuất", JOptionPane.YES_NO_OPTION);
                 if (confirm == JOptionPane.YES_OPTION) {
                     this.dispose();
                     new LoginFrame().setVisible(true);

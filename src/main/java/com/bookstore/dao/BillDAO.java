@@ -265,10 +265,11 @@ public class BillDAO {
 
     public List<BillDetailDTO> getBillDetailsByBillId(int billId) {
         List<BillDetailDTO> list = new ArrayList<>();
-        String sql = "SELECT bd.bill_id, bd.book_id, b.book_name, bd.quantity, bd.unit_price " +
+        String sql = "SELECT bd.bill_id, bd.book_id, b.book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
                 "FROM bill_detail bd " +
                 "JOIN book b ON bd.book_id = b.book_id " +
                 "WHERE bd.bill_id = ? " +
+                "GROUP BY bd.bill_id, bd.book_id, b.book_name, bd.unit_price " +
                 "ORDER BY bd.book_id";
 
         try (Connection conn = DatabaseConnection.getConnection();

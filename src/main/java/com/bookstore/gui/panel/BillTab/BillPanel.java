@@ -3,6 +3,7 @@ import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
 
 import javax.swing.*;
+import com.toedter.calendar.JDateChooser;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -23,8 +24,8 @@ public class BillPanel extends JPanel implements Refreshable {
     private JLabel lbTotalQuantity, lbRevenue;
     private JTable table;
     private DefaultTableModel model;
-    private JSpinner spFrom;
-    private JSpinner spTo;
+    private JDateChooser dchFrom;
+    private JDateChooser dchTo;
 
     private final Color MAIN_GREEN = Color.decode(AppConstant.GREEN_COLOR_CODE);
 
@@ -95,19 +96,17 @@ public class BillPanel extends JPanel implements Refreshable {
 
         JLabel lbFrom = new JLabel("Từ:");
         lbFrom.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
-        SpinnerDateModel fromModel = new SpinnerDateModel(new Date(), null, null,java.util.Calendar.DAY_OF_MONTH);
-        spFrom = new JSpinner(fromModel);
-        JSpinner.DateEditor fromEditor = new JSpinner.DateEditor(spFrom, "d/M/yyyy");
-        spFrom.setEditor(fromEditor);
-        spFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
+        dchFrom = new JDateChooser(new Date());
+        dchFrom.setDateFormatString("dd/MM/yyyy");
+        dchFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
+        dchFrom.setPreferredSize(new Dimension(140, 30));
 
         JLabel lbTo = new JLabel("Đến:");
         lbTo.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
-        SpinnerDateModel toModel = new SpinnerDateModel(new Date(), null, null, java.util.Calendar.DAY_OF_MONTH);
-        spTo = new JSpinner(toModel);
-        JSpinner.DateEditor toEditor = new JSpinner.DateEditor(spTo,"d/M/yyyy");
-        spTo.setEditor(toEditor);
-        spTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
+        dchTo = new JDateChooser(new Date());
+        dchTo.setDateFormatString("dd/MM/yyyy");
+        dchTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
+        dchTo.setPreferredSize(new Dimension(140, 30));
 
         JTextField txtSearch = new JTextField(20);
         txtSearch.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
@@ -129,9 +128,9 @@ public class BillPanel extends JPanel implements Refreshable {
         btnViewDetail.setForeground(Color.WHITE);
 
         filterPanel.add(lbFrom);
-        filterPanel.add(spFrom);
+        filterPanel.add(dchFrom);
         filterPanel.add(lbTo);
-        filterPanel.add(spTo);
+        filterPanel.add(dchTo);
         filterPanel.add(txtSearch);
         filterPanel.add(btnFilter);
         filterPanel.add(btnReset);
@@ -231,14 +230,14 @@ public class BillPanel extends JPanel implements Refreshable {
 
         btnReset.addActionListener(e->{
             Date today = new Date();
-            spFrom.setValue(today);
-            spTo.setValue(today);
+            dchFrom.setDate(today);
+            dchTo.setDate(today);
             applyTodayFilter();
         });
 
         btnFilter.addActionListener(e -> {
-            Date rawFromDate = (Date) spFrom.getValue();
-            Date rawToDate = (Date) spTo.getValue();
+            Date rawFromDate = dchFrom.getDate();
+            Date rawToDate = dchTo.getDate();
             String keyword = txtSearch.getText().trim().toLowerCase();
 
             Calendar calFrom = Calendar.getInstance();
@@ -257,7 +256,7 @@ public class BillPanel extends JPanel implements Refreshable {
             calTo.set(Calendar.MILLISECOND, 999);
             Date toDate = calTo.getTime();
 
-            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - d/M/yyyy");
+            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
 
             sorter.setRowFilter(new RowFilter<>() {
                 @Override
@@ -305,7 +304,7 @@ public class BillPanel extends JPanel implements Refreshable {
 
         BillBUS billBUS = new BillBUS();
         List<BillDTO> list = billBUS.getAllBills();
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - d/M/yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
 
         for (BillDTO bill : list){
             String formattedDate = "";
@@ -324,7 +323,7 @@ public class BillPanel extends JPanel implements Refreshable {
     private void applyTodayFilter(){
         TableRowSorter<DefaultTableModel> sorter = (TableRowSorter<DefaultTableModel>) table.getRowSorter();
         Date today = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - d/M/yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
 
         sorter.setRowFilter(new RowFilter<>(){
             @Override

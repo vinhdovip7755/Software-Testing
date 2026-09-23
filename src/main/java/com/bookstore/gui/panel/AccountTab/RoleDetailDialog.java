@@ -50,7 +50,7 @@ public class RoleDetailDialog extends JDialog {
 
         add(pInfo, BorderLayout.NORTH);
 
-        String[] headers = {"Tên chức năng", "Được phép Xem", "Được phép Thao tác"};
+        String[] headers = {"Tên chứcầnăng", "Được phép Xem", "Được phép Thao tác"};
 
         tableModel = new DefaultTableModel(headers, 0) {
             @Override
