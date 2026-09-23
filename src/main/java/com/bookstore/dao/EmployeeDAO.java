@@ -47,7 +47,7 @@ public class EmployeeDAO {
 
     public List<EmployeeDTO> selectAllEmployees() {
         List<EmployeeDTO> list = new ArrayList<>();
-        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON e.role_id = r.role_id WHERE e.employee_name != 'Admin'";
+        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON e.role_id = r.role_id WHERE e.employee_name NOT LIKE '%Admin%'";
 
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql);
@@ -214,3 +214,4 @@ public class EmployeeDAO {
         return list;
     }
 }
+

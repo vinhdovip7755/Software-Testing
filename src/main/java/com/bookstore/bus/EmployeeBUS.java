@@ -57,7 +57,24 @@ public class EmployeeBUS {
             return "Lương cơ bản phải lớn hơn hoặc bằng 0!";
         }
 
-        return employeeDAO.insertEmployee(e) > 0 ? "Thêm nhân viên thành công!" : "Thêm thất bại!";
+        int newId = employeeDAO.insertEmployee(e);
+        if (newId > 0) {
+            try {
+                com.bookstore.bus.AccountBUS accBus = new com.bookstore.bus.AccountBUS();
+                com.bookstore.dto.AccountDTO acc = new com.bookstore.dto.AccountDTO();
+                acc.setEmployeeId(newId);
+                acc.setUsername(e.getEmployeePhone());
+                String pwd = "123456";
+                if (e.getBirthday() != null) {
+                    pwd = new java.text.SimpleDateFormat("ddMMyyyy").format(e.getBirthday());
+                }
+                acc.setPassword(pwd);
+                acc.setStatus(1);
+                accBus.addAccount(acc);
+            } catch(Exception ex) { ex.printStackTrace(); }
+            return "Thêm nhân viên thành công!";
+        }
+        return "Thêm thất bại!";
     }
 
     public List<EmployeeDTO> getEmployeesWithoutAccount() {

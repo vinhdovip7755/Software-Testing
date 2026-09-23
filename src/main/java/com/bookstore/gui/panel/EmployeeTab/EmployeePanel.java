@@ -224,7 +224,7 @@ public class EmployeePanel extends JPanel implements Refreshable {
         for (EmployeeDTO emp : list) {
             String birthdayStr = emp.getBirthday() != null ? sdf.format(emp.getBirthday()) : "Chưa Cập nhật";
             String statusStr = emp.getStatus() == 1 ? "Còn làm việc" : "Nghỉ việc";
-
+            
             employeeModel.addRow(new Object[]{
                     emp.getEmployeeId(),
                     emp.getEmployeeName(),

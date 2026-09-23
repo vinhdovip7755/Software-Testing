@@ -50,8 +50,6 @@ public class PromotionDialog extends JDialog {
             saveCurrentSelection();
             String categoryName = (String) cbCategory.getSelectedItem();
 
-            txtSearchBook.setText("");
-
             if (cbCategory.getSelectedIndex() == 0) {
 
                 loadBookList(bus.suggestBooksByPromotionName(""));

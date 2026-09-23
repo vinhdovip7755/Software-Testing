@@ -340,6 +340,18 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
     }
 
+    private void fillAllBook(){
+        productModel.setRowCount(0);
+        for (BookDTO book : listBooks) {
+            productModel.addRow(new Object[]{
+                    book.getBookId(),
+                    book.getBookName(),
+                    book.getCategoryName(),
+                    book.getQuantity()
+            });
+        }
+    }
+
     private void addToImport() {
         int selectedRow = tblProduct.getSelectedRow();
         if (selectedRow == -1) { JOptionPane.showMessageDialog(this, "Vui lòng chọn sách cần nhập!"); return; }

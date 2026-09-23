@@ -68,16 +68,16 @@ insert into account (username, password, employee_id) values
 ('admin', 'admin', 1);
 
 insert into employee (employee_name, employee_phone, birthday, base_salary, day_in, role_id) values
-('Nguyễn Thị Hồng Anh - Quản Lý', '0914349584', '2000-04-15', 12000000, '2025-11-23', 2),
-('Ngọc Quý - Nhân viên bán hàng', '0934129959', '2004-06-18', 8000000, '2025-12-11', 3),
-('Tòng Nhân - Nhân viên nhập hàng', '0912357394', '2002-04-11', 7500000, '2025-02-17', 4),
-('Ngọc - Nhân viên bán hàng', '0998929485', '2000-08-12', 8000000, '2025-5-15', 3);
+('Nguyễn Thị Hồng Anh', '0914349584', '2000-04-15', 12000000, '2025-11-23', 2),
+('Ngọc Quý', '0934129959', '2004-06-18', 8000000, '2025-12-11', 3),
+('Tòng Nhân', '0912357394', '2002-04-11', 7500000, '2025-02-17', 4),
+('Ngọc', '0998929485', '2000-08-12', 8000000, '2025-5-15', 3);
 
 insert into account (username, password, employee_id) values
-('honganh', '0914349584', 2),
-('ngocquy', '0934129959', 3),
-('tongnhan', '0912357394', 4),
-('ngoc', '0998929485', 5);
+('0914349584', '15042000', 2),
+('0934129959', '18062004', 3),
+('0912357394', '11042002', 4),
+('0998929485', '12082000', 5);
 
 insert into supplier (supplier_name, supplier_address, supplier_phone) values
     ('NXB Trẻ', '161B Lý Chính Thắng, Phường Xuân Hoà , TP. Hồ Chí Minh', '0842839316289'),

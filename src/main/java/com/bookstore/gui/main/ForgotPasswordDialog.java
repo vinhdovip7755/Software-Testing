@@ -132,7 +132,7 @@ public class ForgotPasswordDialog extends JDialog {
         }
 
         String result = accountBUS.verifyEmployeeInfoByPhone(name, phone, dob);
-        if (result.equals("SUCCESS")) {
+        if (result.equals("OK")) {
             JOptionPane.showMessageDialog(this, "Xác minh thông tin chính xác! Bạn có thể nhập mật khẩu mới.", "Thành công", JOptionPane.INFORMATION_MESSAGE);
             isVerified = true;
             txtName.setEditable(false);
@@ -167,7 +167,7 @@ public class ForgotPasswordDialog extends JDialog {
 
         String phone = txtPhone.getText().trim();
         String result = accountBUS.resetPasswordByPhone(phone, newPass);
-        if (result.equals("SUCCESS")) {
+        if (result.equals("OK")) {
             JOptionPane.showMessageDialog(this, "Đổi mật khẩu thành công! Vui lòng đăng nhập lại.", "Thành công", JOptionPane.INFORMATION_MESSAGE);
             this.dispose();
         } else {

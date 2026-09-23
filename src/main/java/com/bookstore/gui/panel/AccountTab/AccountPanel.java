@@ -112,7 +112,7 @@ public class AccountPanel extends JPanel implements Refreshable {
 
         JPanel btnP = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         btnP.setOpaque(false);
-        btnP.add(btnEdit);
+        
 
         JScrollPane scrollPane = new JScrollPane(adminTable);
         scrollPane.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, Color.GRAY));
