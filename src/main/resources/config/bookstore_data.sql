@@ -1,4 +1,4 @@
--- FILE 2/2: Dữ liệu nền và dữ liệu mẫu để test.
+﻿-- FILE 2/2: Dữ liệu nền và dữ liệu mẫu để test.
 -- Chỉ chạy sau khi bookstore_schema.sql đã chạy thành công.
 
 use bookstore_db;
@@ -61,23 +61,23 @@ insert into system_parameter(param_key, param_value, description) values
 ('VAT', '8', 'Thuế giá trị gia tăng mặc định (8%)'),
 ('EARNED_POINTS_PER_10K', '100', 'Số điểm nhận được trên mỗi 10K mua');
 
-insert into employee (employee_id, employee_name, employee_phone, birthday, base_salary, day_in, role_id) values
-(1, 'Quý Nhân Vy Ngọc San - Admin', '0912345678', '2000-01-01', 0, '2020-01-01', 1);
+insert into employee (employee_id, employee_name, employee_phone, email, birthday, base_salary, day_in, role_id) values
+(1, 'Quý Nhân Vy Ngọc San - Admin', '0912345678', 'admin@bookstore.com', '2000-01-01', 0, '2020-01-01', 1);
 
 insert into account (username, password, employee_id) values
-('admin', 'admin', 1);
+('admin@bookstore.com', 'admin', 1);
 
-insert into employee (employee_name, employee_phone, birthday, base_salary, day_in, role_id) values
-('Nguyễn Thị Hồng Anh', '0914349584', '2000-04-15', 12000000, '2025-11-23', 2),
-('Ngọc Quý', '0934129959', '2004-06-18', 8000000, '2025-12-11', 3),
-('Tòng Nhân', '0912357394', '2002-04-11', 7500000, '2025-02-17', 4),
-('Ngọc', '0998929485', '2000-08-12', 8000000, '2025-5-15', 3);
+insert into employee (employee_name, employee_phone, email, birthday, base_salary, day_in, role_id) values
+('Nguyễn Thị Hồng Anh', '0914349584', 'anh.nguyen@bookstore.com', '2000-04-15', 12000000, '2025-11-23', 2),
+('Ngọc Quý', '0934129959', 'quy.ngoc@bookstore.com', '2004-06-18', 8000000, '2025-12-11', 3),
+('Tòng Nhân', '0912357394', 'nhan.tung@bookstore.com', '2002-04-11', 7500000, '2025-02-17', 4),
+('Ngọc', '0998929485', 'ngoc@bookstore.com', '2000-08-12', 8000000, '2025-5-15', 3);
 
 insert into account (username, password, employee_id) values
-('0914349584', '15042000', 2),
-('0934129959', '18062004', 3),
-('0912357394', '11042002', 4),
-('0998929485', '12082000', 5);
+('anh.nguyen@bookstore.com', '15042000', 2),
+('quy.ngoc@bookstore.com', '18062004', 3),
+('nhan.tung@bookstore.com', '11042002', 4),
+('ngoc@bookstore.com', '12082000', 5);
 
 insert into supplier (supplier_name, supplier_address, supplier_phone) values
     ('NXB Trẻ', '161B Lý Chính Thắng, Phường Xuân Hoà , TP. Hồ Chí Minh', '0842839316289'),

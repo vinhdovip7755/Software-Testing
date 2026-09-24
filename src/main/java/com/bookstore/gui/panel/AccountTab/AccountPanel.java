@@ -71,7 +71,7 @@ public class AccountPanel extends JPanel implements Refreshable {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
         adminPanel.setOpaque(false);
 
-        String[] cols = { "Username", "Password" };
+        String[] cols = { "Email", "Password" };
         adminModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -168,7 +168,7 @@ public class AccountPanel extends JPanel implements Refreshable {
 
         box.add(searchPanel, BorderLayout.NORTH);
 
-        String[] cols = { "Tên nhân viên", "Username", "Password", "Chức vụ", "Trạng thái", "Hành động" };
+        String[] cols = { "Tên nhân viên", "Email", "Password", "Chức vụ", "Trạng thái", "Hành động" };
         model = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -227,10 +227,9 @@ public class AccountPanel extends JPanel implements Refreshable {
                 loadAccountData();
             } else {
                 for (AccountDTO acc : listAccountGoc) {
-                    if ("admin".equalsIgnoreCase(acc.getUsername()))
-                        continue;
-
                     EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
+                    if (emp != null && emp.getRoleId() == 1)
+                        continue;
                     String name = (emp != null) ? emp.getEmployeeName() : "N/A";
                     String statusStr = (acc.getStatus() == 1 ? "Đang làm việc" : "Ngưng làm việc");
 
@@ -413,12 +412,18 @@ public class AccountPanel extends JPanel implements Refreshable {
 
     private void loadAdminData() {
         try {
-            AccountDTO admin = accountBUS.selectByUsername("admin");
             adminModel.setRowCount(0);
-            if (admin != null) {
-                currentAdminPassword = admin.getPassword();
-                adminModel.addRow(new Object[] { admin.getUsername(), "*****" });
-            } else {
+            boolean foundAdmin = false;
+            for (AccountDTO acc : accountDAO.selectAllAccounts()) {
+                EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
+                if (emp != null && emp.getRoleId() == 1) {
+                    currentAdminPassword = acc.getPassword();
+                    adminModel.addRow(new Object[] { acc.getUsername(), "*****" });
+                    foundAdmin = true;
+                    break;
+                }
+            }
+            if (!foundAdmin) {
                 adminModel.addRow(new Object[] { "Không tìm thấy", "N/A" });
             }
         } catch (Exception e) {
@@ -433,11 +438,10 @@ public class AccountPanel extends JPanel implements Refreshable {
         String keyword = txtSearch.getText().toLowerCase().trim();
 
         for (AccountDTO acc : listAccountGoc) {
-            if ("admin".equalsIgnoreCase(acc.getUsername())) {
+            EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
+            if (emp != null && emp.getRoleId() == 1) {
                 continue;
             }
-
-            EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
 
             String empName = (emp != null) ? emp.getEmployeeName() : "N/A";
             String empRole = (emp != null) ? emp.getRoleName() : "N/A";

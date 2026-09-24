@@ -45,13 +45,14 @@ public class EmployeeDetailDialog extends JDialog {
         int createdImportCount = employeeBUS.getCreatedImportCountByEmployee(employee.getEmployeeId());
         int approvedImportCount = employeeBUS.getApprovedImportCountByEmployee(employee.getEmployeeId());
 
-        JPanel pContent = new JPanel(new GridLayout(10, 1, 0, 5));
+        JPanel pContent = new JPanel(new GridLayout(0, 1, 0, 5));
         pContent.setBackground(Color.WHITE);
         pContent.setBorder(new EmptyBorder(10, 30, 20, 30));
 
         pContent.add(createInfoRow("Mã nhân viên (ID):", String.valueOf(employee.getEmployeeId())));
         pContent.add(createInfoRow("Họ và tên:", employee.getEmployeeName()));
         pContent.add(createInfoRow("Số điện thoại:", employee.getEmployeePhone()));
+        pContent.add(createInfoRow("Email:", employee.getEmail()));
         pContent.add(createInfoRow("Ngày sinh:", birthdayStr));
         pContent.add(createInfoRow("Chức vụ:", employee.getRoleName()));
         pContent.add(createInfoRow("Trạng thái:", statusStr));

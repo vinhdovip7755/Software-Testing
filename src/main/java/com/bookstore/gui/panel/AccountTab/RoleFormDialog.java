@@ -41,7 +41,7 @@ public class RoleFormDialog extends JDialog {
         setLayout(new BorderLayout(0, 10));
 
         JPanel pInfo = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
-        pInfo.add(new JLabel("Tên chức vụ: "));
+        pInfo.add(new JLabel("<html>Tên chức vụ <font color='red'>*</font>: </html>"));
         txtName = new JTextField(role.getRoleName(), 30);
         txtName.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         pInfo.add(txtName);
@@ -126,7 +126,14 @@ public class RoleFormDialog extends JDialog {
             table.getCellEditor().stopCellEditing();
         }
 
+
         String newName = txtName.getText().trim();
+        if (newName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Tên chức vụ không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+
         if (newName.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Tên chức vụ không được để trống!");
             return;

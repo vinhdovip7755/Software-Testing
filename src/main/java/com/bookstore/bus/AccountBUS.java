@@ -54,7 +54,7 @@ public class AccountBUS {
 
         return accountDAO.insert(acc) ? "Thêm tài khoản thành công!" : "Thêm thất bại!";
     }
-        public String verifyEmployeeInfoByPhone(String name, String phone, java.util.Date dob) {
+        public boolean isEmailExists(String email) { return accountDAO.selectByUsername(email) != null; } public String verifyEmployeeInfoByPhone(String name, String phone, java.util.Date dob) {
         com.bookstore.dao.EmployeeDAO empDAO = new com.bookstore.dao.EmployeeDAO();
         com.bookstore.dto.EmployeeDTO emp = null;
         for (com.bookstore.dto.EmployeeDTO e : empDAO.selectAllEmployees()) {
@@ -71,7 +71,7 @@ public class AccountBUS {
         return "OK";
     }
 
-    public String resetPasswordByPhone(String phone, String newPass) {
+    public String resetPasswordByEmail(String email, String newPass) { AccountDTO acc = accountDAO.selectByUsername(email); if(acc == null) return "Không tìm thấy tài khoản"; acc.setPassword(newPass); return accountDAO.updateAccount(acc, true) ? "OK" : "Lỗi cập nhật mật khẩu"; } public String resetPasswordByPhone(String phone, String newPass) {
         com.bookstore.dao.EmployeeDAO empDAO = new com.bookstore.dao.EmployeeDAO();
         com.bookstore.dto.EmployeeDTO emp = null;
         for (com.bookstore.dto.EmployeeDTO e : empDAO.selectAllEmployees()) {

@@ -71,7 +71,7 @@ public class EmployeeBUS {
                 com.bookstore.bus.AccountBUS accBus = new com.bookstore.bus.AccountBUS();
                 com.bookstore.dto.AccountDTO acc = new com.bookstore.dto.AccountDTO();
                 acc.setEmployeeId(newId);
-                acc.setUsername(e.getEmployeePhone());
+                acc.setUsername(e.getEmail());
                 String pwd = "123456";
                 if (e.getBirthday() != null) {
                     pwd = new java.text.SimpleDateFormat("ddMMyyyy").format(e.getBirthday());

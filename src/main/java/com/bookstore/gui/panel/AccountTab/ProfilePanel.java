@@ -123,7 +123,7 @@ public class ProfilePanel extends JPanel implements Refreshable {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.gridy++; gbc.gridwidth = 1;
         txtUsername = new JTextField();
-        formCard.add(createInputGroup("Tên đăng nhập", txtUsername), gbc);
+        formCard.add(createInputGroup("Email", txtUsername), gbc);
 
         gbc.gridx = 1;
         txtPassword = new JPasswordField();

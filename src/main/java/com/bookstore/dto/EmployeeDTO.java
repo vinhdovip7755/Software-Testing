@@ -7,6 +7,7 @@ public class EmployeeDTO {
     private int employeeId;
     private String employeeName;
     private String employeePhone;
+    private String email;
     private Date birthday;
     private double baseSalary;
     private double salaryFactor;
@@ -17,10 +18,11 @@ public class EmployeeDTO {
 
     public EmployeeDTO() {}
 
-    public EmployeeDTO(int employeeId, String employeeName, String employeePhone, Date birthday, double baseSalary, double salaryFactor, Date dayIn, int status, int roleId, String roleName) {
+    public EmployeeDTO(int employeeId, String employeeName, String employeePhone, String email, Date birthday, double baseSalary, double salaryFactor, Date dayIn, int status, int roleId, String roleName) {
         this.employeeId = employeeId;
         this.employeeName = employeeName;
         this.employeePhone = employeePhone;
+        this.email = email;
         this.birthday = birthday;
         this.baseSalary = baseSalary;
         this.salaryFactor = salaryFactor;
@@ -52,6 +54,14 @@ public class EmployeeDTO {
 
     public void setEmployeePhone(String employeePhone) {
         this.employeePhone = employeePhone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public Date getBirthday() {

@@ -42,7 +42,7 @@ public class LoginFrame extends JFrame {
         lbTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         txtUsername = new JTextField();
-        txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Số điện thoại của bạn");
+        txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Email của bạn");
         styleField(txtUsername);
 
         txtPassword = new JPasswordField();
@@ -90,7 +90,7 @@ public class LoginFrame extends JFrame {
 
         loginCard.add(lbTitle);
         loginCard.add(Box.createVerticalStrut(30));
-        loginCard.add(createInputGroup("Số điện thoại:", txtUsername));
+        loginCard.add(createInputGroup("Email:", txtUsername));
         loginCard.add(Box.createVerticalStrut(15));
         loginCard.add(createInputGroup("Mật khẩu:", txtPassword));
         loginCard.add(Box.createVerticalStrut(8));

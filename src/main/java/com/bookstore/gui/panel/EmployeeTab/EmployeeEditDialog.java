@@ -82,12 +82,12 @@ public class EmployeeEditDialog extends JDialog {
         chkStatus.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         chkStatus.setOpaque(false);
 
-        pForm.add(createFieldPanel("Họ và tên:", txtName));
-        pForm.add(createFieldPanel("Số điện thoại:", txtPhone));
-        pForm.add(createFieldPanel("Ngày sinh:", dateChooser));
-        pForm.add(createFieldPanel("Lương cơ bản:", txtBaseSalary));
-        pForm.add(createFieldPanel("Hệ số lương:", txtSalaryFactor));
-        pForm.add(createFieldPanel("Chức vụ:", cboRole));
+        pForm.add(createFieldPanel("<html>Họ và tên <font color='red'>*</font>:</html>", txtName));
+        pForm.add(createFieldPanel("<html>Số điện thoại <font color='red'>*</font>:</html>", txtPhone));
+        pForm.add(createFieldPanel("<html>Ngày sinh <font color='red'>*</font>:</html>", dateChooser));
+        pForm.add(createFieldPanel("<html>Lương cơ bản <font color='red'>*</font>:</html>", txtBaseSalary));
+        pForm.add(createFieldPanel("<html>Hệ số lương <font color='red'>*</font>:</html>", txtSalaryFactor));
+        pForm.add(createFieldPanel("<html>Chức vụ <font color='red'>*</font>:</html>", cboRole));
 
         JPanel pStatus = new JPanel(new FlowLayout(FlowLayout.LEFT));
         pStatus.setOpaque(false);

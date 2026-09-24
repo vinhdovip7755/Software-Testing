@@ -53,6 +53,7 @@ create table employee (
 	employee_id int auto_increment primary key,
     employee_name varchar(100) not null,
     employee_phone varchar(20) unique not null,
+    email varchar(100) unique,
     birthday date,
     base_salary decimal(15, 0) default 0,
     salary_factor decimal(5, 2) default 1,

@@ -29,6 +29,7 @@ public class EmployeeDAO {
                         rs.getInt("employee_id"),
                         rs.getString("employee_name"),
                         rs.getString("employee_phone"),
+                        rs.getString("email"),
                         rs.getDate("birthday"),
                         rs.getDouble("base_salary"),
                         rs.getDouble("salary_factor"),
@@ -58,6 +59,7 @@ public class EmployeeDAO {
                         rs.getInt("employee_id"),
                         rs.getString("employee_name"),
                         rs.getString("employee_phone"),
+                        rs.getString("email"),
                         rs.getDate("birthday"),
                         rs.getDouble("base_salary"),
                         rs.getDouble("salary_factor"),
@@ -83,16 +85,17 @@ public class EmployeeDAO {
             c = DatabaseConnection.getConnection();
             c.setAutoCommit(false);
 
-            String sqlEmp = "UPDATE employee SET employee_name = ?, employee_phone = ?, birthday = ?, " +
+            String sqlEmp = "UPDATE employee SET employee_name = ?, employee_phone = ?, email = ?, birthday = ?, " +
                     "base_salary = ?, role_id = ?, status = ? WHERE employee_id = ?";
             psEmp = c.prepareStatement(sqlEmp);
             psEmp.setString(1, emp.getEmployeeName());
             psEmp.setString(2, emp.getEmployeePhone());
-            psEmp.setDate(3, emp.getBirthday() != null ? new java.sql.Date(emp.getBirthday().getTime()) : null);
-            psEmp.setDouble(4, emp.getBaseSalary());
-            psEmp.setInt(5, emp.getRoleId());
-            psEmp.setInt(6, emp.getStatus());
-            psEmp.setInt(7, emp.getEmployeeId());
+            psEmp.setString(3, emp.getEmail());
+            psEmp.setDate(4, emp.getBirthday() != null ? new java.sql.Date(emp.getBirthday().getTime()) : null);
+            psEmp.setDouble(5, emp.getBaseSalary());
+            psEmp.setInt(6, emp.getRoleId());
+            psEmp.setInt(7, emp.getStatus());
+            psEmp.setInt(8, emp.getEmployeeId());
 
             psEmp.executeUpdate();
 
@@ -198,17 +201,18 @@ public class EmployeeDAO {
     }
 
     public int insertEmployee(EmployeeDTO e) {
-        String sql = "INSERT INTO employee (employee_name, employee_phone, birthday, base_salary, day_in, role_id) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO employee (employee_name, employee_phone, email, birthday, base_salary, day_in, role_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (java.sql.Connection conn = com.bookstore.util.DatabaseConnection.getConnection();
              java.sql.PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, e.getEmployeeName());
             ps.setString(2, e.getEmployeePhone());
-            ps.setDate(3, e.getBirthday() != null ? new java.sql.Date(e.getBirthday().getTime()) : null);
-            ps.setDouble(4, e.getBaseSalary());
-            ps.setDate(5, e.getDayIn() != null ? new java.sql.Date(e.getDayIn().getTime()) : null);
-            ps.setInt(6, e.getRoleId());
+            ps.setString(3, e.getEmail());
+            ps.setDate(4, e.getBirthday() != null ? new java.sql.Date(e.getBirthday().getTime()) : null);
+            ps.setDouble(5, e.getBaseSalary());
+            ps.setDate(6, e.getDayIn() != null ? new java.sql.Date(e.getDayIn().getTime()) : null);
+            ps.setInt(7, e.getRoleId());
 
             int affected = ps.executeUpdate();
             if (affected > 0) {
