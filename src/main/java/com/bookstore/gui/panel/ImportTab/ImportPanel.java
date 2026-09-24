@@ -385,7 +385,7 @@ public class ImportPanel extends JPanel implements Refreshable {
                         exists = true; break;
                     }
                 }
-                if (!exists) cartModel.addRow(new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price), discount });
+                if (!exists) cartModel.insertRow(0, new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price), discount });
                 calculateTotal();
             } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Vui lòng nhập số lượng và chiết khấu hợp lệ!"); }
         }

@@ -42,6 +42,8 @@ public class EmployeeDetailDialog extends JDialog {
         String totalSalaryStr = String.format("%,.0f VNĐ", totalSalary);
 
         int billCount = employeeBUS.getBillCountByEmployee(employee.getEmployeeId());
+        int createdImportCount = employeeBUS.getCreatedImportCountByEmployee(employee.getEmployeeId());
+        int approvedImportCount = employeeBUS.getApprovedImportCountByEmployee(employee.getEmployeeId());
 
         JPanel pContent = new JPanel(new GridLayout(10, 1, 0, 5));
         pContent.setBackground(Color.WHITE);
@@ -62,21 +64,46 @@ public class EmployeeDetailDialog extends JDialog {
         pTotalSalary.getComponent(1).setForeground(Color.RED);
         pContent.add(pTotalSalary);
 
-        JPanel pExtra = new JPanel(new BorderLayout());
+        JPanel pExtra = new JPanel(new GridLayout(3, 1, 0, 8));
         pExtra.setBackground(Color.decode("#f8f9fa"));
         pExtra.setBorder(BorderFactory.createCompoundBorder(
                 new EmptyBorder(10, 30, 10, 30),
                 BorderFactory.createLineBorder(Color.decode("#e0e0e0"))
         ));
 
-        JLabel lbBillLabel = new JLabel("Số hóa đơn đã xử lý: ");
+        JPanel pBill = new JPanel(new BorderLayout());
+        pBill.setOpaque(false);
+        JLabel lbBillLabel = new JLabel("Số hóa đơn bán hàng đã tạo: ");
         lbBillLabel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
-        JLabel lbBillValue = new JLabel(billCount + " đơn hàng");
-        lbBillValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
+        JLabel lbBillValue = new JLabel(billCount + " hóa đơn");
+        lbBillValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 15));
         lbBillValue.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
+        pBill.add(lbBillLabel, BorderLayout.WEST);
+        pBill.add(lbBillValue, BorderLayout.EAST);
 
-        pExtra.add(lbBillLabel, BorderLayout.WEST);
-        pExtra.add(lbBillValue, BorderLayout.EAST);
+        JPanel pCreated = new JPanel(new BorderLayout());
+        pCreated.setOpaque(false);
+        JLabel lbCreatedLabel = new JLabel("Số đơn nhập hàng đã tạo: ");
+        lbCreatedLabel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        JLabel lbCreatedValue = new JLabel(createdImportCount + " đơn");
+        lbCreatedValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 15));
+        lbCreatedValue.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
+        pCreated.add(lbCreatedLabel, BorderLayout.WEST);
+        pCreated.add(lbCreatedValue, BorderLayout.EAST);
+
+        JPanel pApproved = new JPanel(new BorderLayout());
+        pApproved.setOpaque(false);
+        JLabel lbApprovedLabel = new JLabel("Số đơn nhập hàng đã duyệt: ");
+        lbApprovedLabel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        JLabel lbApprovedValue = new JLabel(approvedImportCount + " đơn");
+        lbApprovedValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 15));
+        lbApprovedValue.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
+        pApproved.add(lbApprovedLabel, BorderLayout.WEST);
+        pApproved.add(lbApprovedValue, BorderLayout.EAST);
+
+        pExtra.add(pBill);
+        pExtra.add(pCreated);
+        pExtra.add(pApproved);
 
         JPanel pCenter = new JPanel(new BorderLayout());
         pCenter.setBackground(Color.WHITE);

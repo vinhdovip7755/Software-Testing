@@ -42,12 +42,20 @@ public class LoginFrame extends JFrame {
         lbTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         txtUsername = new JTextField();
-        txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Tài khoản của bạn");
+        txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Số điện thoại của bạn");
         styleField(txtUsername);
 
         txtPassword = new JPasswordField();
         txtPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mật khẩu");
         styleField(txtPassword);
+        txtPassword.putClientProperty(FlatClientProperties.STYLE,
+                "arc: 10;" +
+                "borderColor: #CCCCCC;" +
+                "focusWidth: 1;" +
+                "margin: 5,10,5,10;" +
+                "showClearButton: true;" +
+                "showRevealButton: true"
+        );
 
         btnLogin = new JButton("Đăng Nhập Ngay");
         btnLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -82,7 +90,7 @@ public class LoginFrame extends JFrame {
 
         loginCard.add(lbTitle);
         loginCard.add(Box.createVerticalStrut(30));
-        loginCard.add(createInputGroup("Tên đăng nhập:", txtUsername));
+        loginCard.add(createInputGroup("Số điện thoại:", txtUsername));
         loginCard.add(Box.createVerticalStrut(15));
         loginCard.add(createInputGroup("Mật khẩu:", txtPassword));
         loginCard.add(Box.createVerticalStrut(8));

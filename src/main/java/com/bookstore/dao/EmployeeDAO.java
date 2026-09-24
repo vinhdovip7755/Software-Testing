@@ -165,6 +165,38 @@ public class EmployeeDAO {
         return 0;
     }
 
+    public int countCreatedImportByEmployee(int employeeId) {
+        String sql = "SELECT COUNT(*) FROM import_ticket WHERE employee_id = ?";
+        try (java.sql.Connection c = com.bookstore.util.DatabaseConnection.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, employeeId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    public int countApprovedImportByEmployee(int employeeId) {
+        String sql = "SELECT COUNT(*) FROM import_ticket WHERE approver_id = ?";
+        try (java.sql.Connection c = com.bookstore.util.DatabaseConnection.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, employeeId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
     public int insertEmployee(EmployeeDTO e) {
         String sql = "INSERT INTO employee (employee_name, employee_phone, birthday, base_salary, day_in, role_id) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";

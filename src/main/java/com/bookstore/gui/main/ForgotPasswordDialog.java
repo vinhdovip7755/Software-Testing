@@ -48,10 +48,12 @@ public class ForgotPasswordDialog extends JDialog {
 
         txtNewPassword = new JPasswordField();
         txtNewPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mật khẩu mới");
+        txtNewPassword.putClientProperty(FlatClientProperties.STYLE, "showRevealButton: true");
         txtNewPassword.setEnabled(false);
 
         txtConfirmPassword = new JPasswordField();
-        txtConfirmPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Xácầnhận mật khẩu mới");
+        txtConfirmPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Xác nhận mật khẩu mới");
+        txtConfirmPassword.putClientProperty(FlatClientProperties.STYLE, "showRevealButton: true");
         txtConfirmPassword.setEnabled(false);
 
         btnVerify = new JButton("Kiểm tra thông tin");

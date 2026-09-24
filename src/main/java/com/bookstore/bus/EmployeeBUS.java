@@ -39,6 +39,14 @@ public class EmployeeBUS {
         return employeeDAO.countBillsByEmployee(employeeId);
     }
 
+    public int getCreatedImportCountByEmployee(int employeeId) {
+        return employeeDAO.countCreatedImportByEmployee(employeeId);
+    }
+
+    public int getApprovedImportCountByEmployee(int employeeId) {
+        return employeeDAO.countApprovedImportByEmployee(employeeId);
+    }
+
     public String addEmployee(EmployeeDTO e) {
         if (e.getEmployeeName().trim().isEmpty()) return "Tên nhân viên không được để trống!";
         if (e.getEmployeePhone().trim().isEmpty()) return "Số điện thoại không được để trống!";
