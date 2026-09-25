@@ -252,7 +252,22 @@ public class BookFormDialog extends JDialog {
         addFormField(panel, "Trạng thái *", statusPanel, true);
 
         addFormField(panel, "Người dịch", translatorField = new JTextField(), false);
-        addFormField(panel, "Giá bìa", coverPriceField = new JTextField(), false);
+        
+        coverPriceField = new JTextField();
+        coverPriceField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        boolean isAddMode = (book == null);
+        if (isAddMode) {
+            coverPriceField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.PLACEHOLDER_TEXT, "Nhập giá bán (VNĐ)...");
+            addFormField(panel, "Giá bán *", coverPriceField, true);
+        } else {
+            coverPriceField.setEditable(false);
+            coverPriceField.setFocusable(false);
+            coverPriceField.setBackground(new Color(245, 245, 245));
+            coverPriceField.setForeground(Color.DARK_GRAY);
+            coverPriceField.setToolTipText("Không thể thay đổi giá bán khi sửa sách (giá bán được quản lý tại tab Thiết lập giá)!");
+            addFormField(panel, "Giá bán", coverPriceField, false);
+        }
+        
         addFormField(panel, "Năm xuất bản", yearField = new JTextField(), false);
 
         tagPanel = new JPanel();
@@ -817,8 +832,8 @@ public class BookFormDialog extends JDialog {
             JOptionPane.showMessageDialog(this, "Số điện thoại không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if (!sPhone.matches("^0\\d{9}$")) {
-            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!sPhone.matches(AppConstant.REGEX_SUPPLIER_PHONE)) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ! (Số di động 10 chữ số hoặc số bàn cố định 11 chữ số bắt đầu bằng số 0)", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -918,23 +933,50 @@ public class BookFormDialog extends JDialog {
             return;
         }
 
-        String priceStr = coverPriceField.getText().trim();
-        if (!priceStr.isEmpty() && !priceStr.matches("^\\d+(\\.\\d+)?$")) {
-            JOptionPane.showMessageDialog(this, "Giá bìa phải là số không âm hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            coverPriceField.requestFocus();
-            return;
+        double coverPrice = 0;
+        if (book == null) {
+            String priceStr = coverPriceField.getText().trim();
+            if (priceStr.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Giá bán không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                coverPriceField.requestFocus();
+                return;
+            }
+            if (!priceStr.matches("^\\d+(\\.\\d+)?$")) {
+                JOptionPane.showMessageDialog(this, "Giá bán phải là số không âm hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                coverPriceField.requestFocus();
+                return;
+            }
+            try {
+                coverPrice = Double.parseDouble(priceStr);
+                if (coverPrice < 0) {
+                    JOptionPane.showMessageDialog(this, "Giá bán không được là số âm!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    coverPriceField.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Giá bán không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                coverPriceField.requestFocus();
+                return;
+            }
+        } else {
+            coverPrice = book.getSellingPrice() > 0 ? book.getSellingPrice() : book.getCoverPrice();
         }
 
-        double coverPrice;
-        int publicationYear;
-        try {
-            coverPrice = priceStr.isEmpty() ? 0 : Double.parseDouble(priceStr);
-            publicationYear = yearStr.isEmpty() ? 0 : Integer.parseInt(yearStr);
-            int curYear = java.time.Year.now().getValue();
-            if (coverPrice < 0 || (publicationYear != 0 && (publicationYear < 1000 || publicationYear > curYear + 1))) throw new NumberFormatException();
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Giá bìa hoặc năm xuất bản không hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
+        int publicationYear = 0;
+        if (!yearStr.isEmpty()) {
+            try {
+                publicationYear = Integer.parseInt(yearStr);
+                int curYear = java.time.Year.now().getValue();
+                if (publicationYear < 1000 || publicationYear > curYear + 1) {
+                    JOptionPane.showMessageDialog(this, "Năm xuất bản phải từ năm 1000 đến " + (curYear + 1) + "!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    yearField.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Năm xuất bản không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                yearField.requestFocus();
+                return;
+            }
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
@@ -1007,12 +1049,13 @@ public class BookFormDialog extends JDialog {
     private void loadBookData() {
         nameField.setText(book.getBookName());
         translatorField.setText(book.getTranslator() != null ? book.getTranslator() : "");
-        coverPriceField.setText(book.getCoverPrice() == 0 ? "" : String.valueOf((long) book.getCoverPrice()));
+        double displayPrice = book.getSellingPrice() > 0 ? book.getSellingPrice() : book.getCoverPrice();
+        coverPriceField.setText(displayPrice == 0 ? "0" : String.valueOf((long) displayPrice));
         coverPriceField.setEditable(false);
         coverPriceField.setFocusable(false);
         coverPriceField.setBackground(new Color(245, 245, 245));
         coverPriceField.setForeground(Color.DARK_GRAY);
-        coverPriceField.setToolTipText("Không thể thay đổi giá bìa của sách đã tạo!");
+        coverPriceField.setToolTipText("Không thể thay đổi giá bán khi sửa sách (giá bán được quản lý tại tab Thiết lập giá)!");
         yearField.setText(book.getPublicationYear() == 0 ? "" : String.valueOf(book.getPublicationYear()));
         descriptionArea.setText(book.getDescription() != null ? book.getDescription() : "");
         if (book.getImage() != null && !book.getImage().trim().isEmpty()) {

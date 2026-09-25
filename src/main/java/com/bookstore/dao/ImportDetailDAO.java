@@ -14,7 +14,8 @@ public class ImportDetailDAO {
     public boolean add(ImportDetailDTO detail) {
         try {
             Connection c = DatabaseConnection.getConnection();
-            String sql = "INSERT INTO import_ticket_detail (import_ticket_id, book_id, import_quantity, import_price, cover_price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO import_ticket_detail (import_ticket_id, book_id, import_quantity, import_price, cover_price, discount_percent) VALUES (?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE import_quantity = import_quantity + VALUES(import_quantity)";
             PreparedStatement ps = c.prepareStatement(sql);
             ps.setInt(1, detail.getImportID());
             ps.setInt(2, detail.getBookID());

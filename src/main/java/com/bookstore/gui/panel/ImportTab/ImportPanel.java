@@ -521,6 +521,15 @@ public class ImportPanel extends JPanel implements Refreshable {
                 "Thêm Sách Mới", null, authors, categories, suppliers, allTags
             );
         dialog.setVisible(true);
+
+        if (dialog.isSaved() && dialog.getBook() != null) {
+            String result = bookBUS.addBook(dialog.getBook());
+            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
+                JOptionPane.showMessageDialog(this, result, "Thành công", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
         refresh(); // Refresh list after closed
     }
 

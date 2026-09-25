@@ -657,7 +657,6 @@ public class ProductPanel extends JPanel implements Refreshable {
                     String result = bookBUS.addBook(book);
 
                     if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
-                        bookBUS.addAuthorsToBook(book.getBookId(), book.getAuthorIdsList());
                         successCount++;
                     } else {
                         errors.add("Dòng " + row.getSourceRow() + ": " + result);
@@ -864,9 +863,6 @@ public class ProductPanel extends JPanel implements Refreshable {
                 String result = bookBUS.addBook(bookDTO);
 
                 if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
-                    if (newBook.getAuthorIdsList() != null && !newBook.getAuthorIdsList().isEmpty()) {
-                        bookBUS.addAuthorsToBook(bookDTO.getBookId(), newBook.getAuthorIdsList());
-                    }
                     loadDataFromDatabase();
                     filterBooks();
 
@@ -920,11 +916,6 @@ public class ProductPanel extends JPanel implements Refreshable {
                 String result = bookBUS.updateBook(bookDTO);
 
                 if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
-                    bookBUS.removeAllAuthorsFromBook(book.getBookId());
-                    if (updatedBook.getAuthorIdsList() != null && !updatedBook.getAuthorIdsList().isEmpty()) {
-                        bookBUS.addAuthorsToBook(book.getBookId(), updatedBook.getAuthorIdsList());
-                    }
-
                     loadDataFromDatabase();
                     filterBooks();
 

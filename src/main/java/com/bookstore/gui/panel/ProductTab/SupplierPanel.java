@@ -291,8 +291,8 @@ public class SupplierPanel extends JPanel implements Refreshable {
             return;
         }
 
-        if (!phone.matches("^0\\d{9}$")) {
-            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!phone.matches(AppConstant.REGEX_SUPPLIER_PHONE)) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ! (Số di động 10 chữ số hoặc số bàn cố định 11 chữ số bắt đầu bằng số 0)", "Lỗi", JOptionPane.ERROR_MESSAGE);
             phoneField.requestFocus();
             return;
         }

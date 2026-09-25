@@ -114,7 +114,7 @@ public class PromotionDAO {
     }
 
     public boolean savePromotionDetails(int promoId, List<Integer> bookIds) {
-        String sql = "INSERT INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
+        String sql = "INSERT IGNORE INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             for (int bookId : bookIds) {
@@ -221,7 +221,7 @@ public class PromotionDAO {
             }
 
             if (bookIds != null && !bookIds.isEmpty()) {
-                String sqlDetail = "INSERT INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
+                String sqlDetail = "INSERT IGNORE INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
                 try (PreparedStatement psDetail = conn.prepareStatement(sqlDetail)) {
                     for (int bookId : bookIds) {
                         psDetail.setInt(1, promoId);

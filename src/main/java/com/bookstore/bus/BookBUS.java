@@ -29,6 +29,8 @@ public class BookBUS {
             return "Vui lòng chọn thể loại cho sách!";
         if (book.getSupplierId() <= 0)
             return "Vui lòng chọn nhà cung cấp cho sách!";
+        if (book.getSellingPrice() < 0 || book.getCoverPrice() < 0)
+            return "Giá bán của sách không được là số âm!";
 
         String duplicateCheck = validateDuplicate(book, false);
         if (duplicateCheck != null) {

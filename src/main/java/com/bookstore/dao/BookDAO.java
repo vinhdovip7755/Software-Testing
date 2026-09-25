@@ -103,7 +103,7 @@ public class BookDAO {
             }
 
             if (authorIds != null && !authorIds.isEmpty()) {
-                String sqlAuthor = "INSERT INTO book_author (book_id, author_id) VALUES (?, ?)";
+                String sqlAuthor = "INSERT IGNORE INTO book_author (book_id, author_id) VALUES (?, ?)";
                 try (PreparedStatement psAuthor = conn.prepareStatement(sqlAuthor)) {
                     for (Integer aId : authorIds) {
                         psAuthor.setInt(1, generatedId);
@@ -164,7 +164,7 @@ public class BookDAO {
             }
 
             if (authorIds != null && !authorIds.isEmpty()) {
-                String sqlAuthor = "INSERT INTO book_author (book_id, author_id) VALUES (?, ?)";
+                String sqlAuthor = "INSERT IGNORE INTO book_author (book_id, author_id) VALUES (?, ?)";
                 try (PreparedStatement psAuthor = conn.prepareStatement(sqlAuthor)) {
                     for (Integer aId : authorIds) {
                         psAuthor.setInt(1, book.getBookId());
