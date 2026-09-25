@@ -127,6 +127,12 @@ public class CustomerEditDialog extends JDialog {
             return;
         }
 
+        if (!newName.matches("^[\\p{L}\\s.'-]+$")) {
+            JOptionPane.showMessageDialog(this, "Họ và tên chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+
         if (newPhone.isEmpty() || !newPhone.matches("^0\\d{9}$")) {
             JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtPhone.requestFocus();

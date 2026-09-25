@@ -60,7 +60,7 @@ public class EmployeeAddDialog extends JDialog {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
                 String email = txtEmail.getText().trim();
-                if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtEmail.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
                     javax.swing.JOptionPane.showMessageDialog(EmployeeAddDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
                     txtEmail.requestFocusInWindow();
@@ -175,13 +175,18 @@ public class EmployeeAddDialog extends JDialog {
             txtName.requestFocus();
             return;
         }
+        if (!txtName.getText().trim().matches("^[\\p{L}\\s.'-]+$")) {
+            JOptionPane.showMessageDialog(this, "Họ và tên chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
         if (txtPhone.getText().trim().isEmpty() || !txtPhone.getText().trim().matches("^0\\d{9}$")) {
             JOptionPane.showMessageDialog(this, "Số điện thoại phải có 10 số và bắt đầu bằng 0!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtPhone.requestFocus();
             return;
         }
-        if (txtEmail.getText().trim().isEmpty() || !txtEmail.getText().trim().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            JOptionPane.showMessageDialog(this, "Email không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (txtEmail.getText().trim().isEmpty() || !txtEmail.getText().trim().matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtEmail.requestFocus();
             return;
         }
@@ -192,6 +197,11 @@ public class EmployeeAddDialog extends JDialog {
         }
         if (txtBaseSalary.getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(this, "Lương cơ bản không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtBaseSalary.requestFocus();
+            return;
+        }
+        if (!txtBaseSalary.getText().trim().matches("^\\d+(\\.\\d+)?$")) {
+            JOptionPane.showMessageDialog(this, "Lương cơ bản phải là số dương!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtBaseSalary.requestFocus();
             return;
         }

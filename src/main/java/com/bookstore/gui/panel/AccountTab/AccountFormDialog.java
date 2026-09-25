@@ -57,7 +57,7 @@ public class AccountFormDialog extends JDialog {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
                 String email = txtUsername.getText().trim();
-                if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtUsername.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
                     javax.swing.JOptionPane.showMessageDialog(AccountFormDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
                     txtUsername.requestFocusInWindow();
@@ -301,13 +301,25 @@ public class AccountFormDialog extends JDialog {
             cboEmployee.requestFocus();
             return null;
         }
-        if (txtUsername.getText().trim().isEmpty()) {
+        String email = txtUsername.getText().trim();
+        if (email.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Email không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtUsername.requestFocus();
             return null;
         }
-        if (this.account == null && txtPassword.getText().trim().isEmpty()) {
+        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtUsername.requestFocus();
+            return null;
+        }
+        String password = txtPassword.getText().trim();
+        if (this.account == null && password.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Mật khẩu không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtPassword.requestFocus();
+            return null;
+        }
+        if (this.account == null && password.length() < 4) {
+            JOptionPane.showMessageDialog(this, "Mật khẩu phải có ít nhất 4 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtPassword.requestFocus();
             return null;
         }

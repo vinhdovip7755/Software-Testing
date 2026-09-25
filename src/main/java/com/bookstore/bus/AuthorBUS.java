@@ -15,10 +15,14 @@ public class AuthorBUS {
     public String addAuthor(AuthorDTO author) {
         if (author.getAuthorName().trim().isEmpty())
             return "Tên tác giả không được để trống!";
+        if (!author.getAuthorName().trim().matches("^[\\p{L}\\s.'-]+$"))
+            return "Tên tác giả chỉ được chứa chữ cái và khoảng trắng!";
         if (authorDAO.exists(author.getAuthorName()))
             return "Tên tác giả đã tồn tại trong hệ thống!";
-        if(author.getNationality().trim().isEmpty())
+        if (author.getNationality().trim().isEmpty())
             return "Quốc tịch tác giả không được để trống!";
+        if (!author.getNationality().trim().matches("^[\\p{L}\\s-]+$"))
+            return "Quốc tịch tác giả chỉ được chứa chữ cái và khoảng trắng!";
 
         int id = authorDAO.add(author);
 
@@ -31,8 +35,12 @@ public class AuthorBUS {
     public String updateAuthor(AuthorDTO author) {
         if (author.getAuthorName().trim().isEmpty())
             return "Tên tác giả không được để trống!";
-        if(author.getNationality().trim().isEmpty())
+        if (!author.getAuthorName().trim().matches("^[\\p{L}\\s.'-]+$"))
+            return "Tên tác giả chỉ được chứa chữ cái và khoảng trắng!";
+        if (author.getNationality().trim().isEmpty())
             return "Quốc tịch tác giả không được để trống!";
+        if (!author.getNationality().trim().matches("^[\\p{L}\\s-]+$"))
+            return "Quốc tịch tác giả chỉ được chứa chữ cái và khoảng trắng!";
         if (authorDAO.update(author)) {
             return "Cập nhật tác giả thành công!";
         }

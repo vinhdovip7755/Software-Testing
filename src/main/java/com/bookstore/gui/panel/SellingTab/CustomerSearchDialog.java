@@ -117,6 +117,13 @@ public class CustomerSearchDialog extends JDialog {
         String phone = txtPhone.getText().trim();
         if (phone.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng nhập Số điện thoại!");
+            txtPhone.requestFocus();
+            return;
+        }
+
+        if (!phone.matches("^0\\d{9}$")) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ (Phải có 10 chữ số và bắt đầu bằng số 0)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtPhone.requestFocus();
             return;
         }
 

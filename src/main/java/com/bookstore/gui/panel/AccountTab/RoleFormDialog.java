@@ -134,8 +134,9 @@ public class RoleFormDialog extends JDialog {
             return;
         }
 
-        if (newName.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Tên chức vụ không được để trống!");
+        if (!newName.matches("^[\\p{L}\\s.'-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên chức vụ chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
             return;
         }
 

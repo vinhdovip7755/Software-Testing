@@ -657,14 +657,15 @@ public class SellingPanel extends JPanel implements Refreshable {
                 "1");
 
         if (input == null) return;
+        input = input.trim();
+        if (!input.matches("^[1-9]\\d*$")) {
+            JOptionPane.showMessageDialog(this, "Số lượng phải là số nguyên dương lớn hơn 0!");
+            return;
+        }
 
         int quantityToAdd;
         try {
             quantityToAdd = Integer.parseInt(input);
-            if (quantityToAdd <= 0) {
-                JOptionPane.showMessageDialog(this, "Số lượng phải lớn hơn 0!");
-                return;
-            }
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Vui lòng nhập số nguyên hợp lệ!");
             return;
@@ -775,14 +776,14 @@ public class SellingPanel extends JPanel implements Refreshable {
                 currentQty);
 
         if (input == null) return;
+        input = input.trim();
+        if (!input.matches("^[1-9]\\d*$")) {
+            JOptionPane.showMessageDialog(this, "Số lượng phải là số nguyên dương lớn hơn 0!");
+            return;
+        }
 
         try {
             int newQty = Integer.parseInt(input);
-
-            if (newQty <= 0) {
-                JOptionPane.showMessageDialog(this, "Số lượng phải lớn hơn 0!");
-                return;
-            }
 
             if (newQty > book.getQuantity()) {
                 JOptionPane.showMessageDialog(this,

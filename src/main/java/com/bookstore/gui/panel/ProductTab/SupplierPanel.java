@@ -279,6 +279,24 @@ public class SupplierPanel extends JPanel implements Refreshable {
         String address = addressField.getText().trim();
         String phone = phoneField.getText().trim();
 
+        if (name.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Tên nhà cung cấp không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            nameField.requestFocus();
+            return;
+        }
+
+        if (phone.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            phoneField.requestFocus();
+            return;
+        }
+
+        if (!phone.matches("^0\\d{9}$")) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            phoneField.requestFocus();
+            return;
+        }
+
         SupplierDTO supplierDTO = new SupplierDTO();
         supplierDTO.setSupplierName(name);
         supplierDTO.setSupplierAddress(address);

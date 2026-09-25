@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ImportPanel extends JPanel implements Refreshable {
-    private JComboBox<String> cboCategory;
+    private SearchableComboBox<String> cboCategory;
     private JTextField txtSearch;
     private JButton btnResetFilter;
     private JTable tblProduct;
@@ -28,7 +28,7 @@ public class ImportPanel extends JPanel implements Refreshable {
     private JTable tblCart;
     private DefaultTableModel cartModel;
     private SearchableComboBox<String> cboTicketSupplier;
-    private JTextField txtEmployee, txtApprover;
+    private JTextField txtEmployee, txtDate;
     private JLabel lbFinalTotal;
     private JButton btnRefresh, btnDelete, btnEdit, btnComplete;
 
@@ -49,8 +49,14 @@ public class ImportPanel extends JPanel implements Refreshable {
         if (SharedData.currentUser != null && txtEmployee != null) {
             txtEmployee.setText(SharedData.currentUser.getEmployeeName());
         }
-        loadCategoriesToComBoBox();
+        if (txtDate != null) {
+            txtDate.setText(new java.text.SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date()));
+        }
         loadSuppliersToComboBox();
+        loadCategoriesToComBoBox();
+        if (cboCategory != null) {
+            cboCategory.setEnabled(false);
+        }
         loadBookTable();
     }
 
@@ -73,10 +79,19 @@ public class ImportPanel extends JPanel implements Refreshable {
         JPanel pFilter = new JPanel(new GridLayout(2, 1, 10, 10));
         pFilter.setOpaque(false);
 
-        JPanel pRow1 = new JPanel(new GridLayout(1,2,10,10));
+        JPanel pRow1 = new JPanel(new GridLayout(1, 2, 10, 10));
         pRow1.setOpaque(false);
-        cboCategory = new JComboBox<>();
+
+        cboTicketSupplier = new SearchableComboBox<>();
+        cboTicketSupplier.setBorder(BorderFactory.createTitledBorder("Nhà Cung Cấp (*)"));
+        cboTicketSupplier.setBackground(Color.WHITE);
+
+        cboCategory = new SearchableComboBox<>();
+        cboCategory.setBorder(BorderFactory.createTitledBorder("Thể loại"));
         cboCategory.setBackground(Color.WHITE);
+        cboCategory.setEnabled(false);
+
+        pRow1.add(cboTicketSupplier);
         pRow1.add(cboCategory);
         pFilter.add(pRow1);
 
@@ -158,7 +173,7 @@ public class ImportPanel extends JPanel implements Refreshable {
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setOpaque(false);
 
-        JPanel pInfo = new JPanel(new GridLayout(1, 3, 10, 10));
+        JPanel pInfo = new JPanel(new GridLayout(1, 2, 10, 10));
         pInfo.setOpaque(false);
 
         String employeeName = "Admin (Chưa đăng nhập)";
@@ -170,20 +185,14 @@ public class ImportPanel extends JPanel implements Refreshable {
         txtEmployee.setBackground(Color.decode("#F5F5F5"));
         txtEmployee.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 13));
 
-        txtApprover = new JTextField("Hệ thống tự nhận diện khi duyệt");
-        txtApprover.setEditable(false);
-        txtApprover.setBorder(BorderFactory.createTitledBorder("Người duyệt phiếu"));
-        txtApprover.setBackground(Color.decode("#F5F5F5"));
-        txtApprover.setForeground(Color.GRAY);
-        txtApprover.setFont(new Font(AppConstant.FONT_NAME, Font.ITALIC, 13));
+        txtDate = new JTextField(new java.text.SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date()));
+        txtDate.setEditable(false);
+        txtDate.setBorder(BorderFactory.createTitledBorder("Ngày lập phiếu"));
+        txtDate.setBackground(Color.decode("#F5F5F5"));
+        txtDate.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 13));
 
-        cboTicketSupplier = new SearchableComboBox<>();
-        cboTicketSupplier.setBorder(BorderFactory.createTitledBorder("Nhà Cung Cấp"));
-        cboTicketSupplier.setBackground(Color.WHITE);
-
-        pInfo.add(cboTicketSupplier);
         pInfo.add(txtEmployee);
-        pInfo.add(txtApprover);
+        pInfo.add(txtDate);
 
         JPanel pActions = new JPanel(new GridLayout(1, 3, 10, 0));
         pActions.setOpaque(false);
@@ -264,9 +273,12 @@ public class ImportPanel extends JPanel implements Refreshable {
     }
 
     private void loadCategoriesToComBoBox() {
-        List<String> list = new ArrayList<>(); list.add("0 - Tất cả thể loại");
-        for (CategoryDTO c : categoryBUS.selectAllCategories()) list.add(c.getCategoryId() + " - " + c.getCategoryName());
-        cboCategory.setModel(new DefaultComboBoxModel<>(list.toArray(new String[0])));
+        List<String> list = new ArrayList<>(); 
+        list.add("0 - Tất cả thể loại");
+        for (CategoryDTO c : categoryBUS.selectAllCategories()) {
+            list.add(c.getCategoryId() + " - " + c.getCategoryName());
+        }
+        cboCategory.updateData(list);
     }
 
     private void loadSuppliersToComboBox() {
@@ -302,9 +314,22 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
     }
 
+    private void clearProductDetail() {
+        if (lbBookName != null) lbBookName.setText("Chọn sách để nhập");
+        if (lbCategory != null) lbCategory.setText("-");
+        if (lbPrice != null) lbPrice.setText("-");
+        if (lbQuantity != null) lbQuantity.setText("-");
+        if (lbProductImage != null) lbProductImage.setIcon(null);
+        if (tblProduct != null && tblProduct.getSelectedRow() != -1) {
+            tblProduct.clearSelection();
+        }
+    }
+
     private void filterBooks() {
-        if (cboTicketSupplier.getSelectedItem() == null) {
+        if (cboTicketSupplier == null || cboTicketSupplier.getSelectedItem() == null) {
+            if (cboCategory != null) cboCategory.setEnabled(false);
             productModel.setRowCount(0);
+            clearProductDetail();
             return;
         }
 
@@ -317,17 +342,30 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
 
         if (supId == 0) {
+            if (cboCategory != null) cboCategory.setEnabled(false);
             productModel.setRowCount(0);
+            clearProductDetail();
             return;
         }
 
+        if (cboCategory != null) {
+            cboCategory.setEnabled(true);
+        }
+
         String keyword = txtSearch.getText().trim().toLowerCase();
-        int cateId = Integer.parseInt(cboCategory.getSelectedItem().toString().split(" - ")[0]);
+        int cateId = 0;
+        if (cboCategory.getSelectedItem() != null) {
+            try {
+                cateId = Integer.parseInt(cboCategory.getSelectedItem().toString().split(" - ")[0]);
+            } catch (Exception e) {
+                cateId = 0;
+            }
+        }
 
         productModel.setRowCount(0);
+        clearProductDetail();
 
         for (BookDTO book : listBooks) {
-
             boolean matchKey = keyword.isEmpty() || book.getBookName().toLowerCase().contains(keyword);
             boolean matchCate = (cateId == 0) || (book.getCategoryId() == cateId);
             boolean matchSupplier = (book.getSupplierId() == supId);
@@ -440,7 +478,7 @@ public class ImportPanel extends JPanel implements Refreshable {
         if (cartModel.getRowCount() == 0) { JOptionPane.showMessageDialog(this, "Phiếu nhập đang trống!"); return; }
         if (cboTicketSupplier.getSelectedItem() == null || cboTicketSupplier.getSelectedItem().toString().isEmpty()
             || cboTicketSupplier.getSelectedItem().toString().startsWith("0 -")) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn Nhà cung cấp ở góc trên bên phải!"); return;
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn Nhà cung cấp!"); return;
         }
 
         try {
@@ -496,8 +534,9 @@ public class ImportPanel extends JPanel implements Refreshable {
 
         btnResetFilter.addActionListener(e -> {
             txtSearch.setText("");
-            cboCategory.setSelectedIndex(0);
-            cboTicketSupplier.setSelectedIndex(0);
+            cboTicketSupplier.resetSelection();
+            cboCategory.resetSelection();
+            if (cboCategory != null) cboCategory.setEnabled(false);
             filterBooks();
         });
 
@@ -521,6 +560,20 @@ public class ImportPanel extends JPanel implements Refreshable {
                     } else {
                         return;
                     }
+                }
+
+                String supStr = cboTicketSupplier.getSelectedItem().toString();
+                int supId = 0;
+                try {
+                    supId = Integer.parseInt(supStr.split(" - ")[0]);
+                } catch (Exception ex) {
+                    supId = 0;
+                }
+                if (supId == 0) {
+                    cboCategory.resetSelection();
+                    cboCategory.setEnabled(false);
+                } else {
+                    cboCategory.setEnabled(true);
                 }
                 filterBooks();
             }

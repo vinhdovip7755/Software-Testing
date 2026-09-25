@@ -213,6 +213,13 @@ public class CategoryPanel extends JPanel implements Refreshable {
 
         if (newCategoryName.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Tên thể loại không được để trống.", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            categoryNameField.requestFocus();
+            return;
+        }
+
+        if (!newCategoryName.matches("^[\\p{L}\\s.'-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên thể loại chỉ được chứa chữ cái, dấu gạch nối và khoảng trắng!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            categoryNameField.requestFocus();
             return;
         }
 

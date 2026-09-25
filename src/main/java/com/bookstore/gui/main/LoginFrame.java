@@ -48,7 +48,7 @@ public class LoginFrame extends JFrame {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
                 String username = txtUsername.getText().trim();
-                if (!username.isEmpty() && !username.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                if (!username.isEmpty() && !username.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtUsername.putClientProperty(FlatClientProperties.OUTLINE, "error");
                     javax.swing.JOptionPane.showMessageDialog(LoginFrame.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
                     txtUsername.requestFocusInWindow();
@@ -161,7 +161,7 @@ public class LoginFrame extends JFrame {
             return;
         }
 
-        if (!username.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+        if (!username.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
             JOptionPane.showMessageDialog(this, "Định dạng Email không hợp lệ!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             txtUsername.requestFocus();
             return;

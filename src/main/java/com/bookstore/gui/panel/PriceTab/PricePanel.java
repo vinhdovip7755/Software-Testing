@@ -241,15 +241,27 @@ public class PricePanel extends JPanel implements Refreshable {
                 return;
             }
 
-            try {
-                if (!minStr.isEmpty())
-                    Double.parseDouble(minStr);
-                if (!maxStr.isEmpty())
-                    Double.parseDouble(maxStr);
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(this, "Vui lòng chỉ nhập số!", "Lỗi nhập liệu",
+            if (!minStr.isEmpty() && !minStr.matches("^\\d+(\\.\\d+)?$")) {
+                JOptionPane.showMessageDialog(this, "Giá tối thiểu phải là số không âm hợp lệ!", "Lỗi nhập liệu",
                         JOptionPane.ERROR_MESSAGE);
+                txtMinPrice.requestFocus();
                 return;
+            }
+            if (!maxStr.isEmpty() && !maxStr.matches("^\\d+(\\.\\d+)?$")) {
+                JOptionPane.showMessageDialog(this, "Giá tối đa phải là số không âm hợp lệ!", "Lỗi nhập liệu",
+                        JOptionPane.ERROR_MESSAGE);
+                txtMaxPrice.requestFocus();
+                return;
+            }
+
+            if (!minStr.isEmpty() && !maxStr.isEmpty()) {
+                double minVal = Double.parseDouble(minStr);
+                double maxVal = Double.parseDouble(maxStr);
+                if (minVal > maxVal) {
+                    JOptionPane.showMessageDialog(this, "Giá tối thiểu không được lớn hơn giá tối đa!", "Lỗi nhập liệu",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
             }
             input = minStr + "-" + maxStr;
         } else {
@@ -436,8 +448,13 @@ if(true) return;
         if (res == null || res.trim().isEmpty())
             return;
 
+        if (!res.trim().matches("^\\d+(\\.\\d+)?$")) {
+            JOptionPane.showMessageDialog(this, "Tỷ suất lợi nhuận phải là số không âm hợp lệ!", "Lỗi nhập liệu", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         try {
-            double newPercent = Double.parseDouble(res);
+            double newPercent = Double.parseDouble(res.trim());
             double newProfitRate = newPercent / 100.0;
             double predictedPrice = p.getBasePrice() * (1 + newProfitRate);
 
@@ -472,8 +489,12 @@ if(true) return;
         String res = JOptionPane.showInputDialog(this,
                 "Nhập % lợi nhuận áp dụng chung cho " + listHienThi.size() + " cuốn sách:");
         if (res != null && !res.trim().isEmpty()) {
+            if (!res.trim().matches("^\\d+(\\.\\d+)?$")) {
+                JOptionPane.showMessageDialog(this, "Tỷ suất lợi nhuận phải là số không âm hợp lệ!", "Lỗi nhập liệu", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             try {
-                double newPercent = Double.parseDouble(res);
+                double newPercent = Double.parseDouble(res.trim());
                 double newProfitRate = newPercent / 100.0;
 
                 if (bus.updateBulkPrice(listHienThi, newProfitRate)) {

@@ -733,9 +733,28 @@ public class BookFormDialog extends JDialog {
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result != JOptionPane.OK_OPTION) return;
 
+        String aName = name.getText().trim();
+        String aNat = nationality.getText().trim();
+        if (aName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (!aName.matches("^[\\p{L}\\s.'-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (aNat.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (!aNat.matches("^[\\p{L}\\s-]+$")) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         AuthorDTO author = new AuthorDTO();
-        author.setAuthorName(name.getText().trim());
-        author.setNationality(nationality.getText().trim());
+        author.setAuthorName(aName);
+        author.setNationality(aNat);
         String message = authorBUS.addAuthor(author);
         if (!message.toLowerCase().contains("thành công")) {
             JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -786,10 +805,27 @@ public class BookFormDialog extends JDialog {
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result != JOptionPane.OK_OPTION) return;
 
+        String sName = name.getText().trim();
+        String sPhone = phone.getText().trim();
+        String sAddress = address.getText().trim();
+
+        if (sName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Tên nhà cung cấp không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (sPhone.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (!sPhone.matches("^0\\d{9}$")) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         SupplierDTO supplier = new SupplierDTO();
-        supplier.setSupplierName(name.getText().trim());
-        supplier.setSupplierPhone(phone.getText().trim());
-        supplier.setSupplierAddress(address.getText().trim());
+        supplier.setSupplierName(sName);
+        supplier.setSupplierPhone(sPhone);
+        supplier.setSupplierAddress(sAddress);
         String message = supplierBUS.addSupplier(supplier);
         if (!message.toLowerCase().contains("thành công")) {
             JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -866,14 +902,38 @@ public class BookFormDialog extends JDialog {
             return;
         }
 
+        String yearStr = yearField.getText().trim();
+        if (!yearStr.isEmpty()) {
+            if (!yearStr.matches("^\\d{4}$")) {
+                JOptionPane.showMessageDialog(this, "Năm xuất bản phải là năm gồm 4 chữ số hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                yearField.requestFocus();
+                return;
+            }
+        }
+
+        String trans = translatorField.getText().trim();
+        if (!trans.isEmpty() && !trans.matches("^[\\p{L}\\s.'-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên người dịch chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            translatorField.requestFocus();
+            return;
+        }
+
+        String priceStr = coverPriceField.getText().trim();
+        if (!priceStr.isEmpty() && !priceStr.matches("^\\d+(\\.\\d+)?$")) {
+            JOptionPane.showMessageDialog(this, "Giá bìa phải là số không âm hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            coverPriceField.requestFocus();
+            return;
+        }
+
         double coverPrice;
         int publicationYear;
         try {
-            coverPrice = coverPriceField.getText().trim().isEmpty() ? 0 : Double.parseDouble(coverPriceField.getText().trim());
-            publicationYear = yearField.getText().trim().isEmpty() ? 0 : Integer.parseInt(yearField.getText().trim());
-            if (coverPrice < 0 || publicationYear < 0 || publicationYear > 3000) throw new NumberFormatException();
+            coverPrice = priceStr.isEmpty() ? 0 : Double.parseDouble(priceStr);
+            publicationYear = yearStr.isEmpty() ? 0 : Integer.parseInt(yearStr);
+            int curYear = java.time.Year.now().getValue();
+            if (coverPrice < 0 || (publicationYear != 0 && (publicationYear < 1000 || publicationYear > curYear + 1))) throw new NumberFormatException();
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Giá bìa và năm xuất bản không hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Giá bìa hoặc năm xuất bản không hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

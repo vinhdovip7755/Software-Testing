@@ -311,6 +311,30 @@ public class AuthorPanel extends JPanel implements Refreshable{
         String name = nameField.getText().trim();
         String country = countryField.getText().trim();
 
+        if (name.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            nameField.requestFocus();
+            return;
+        }
+
+        if (!name.matches("^[\\p{L}\\s.'-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            nameField.requestFocus();
+            return;
+        }
+
+        if (country.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            countryField.requestFocus();
+            return;
+        }
+
+        if (!country.matches("^[\\p{L}\\s-]+$")) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            countryField.requestFocus();
+            return;
+        }
+
         AuthorDTO authorDTO = new AuthorDTO();
         authorDTO.setAuthorName(name);
         authorDTO.setNationality(country);

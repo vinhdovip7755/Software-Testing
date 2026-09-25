@@ -216,28 +216,67 @@ public class ProfilePanel extends JPanel implements Refreshable {
                 txtName.requestFocus();
                 return;
             }
+            if (!newName.matches("^[\\p{L}\\s.'-]+$")) {
+                JOptionPane.showMessageDialog(this, "Tên nhân viên chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtName.requestFocus();
+                return;
+            }
             if (newPhone.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Số điện thoại không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 txtPhone.requestFocus();
                 return;
             }
-            
-            emp.setEmployeeName(newName);
-            emp.setEmployeePhone(newPhone);
-            if (dchBirthday.getDate() != null) {
-                emp.setBirthday(new java.sql.Date(dchBirthday.getDate().getTime()));
+            if (!newPhone.matches("^0\\d{9}$")) {
+                JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ (Phải có 10 chữ số và bắt đầu bằng số 0)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPhone.requestFocus();
+                return;
             }
             
             String newUsername = txtUsername.getText().trim();
-            if (!newUsername.isEmpty()) {
-                emp.setEmail(newUsername);
+            if (!newUsername.isEmpty() && !newUsername.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+                JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtUsername.requestFocus();
+                return;
             }
-            
-            String result = empBus.updateEmployee(emp);
+
+            String newPass = new String(txtPassword.getPassword()).trim();
+            if (!newPass.isEmpty() && newPass.length() < 4) {
+                JOptionPane.showMessageDialog(this, "Mật khẩu mới phải có ít nhất 4 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPassword.requestFocus();
+                return;
+            }
+
+            EmployeeDTO tempEmp = new EmployeeDTO();
+            tempEmp.setEmployeeId(emp.getEmployeeId());
+            tempEmp.setEmployeeName(newName);
+            tempEmp.setEmployeePhone(newPhone);
+            tempEmp.setBaseSalary(emp.getBaseSalary());
+            tempEmp.setSalaryFactor(emp.getSalaryFactor());
+            tempEmp.setDayIn(emp.getDayIn());
+            tempEmp.setRoleId(emp.getRoleId());
+            tempEmp.setStatus(emp.getStatus());
+            tempEmp.setRoleName(emp.getRoleName());
+            if (dchBirthday.getDate() != null) {
+                tempEmp.setBirthday(new java.sql.Date(dchBirthday.getDate().getTime()));
+            } else {
+                tempEmp.setBirthday(emp.getBirthday());
+            }
+            if (!newUsername.isEmpty()) {
+                tempEmp.setEmail(newUsername);
+            } else {
+                tempEmp.setEmail(emp.getEmail());
+            }
+
+            String result = empBus.updateEmployee(tempEmp);
             if (result != null && !result.toLowerCase().contains("thành công") && !result.equals("OK")) {
                 JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
+
+            emp.setEmployeeName(newName);
+            emp.setEmployeePhone(newPhone);
+            emp.setBirthday(tempEmp.getBirthday());
+            emp.setEmail(tempEmp.getEmail());
 
             AccountDAO accDAO = new AccountDAO();
             AccountDTO currentAcc = null;
@@ -256,7 +295,6 @@ public class ProfilePanel extends JPanel implements Refreshable {
                     currentAcc.setUsername(newUsername);
                 }
                 
-                String newPass = new String(txtPassword.getPassword()).trim();
                 boolean isChangePass = !newPass.isEmpty();
                 if (isChangePass) {
                     currentAcc.setPassword(newPass);
