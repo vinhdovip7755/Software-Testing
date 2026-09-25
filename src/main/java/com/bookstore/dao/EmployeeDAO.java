@@ -14,15 +14,11 @@ public class EmployeeDAO {
     public EmployeeDTO selectById(int id) {
         EmployeeDTO employee = null;
 
-        try {
-            Connection c = DatabaseConnection.getConnection();
-            String sql = "SELECT e.*, r.role_name " +
-                    "FROM employee e " +
-                    "JOIN role r ON r.role_id = e.role_id " +
-                    "WHERE employee_id = ? ";
-            PreparedStatement ps = c.prepareStatement(sql);
+        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON r.role_id = e.role_id WHERE employee_id = ?";
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, id);
-            ResultSet rs = ps.executeQuery();
+            try (ResultSet rs = ps.executeQuery()) {
 
             if (rs.next()) {
                 employee = new EmployeeDTO(
@@ -39,7 +35,7 @@ public class EmployeeDAO {
                         rs.getString("r.role_name")
                 );
             }
-            DatabaseConnection.closeConnection(c);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

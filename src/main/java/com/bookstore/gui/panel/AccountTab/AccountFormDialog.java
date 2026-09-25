@@ -52,7 +52,20 @@ public class AccountFormDialog extends JDialog {
             }
         });
 
-        txtUsername = new JTextField();
+                txtUsername = new JTextField();
+        txtUsername.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                String email = txtUsername.getText().trim();
+                if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    txtUsername.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(AccountFormDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    txtUsername.requestFocusInWindow();
+                } else {
+                    txtUsername.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         txtPassword = new JTextField();
         txtRole = new JTextField();
         txtRole.setEditable(false);

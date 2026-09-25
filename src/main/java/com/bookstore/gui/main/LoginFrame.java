@@ -42,8 +42,21 @@ public class LoginFrame extends JFrame {
         lbTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         txtUsername = new JTextField();
-        txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Email của bạn");
+                txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Email của bạn");
         styleField(txtUsername);
+        txtUsername.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                String username = txtUsername.getText().trim();
+                if (!username.isEmpty() && !username.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    txtUsername.putClientProperty(FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(LoginFrame.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    txtUsername.requestFocusInWindow();
+                } else {
+                    txtUsername.putClientProperty(FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
 
         txtPassword = new JPasswordField();
         txtPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mật khẩu");
@@ -142,10 +155,21 @@ public class LoginFrame extends JFrame {
         String username = txtUsername.getText().trim();
         String password = new String(txtPassword.getPassword());
 
-        if (username.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Vui lòng nhập đầy đủ thông tin!",
-                    "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+        if (username.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập Email!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtUsername.requestFocus();
+            return;
+        }
+
+        if (!username.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            JOptionPane.showMessageDialog(this, "Định dạng Email không hợp lệ!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtUsername.requestFocus();
+            return;
+        }
+
+        if (password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập mật khẩu!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtPassword.requestFocus();
             return;
         }
 

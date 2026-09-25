@@ -55,7 +55,20 @@ public class EmployeeAddDialog extends JDialog {
 
         txtName = createInput("Nhập họ tên...");
         txtPhone = createInput("Nhập 10 số điện thoại...");
-        txtEmail = createInput("Nhập email...");
+                txtEmail = createInput("Nhập email...");
+        txtEmail.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                String email = txtEmail.getText().trim();
+                if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    txtEmail.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(EmployeeAddDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    txtEmail.requestFocusInWindow();
+                } else {
+                    txtEmail.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         txtBaseSalary = createNumericInput("Nhập lương cơ bản (VD: 5000000)...");
 
         dateBirthday = new JDateChooser();

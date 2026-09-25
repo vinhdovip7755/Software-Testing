@@ -14,14 +14,11 @@ public class AccountDAO {
     public AccountDTO selectByUsername(String username) {
         AccountDTO acc = null;
 
-        try {
-            Connection c = DatabaseConnection.getConnection();
-            String sql = "SELECT a.* FROM account a " +
-                    "JOIN employee e ON a.employee_id = e.employee_id " +
-                    "WHERE a.status = 1 AND a.username = ? AND e.status = 1 ";
-            PreparedStatement ps = c.prepareStatement(sql);
+        String sql = "SELECT a.* FROM account a JOIN employee e ON a.employee_id = e.employee_id WHERE a.status = 1 AND a.username = ? AND e.status = 1 ";
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
+            try (ResultSet rs = ps.executeQuery()) {
 
             if (rs.next()) {
                 acc = new AccountDTO(
@@ -31,7 +28,7 @@ public class AccountDAO {
                         rs.getInt("status")
                 );
             }
-            c.close();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

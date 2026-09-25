@@ -37,8 +37,21 @@ public class ForgotPasswordDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.weightx = 1.0;
 
-        txtEmail = new JTextField();
+                txtEmail = new JTextField();
         txtEmail.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nhập email của bạn");
+        txtEmail.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                String email = txtEmail.getText().trim();
+                if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    txtEmail.putClientProperty(FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    txtEmail.requestFocusInWindow();
+                } else {
+                    txtEmail.putClientProperty(FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
 
         txtOtp = new JTextField();
         txtOtp.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mã OTP (6 số)");
