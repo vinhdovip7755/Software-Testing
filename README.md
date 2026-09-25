@@ -36,13 +36,13 @@ Số điện thoại tìm kiếm khách hàng
 
 Con mắt hiển thị mật khẩu Done
 
-Sửa lại mục tài khoản
+Sửa lại mục tài khoản Done
 
 Họ và tên khoản trống thì sao, font tiếng Việt kí tự là gì
 
-Chú ý từ ngữ ngày tháng chọn từ định dạng
+Chú ý từ ngữ ngày tháng chọn từ định dạng Done
 
-Đánh dấu * vào trường thông tin bắt buộc
+Đánh dấu * vào trường thông tin bắt buộc Done
 
 Điền thông tin vào trường đánh dấu *
 
