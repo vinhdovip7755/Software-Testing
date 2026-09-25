@@ -290,6 +290,7 @@ public class PricePanel extends JPanel implements Refreshable {
         toolbar.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
 
         JButton btnLoiNhuan = new JButton("Chỉnh lợi nhuận chung");
+        btnLoiNhuan.setVisible(false);
         btnLoiNhuan.setPreferredSize(new Dimension(220, 45));
         btnLoiNhuan.setBackground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         btnLoiNhuan.setForeground(Color.WHITE);
@@ -327,8 +328,7 @@ public class PricePanel extends JPanel implements Refreshable {
         whiteBox.setBackground(Color.WHITE);
         whiteBox.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        String[] columns = { "Tên sách", "Tác giả", "Thể loại", "Giá vốn trung bình", "Lợi nhuận", "Giá bán hiện tại",
-                "Thao tác" };
+        String[] columns = { "Tên sách", "Tác giả", "Thể loại", "Giá vốn trung bình", "Lợi nhuận", "Giá bán hiện tại" };
         model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -348,6 +348,7 @@ public class PricePanel extends JPanel implements Refreshable {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int col = table.columnAtPoint(e.getPoint());
+if(true) return;
                 int row = table.getSelectedRow();
                 if (row == -1)
                     return;
@@ -358,10 +359,7 @@ public class PricePanel extends JPanel implements Refreshable {
                     return;
                 }
 
-                if (col == 6) {
-                    PriceDTO selected = listHienThi.get(row);
-                    showEditPriceDialog(selected);
-                }
+                
             }
         });
 
@@ -387,8 +385,7 @@ public class PricePanel extends JPanel implements Refreshable {
                     p.getCategoryName() != null ? p.getCategoryName() : "Khác",
                     String.format("%,.0f đ", p.getBasePrice()),
                     String.format("%.1f %%", p.getProfitRate() * 100),
-                    String.format("%,.0f đ", p.getSellingPrice()),
-                    "Đổi giá bán"
+                    String.format("%,.0f đ", p.getSellingPrice())
             });
         }
     }
@@ -427,28 +424,7 @@ public class PricePanel extends JPanel implements Refreshable {
             }
         });
 
-        t.getColumnModel().getColumn(6).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                                                           boolean hasFocus, int row, int column) {
-                JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 7));
-
-                Color bg = isSelected ? new Color(17, 71, 50) : (row % 2 != 0 ? new Color(180, 200, 180) : Color.WHITE);
-                p.setBackground(bg);
-                p.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(200, 210, 200)));
-
-                JButton b = new JButton("Sửa giá");
-                b.setBorderPainted(false);
-                b.setFocusPainted(false);
-                b.setBackground(new Color(240, 173, 78));
-                b.setForeground(Color.WHITE);
-                b.setPreferredSize(new Dimension(90, 30));
-                b.setFont(new Font("Segoe UI", Font.BOLD, 12));
-
-                p.add(b);
-                return p;
-            }
-        });
+        
     }
 
     private void showEditPriceDialog(PriceDTO p) {

@@ -170,7 +170,7 @@ public class ImportDetailDialog extends JDialog {
         List<ImportDetailDTO> details = importBUS.getDetailsByImportId(currentTicket.getImportID());
         for (ImportDetailDTO d : details) {
             double lineTotal = d.getQuantity() * d.getPrice();
-            tableModel.addRow(new Object[]{
+            tableModel.insertRow(0, new Object[]{
                     d.getBookID(),
                     d.getBookName(),
                     MoneyFormatter.toVND(d.getPrice()),

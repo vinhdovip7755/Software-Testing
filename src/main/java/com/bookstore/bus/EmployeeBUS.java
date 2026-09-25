@@ -32,11 +32,26 @@ public class EmployeeBUS {
             return "Hệ số lương phải lớn hơn hoặc bằng 0!";
         }
 
+        if (e.getStatus() == 0 || e.getRoleId() > 2) {
+            int activeManagers = employeeDAO.countActiveManagersExcluding(e.getEmployeeId());
+            if (activeManagers == 0) {
+                return "Không thể thay đổi chức vụ hoặc cho nghỉ việc, vì hệ thống phải có ít nhất 1 Quản lý/Admin đang làm việc!";
+            }
+        }
+
         return employeeDAO.updateEmployee(e) ? "Cập nhật thành công!" : "Cập nhật thất bại!";
     }
 
     public int getBillCountByEmployee(int employeeId) {
         return employeeDAO.countBillsByEmployee(employeeId);
+    }
+
+    public int getCreatedImportCountByEmployee(int employeeId) {
+        return employeeDAO.countCreatedImportByEmployee(employeeId);
+    }
+
+    public int getApprovedImportCountByEmployee(int employeeId) {
+        return employeeDAO.countApprovedImportByEmployee(employeeId);
     }
 
     public String addEmployee(EmployeeDTO e) {
@@ -57,20 +72,24 @@ public class EmployeeBUS {
             return "Lương cơ bản phải lớn hơn hoặc bằng 0!";
         }
 
+        com.bookstore.bus.AccountBUS accountBUS = new com.bookstore.bus.AccountBUS();
+        if (accountBUS.isEmailExists(e.getEmail())) {
+            return "Email này đã được đăng ký cho một tài khoản khác!";
+        }
+
         int newId = employeeDAO.insertEmployee(e);
         if (newId > 0) {
             try {
-                com.bookstore.bus.AccountBUS accBus = new com.bookstore.bus.AccountBUS();
                 com.bookstore.dto.AccountDTO acc = new com.bookstore.dto.AccountDTO();
                 acc.setEmployeeId(newId);
-                acc.setUsername(e.getEmployeePhone());
+                acc.setUsername(e.getEmail());
                 String pwd = "123456";
                 if (e.getBirthday() != null) {
                     pwd = new java.text.SimpleDateFormat("ddMMyyyy").format(e.getBirthday());
                 }
                 acc.setPassword(pwd);
                 acc.setStatus(1);
-                accBus.addAccount(acc);
+                accountBUS.addAccount(acc);
             } catch(Exception ex) { ex.printStackTrace(); }
             return "Thêm nhân viên thành công!";
         }

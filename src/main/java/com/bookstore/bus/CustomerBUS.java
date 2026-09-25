@@ -33,10 +33,6 @@ public class CustomerBUS {
             return "Số điện thoại này đã thuộc về khách hàng khác!";
         }
 
-        if (customerDAO.isNameExist(c.getCustomerName(), c.getCustomerId())) {
-            return "Tên khách hàng này đã tồn tại trong hệ thống!";
-        }
-
         if (customerDAO.updateCustomerInfo(c)) {
             return "Cập nhật thành công!";
         }
@@ -61,9 +57,6 @@ public class CustomerBUS {
 
         if (customerDAO.isPhoneExist(c.getCustomerPhone(), 0)) {
             return "Số điện thoại này đã tồn tại!";
-        }
-        if (customerDAO.isNameExist(c.getCustomerName(), 0)) {
-            return "Tên khách hàng này đã tồn tại!";
         }
 
         if (customerDAO.insertCustomer(c)) {

@@ -170,6 +170,10 @@ public class RolePanel extends JPanel implements Refreshable {
             }
 
             int roleId = (int) tblRole.getValueAt(selectedRow, 0);
+            if (roleId == 1) {
+                JOptionPane.showMessageDialog(this, "Chức vụ Quản trị viên (Admin) mặc định của hệ thống được bảo vệ và không thể chỉnh sửa!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
             String roleName = (String) tblRole.getValueAt(selectedRow, 1);
             RoleDTO selectedRole = new RoleDTO(roleId, roleName);
 

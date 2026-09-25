@@ -16,6 +16,13 @@ public class SupplierBUS {
             return "Tên nhà cung cấp không được để trống!";
         if (supplier.getSupplierPhone() == null || supplier.getSupplierPhone().trim().isEmpty())
             return "Số điện thoại không được để trống!";
+        if (!supplier.getSupplierPhone().trim().matches("^0\\d{9}$"))
+            return "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)";
+
+        if (supplierDAO.isNameExist(supplier.getSupplierName().trim(), 0))
+            return "Tên nhà cung cấp này đã tồn tại trong hệ thống!";
+        if (supplierDAO.isPhoneExist(supplier.getSupplierPhone().trim(), 0))
+            return "Số điện thoại này đã thuộc về nhà cung cấp khác!";
 
         int generatedId = supplierDAO.add(supplier);
 
@@ -28,6 +35,15 @@ public class SupplierBUS {
     public String updateSupplier(SupplierDTO supplier) {
         if (supplier.getSupplierName() == null || supplier.getSupplierName().trim().isEmpty())
             return "Tên nhà cung cấp không được để trống!";
+        if (supplier.getSupplierPhone() == null || supplier.getSupplierPhone().trim().isEmpty())
+            return "Số điện thoại không được để trống!";
+        if (!supplier.getSupplierPhone().trim().matches("^0\\d{9}$"))
+            return "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)";
+
+        if (supplierDAO.isNameExist(supplier.getSupplierName().trim(), supplier.getSupplierId()))
+            return "Tên nhà cung cấp này đã tồn tại trong hệ thống!";
+        if (supplierDAO.isPhoneExist(supplier.getSupplierPhone().trim(), supplier.getSupplierId()))
+            return "Số điện thoại này đã thuộc về nhà cung cấp khác!";
 
         if (supplierDAO.update(supplier)) {
             return "Cập nhật thành công!";

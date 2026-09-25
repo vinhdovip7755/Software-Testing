@@ -52,7 +52,20 @@ public class AccountFormDialog extends JDialog {
             }
         });
 
-        txtUsername = new JTextField();
+                txtUsername = new JTextField();
+        txtUsername.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                String email = txtUsername.getText().trim();
+                if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    txtUsername.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(AccountFormDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    txtUsername.requestFocusInWindow();
+                } else {
+                    txtUsername.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         txtPassword = new JTextField();
         txtRole = new JTextField();
         txtRole.setEditable(false);
@@ -112,41 +125,79 @@ public class AccountFormDialog extends JDialog {
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        autoAdd(mainPanel, new JLabel("Chọn nhân viên:"), 0, 0, 0, gbc);
+        autoAdd(mainPanel, new JLabel("<html>Chọn nhân viên <font color='red'>*</font>:</html>"), 0, 0, 0, gbc);
         autoAdd(mainPanel, cboEmployee, 1, 0, 1.0, gbc);
 
-        autoAdd(mainPanel, new JLabel("Tên đăng nhập:"), 0, 1, 0, gbc);
+        autoAdd(mainPanel, new JLabel("<html>Email <font color='red'>*</font>:</html>"), 0, 1, 0, gbc);
         autoAdd(mainPanel, txtUsername, 1, 1, 1.0, gbc);
 
-        autoAdd(mainPanel, new JLabel("Mật khẩu:"), 0, 2, 0, gbc);
+        autoAdd(mainPanel, this.account == null ? new JLabel("<html>Mật khẩu <font color='red'>*</font>:</html>") : new JLabel("Mật khẩu (để trống nếu không đổi):"), 0, 2, 0, gbc);
         if (this.account == null) {
             autoAdd(mainPanel, txtPassword, 1, 2, 1.0, gbc);
         } else {
-            JButton btnReset = new JButton("Khôi phục mật khẩu (Ngày sinh)");
+            JButton btnReset = new JButton("Khôi phục mật khẩu (Gửi Email)");
             btnReset.addActionListener(ev -> {
-                EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
-                String newPass = "123456";
-                String msg = "Nhân viên chưa có ngày sinh trên hệ thống. Bạn có chắc muốn đặt lại mật khẩu về mặc định?";
+                String msg = "Bạn có chắc muốn cấp mật khẩu mới (gồm 6 số ngẫu nhiên) và gửi về Email cho nhân viên này?";
                 
-                if (selectedEmp != null && selectedEmp.getBirthday() != null) {
-                    newPass = new java.text.SimpleDateFormat("ddMMyyyy").format(selectedEmp.getBirthday());
-                    msg = "Bạn có chắc muốn đặt lại mật khẩu tài khoản này về ngày sinh của nhân viên?";
-                }
-
                 int cf = JOptionPane.showConfirmDialog(this, msg, "Xác nhận khôi phục", JOptionPane.YES_NO_OPTION);
                 if (cf == JOptionPane.YES_OPTION) {
-                    this.account.setPassword(newPass);
-                    accountBUS.updateAccount(this.account, true);
-                    JOptionPane.showMessageDialog(this, "Đã khôi phục mật khẩu thành công!");
+                    btnReset.setEnabled(false);
+                    btnReset.setText("Đang gửi...");
+
+                    SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
+                        String newPass = com.bookstore.util.EmailUtil.generateOTP();
+                        @Override
+                        protected Boolean doInBackground() {
+                            return com.bookstore.util.EmailUtil.sendNewPassword(account.getUsername(), newPass);
+                        }
+
+                        @Override
+                        protected void done() {
+                            try {
+                                boolean success = get();
+                                if (success) {
+                                    account.setPassword(newPass);
+                                    accountBUS.updateAccount(account, true);
+                                    JOptionPane.showMessageDialog(AccountFormDialog.this, "Đã khôi phục mật khẩu và gửi email thành công!");
+                                    
+                                    javax.swing.Timer timer = new javax.swing.Timer(1000, null);
+                                    timer.addActionListener(new java.awt.event.ActionListener() {
+                                        int countdown = 120;
+                                        @Override
+                                        public void actionPerformed(java.awt.event.ActionEvent evt) {
+                                            countdown--;
+                                            if (countdown <= 0) {
+                                                btnReset.setText("Khôi phục mật khẩu (Gửi lại)");
+                                                btnReset.setEnabled(true);
+                                                timer.stop();
+                                            } else {
+                                                btnReset.setText("Gửi lại sau " + countdown + "s");
+                                            }
+                                        }
+                                    });
+                                    timer.start();
+                                } else {
+                                    JOptionPane.showMessageDialog(AccountFormDialog.this, "Gửi email thất bại, vui lòng kiểm tra SMTP!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                                    btnReset.setEnabled(true);
+                                    btnReset.setText("Khôi phục mật khẩu (Gửi Email)");
+                                }
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                                btnReset.setEnabled(true);
+                                btnReset.setText("Khôi phục mật khẩu (Gửi Email)");
+                            }
+                        }
+                    };
+                    worker.execute();
                 }
             });
             autoAdd(mainPanel, btnReset, 1, 2, 1.0, gbc);
         }
 
-        autoAdd(mainPanel, new JLabel("Chức vụ:"), 0, 3, 0, gbc);
+        autoAdd(mainPanel, new JLabel("<html>Chức vụ <font color='red'>*</font>:</html>"), 0, 3, 0, gbc);
         autoAdd(mainPanel, txtRole, 1, 3, 1.0, gbc);
 
-        autoAdd(mainPanel, new JLabel("Trạng thái:"), 0, 4, 0, gbc);
+        autoAdd(mainPanel, new JLabel("<html>Trạng thái <font color='red'>*</font>:</html>"), 0, 4, 0, gbc);
         autoAdd(mainPanel, statusPanel, 1, 4, 1.0, gbc);
 
         add(mainPanel, BorderLayout.CENTER);
@@ -247,8 +298,20 @@ public class AccountFormDialog extends JDialog {
         if (selectedEmp == null || selectedEmp.getEmployeeId() == -1) {
             JOptionPane.showMessageDialog(this, "Không có nhân viên hợp lệ để cấp tài khoản!", "Cảnh báo",
                     JOptionPane.WARNING_MESSAGE);
+            cboEmployee.requestFocus();
             return null;
         }
+        if (txtUsername.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Email không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtUsername.requestFocus();
+            return null;
+        }
+        if (this.account == null && txtPassword.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Mật khẩu không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtPassword.requestFocus();
+            return null;
+        }
+
 
         AccountDTO acc = new AccountDTO();
         acc.setEmployeeId(selectedEmp.getEmployeeId());

@@ -61,7 +61,21 @@ public class BillDAO {
                 psFindLots = c.prepareStatement(sqlFindLots);
                 psUpdateLot = c.prepareStatement(sqlUpdateLot);
 
-                for (BillDetailDTO detail : details) {
+                // Gộp các chi tiết trùng mã sách nếu có
+                java.util.Map<Integer, BillDetailDTO> consolidated = new java.util.LinkedHashMap<>();
+                for (BillDetailDTO d : details) {
+                    if (consolidated.containsKey(d.getBookId())) {
+                        BillDetailDTO exist = consolidated.get(d.getBookId());
+                        double totalCost = exist.getQuantity() * exist.getUnitPrice() + d.getQuantity() * d.getUnitPrice();
+                        int newQty = exist.getQuantity() + d.getQuantity();
+                        exist.setQuantity(newQty);
+                        exist.setUnitPrice(newQty > 0 ? totalCost / newQty : exist.getUnitPrice());
+                    } else {
+                        consolidated.put(d.getBookId(), new BillDetailDTO(d.getBillId(), d.getBookId(), d.getQuantity(), d.getUnitPrice()));
+                    }
+                }
+
+                for (BillDetailDTO detail : consolidated.values()) {
                     psCheck.setInt(1, detail.getBookId());
                     rsStock = psCheck.executeQuery();
                     int currentStock = 0;
@@ -79,8 +93,12 @@ public class BillDAO {
                     psFindLots.setInt(1, detail.getBookId());
                     rsLots = psFindLots.executeQuery();
 
+                    int firstLotId = -1;
                     while (rsLots.next() && requiredQty > 0) {
                         int lotId = rsLots.getInt("lot_id");
+                        if (firstLotId == -1) {
+                            firstLotId = lotId;
+                        }
                         int remainInLot = rsLots.getInt("quantity_remain");
 
                         int deductQty = Math.min(requiredQty, remainInLot);
@@ -89,13 +107,6 @@ public class BillDAO {
                         psUpdateLot.setInt(2, lotId);
                         psUpdateLot.executeUpdate();
 
-                        psDetail.setInt(1, generatedBillId);
-                        psDetail.setInt(2, detail.getBookId());
-                        psDetail.setInt(3, deductQty);
-                        psDetail.setDouble(4, detail.getUnitPrice());
-                        psDetail.setInt(5, lotId);
-                        psDetail.executeUpdate();
-
                         requiredQty -= deductQty;
                     }
                     rsLots.close();
@@ -103,6 +114,18 @@ public class BillDAO {
                     if (requiredQty > 0) {
                         throw new SQLException("Sách ID " + detail.getBookId() + " không đủ tồn kho trong lô!");
                     }
+
+                    // Chèn duy nhất 1 dòng vào bill_detail cho mỗi cuốn sách trong hóa đơn
+                    psDetail.setInt(1, generatedBillId);
+                    psDetail.setInt(2, detail.getBookId());
+                    psDetail.setInt(3, detail.getQuantity());
+                    psDetail.setDouble(4, detail.getUnitPrice());
+                    if (firstLotId > 0) {
+                        psDetail.setInt(5, firstLotId);
+                    } else {
+                        psDetail.setNull(5, Types.INTEGER);
+                    }
+                    psDetail.executeUpdate();
 
                     int remainQuantity = currentStock - detail.getQuantity();
 
@@ -265,10 +288,11 @@ public class BillDAO {
 
     public List<BillDetailDTO> getBillDetailsByBillId(int billId) {
         List<BillDetailDTO> list = new ArrayList<>();
-        String sql = "SELECT bd.bill_id, bd.book_id, b.book_name, bd.quantity, bd.unit_price " +
+        String sql = "SELECT bd.bill_id, bd.book_id, b.book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
                 "FROM bill_detail bd " +
                 "JOIN book b ON bd.book_id = b.book_id " +
                 "WHERE bd.bill_id = ? " +
+                "GROUP BY bd.bill_id, bd.book_id, b.book_name, bd.unit_price " +
                 "ORDER BY bd.book_id";
 
         try (Connection conn = DatabaseConnection.getConnection();

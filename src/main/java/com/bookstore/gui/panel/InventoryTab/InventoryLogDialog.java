@@ -147,7 +147,7 @@ public class InventoryLogDialog extends JDialog {
                 System.out.println("Parse Đến ngày thành công: " + toDate);
             }
         } catch (Exception e) {
-            System.out.println("LỖI PARSE NGÀY: Bạn đã nhập sai định dạng!");
+            System.out.println("LỖI PARSE NGÀY: Bạn đã nhập sửai định dạng!");
             txtDateFrom.setText("");
             txtDateTo.setText("");
         }

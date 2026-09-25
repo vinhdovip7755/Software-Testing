@@ -46,6 +46,9 @@ public class ImportPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
+        if (SharedData.currentUser != null && txtEmployee != null) {
+            txtEmployee.setText(SharedData.currentUser.getEmployeeName());
+        }
         loadCategoriesToComBoBox();
         loadSuppliersToComboBox();
         loadBookTable();
@@ -360,34 +363,33 @@ public class ImportPanel extends JPanel implements Refreshable {
         BookDTO book = listBooks.stream().filter(b -> b.getBookId() == bookId).findFirst().orElse(null);
         if (book == null) return;
 
-        JPanel pInput = new JPanel(new GridLayout(2, 2, 10, 10));
-        JTextField txtQty = new JTextField();
-        JTextField txtDiscount = new JTextField("0");
-        pInput.add(new JLabel("Số lượng nhập:")); pInput.add(txtQty);
-        pInput.add(new JLabel("Chiết khấu NXB (%):")); pInput.add(txtDiscount);
+        if (book.getCoverPrice() <= 0) {
+            JOptionPane.showMessageDialog(this, "Sách '" + book.getBookName() + "' chưa có giá bìa hợp lệ! Vui lòng kiểm tra lại thông tin sách.", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-        if (JOptionPane.showConfirmDialog(this, pInput, "Nhập số lượng và chiết khấu", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-            try {
-                int qty = Integer.parseInt(txtQty.getText());
-                double discount = Double.parseDouble(txtDiscount.getText());
-                if (qty <= 0 || discount < 0 || discount > 100 || book.getCoverPrice() < 0) throw new Exception();
+        Window parentWindow = SwingUtilities.getWindowAncestor(this);
+        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(parentWindow, "Nhập số lượng và chiết khấu", 0, 0);
+        dialog.setVisible(true);
 
-                double price = book.getCoverPrice() * (1 - discount / 100.0);
+        if (dialog.isConfirmed()) {
+            int qty = dialog.getQuantity();
+            double discount = dialog.getDiscount();
+            double price = book.getCoverPrice() * (1 - discount / 100.0);
 
-                boolean exists = false;
-                for (int i = 0; i < cartModel.getRowCount(); i++) {
-                    if (Integer.parseInt(cartModel.getValueAt(i, 0).toString()) == bookId) {
-                        int newQty = Integer.parseInt(cartModel.getValueAt(i, 2).toString()) + qty;
-                        cartModel.setValueAt(newQty, i, 2);
-                        cartModel.setValueAt(MoneyFormatter.toVND(price), i, 3);
-                        cartModel.setValueAt(MoneyFormatter.toVND(newQty * price), i, 4);
-                        cartModel.setValueAt(discount, i, 5);
-                        exists = true; break;
-                    }
+            boolean exists = false;
+            for (int i = 0; i < cartModel.getRowCount(); i++) {
+                if (Integer.parseInt(cartModel.getValueAt(i, 0).toString()) == bookId) {
+                    int newQty = Integer.parseInt(cartModel.getValueAt(i, 2).toString()) + qty;
+                    cartModel.setValueAt(newQty, i, 2);
+                    cartModel.setValueAt(MoneyFormatter.toVND(price), i, 3);
+                    cartModel.setValueAt(MoneyFormatter.toVND(newQty * price), i, 4);
+                    cartModel.setValueAt(discount, i, 5);
+                    exists = true; break;
                 }
-                if (!exists) cartModel.addRow(new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price), discount });
-                calculateTotal();
-            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Vui lòng nhập số lượng và chiết khấu hợp lệ!"); }
+            }
+            if (!exists) cartModel.insertRow(0, new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price), discount });
+            calculateTotal();
         }
     }
 
@@ -403,29 +405,23 @@ public class ImportPanel extends JPanel implements Refreshable {
         BookDTO book = listBooks.stream().filter(b -> b.getBookId() == bookId).findFirst().orElse(null);
         if (book == null) return;
 
-        JPanel pInput = new JPanel(new GridLayout(2, 2, 10, 10));
-        JTextField txtQty = new JTextField(cartModel.getValueAt(modelRow, 2).toString());
-        JTextField txtDiscount = new JTextField(cartModel.getValueAt(modelRow, 5).toString());
-        pInput.add(new JLabel("Số lượng nhập:")); pInput.add(txtQty);
-        pInput.add(new JLabel("Chiết khấu NXB (%):")); pInput.add(txtDiscount);
+        int currentQty = Integer.parseInt(cartModel.getValueAt(modelRow, 2).toString());
+        double currentDiscount = Double.parseDouble(cartModel.getValueAt(modelRow, 5).toString());
 
-        if (JOptionPane.showConfirmDialog(this, pInput, "Sửa số lượng và chiết khấu", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
-            return;
-        }
+        Window parentWindow = SwingUtilities.getWindowAncestor(this);
+        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(parentWindow, "Sửa số lượng và chiết khấu", currentQty, currentDiscount);
+        dialog.setVisible(true);
 
-        try {
-            int qty = Integer.parseInt(txtQty.getText().trim());
-            double discount = Double.parseDouble(txtDiscount.getText().trim());
-            if (qty <= 0 || discount < 0 || discount > 100 || book.getCoverPrice() < 0) throw new Exception();
-
+        if (dialog.isConfirmed()) {
+            int qty = dialog.getQuantity();
+            double discount = dialog.getDiscount();
             double price = book.getCoverPrice() * (1 - discount / 100.0);
+
             cartModel.setValueAt(qty, modelRow, 2);
             cartModel.setValueAt(MoneyFormatter.toVND(price), modelRow, 3);
             cartModel.setValueAt(MoneyFormatter.toVND(qty * price), modelRow, 4);
             cartModel.setValueAt(discount, modelRow, 5);
             calculateTotal();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập số lượng và chiết khấu hợp lệ!");
         }
     }
 

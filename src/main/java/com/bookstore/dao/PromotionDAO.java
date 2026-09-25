@@ -6,11 +6,35 @@ import com.bookstore.util.DatabaseConnection;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 public class PromotionDAO {
+    public String getPromotionNameByBookId(int bookId) {
+        String promoName = null;
+        String sql = "SELECT p.promotion_name FROM promotion p " +
+                "JOIN promotion_detail pd ON p.promotion_id = pd.promotion_id " +
+                "WHERE pd.book_id = ? " +
+                "AND p.status = 1 " +
+                "AND NOW() BETWEEN p.start_date AND p.end_date " +
+                "ORDER BY p.percent DESC LIMIT 1";
+
+        try (java.sql.Connection c = com.bookstore.util.DatabaseConnection.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, bookId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    promoName = rs.getString("promotion_name");
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+        }
+        return promoName;
+    }
+    
     public double getPromotionPercentByBookId(int bookId) {
         double percent = 0;
         String sql = "SELECT p.percent FROM promotion p " +
@@ -146,6 +170,80 @@ public class PromotionDAO {
             ps.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    public boolean savePromotionTransaction(boolean isEdit, PromotionDTO dto, List<Integer> bookIds) {
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getConnection();
+            conn.setAutoCommit(false);
+
+            int promoId = dto.getPromotionId();
+            if (!isEdit) {
+                String sqlInsert = "INSERT INTO promotion (promotion_name, percent, start_date, end_date, status) VALUES (?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sqlInsert, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, dto.getPromotionName());
+                    ps.setDouble(2, dto.getPercent());
+                    ps.setTimestamp(3, dto.getStartDate());
+                    ps.setTimestamp(4, dto.getEndDate());
+                    ps.setInt(5, dto.getStatus());
+                    if (ps.executeUpdate() <= 0) {
+                        conn.rollback();
+                        return false;
+                    }
+                    try (ResultSet rs = ps.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            promoId = rs.getInt(1);
+                        }
+                    }
+                }
+            } else {
+                String sqlUpdate = "UPDATE promotion SET promotion_name=?, percent=?, start_date=?, end_date=?, status=? WHERE promotion_id=?";
+                try (PreparedStatement ps = conn.prepareStatement(sqlUpdate)) {
+                    ps.setString(1, dto.getPromotionName());
+                    ps.setDouble(2, dto.getPercent());
+                    ps.setTimestamp(3, dto.getStartDate());
+                    ps.setTimestamp(4, dto.getEndDate());
+                    ps.setInt(5, dto.getStatus());
+                    ps.setInt(6, promoId);
+                    if (ps.executeUpdate() <= 0) {
+                        conn.rollback();
+                        return false;
+                    }
+                }
+
+                String sqlDel = "DELETE FROM promotion_detail WHERE promotion_id = ?";
+                try (PreparedStatement psDel = conn.prepareStatement(sqlDel)) {
+                    psDel.setInt(1, promoId);
+                    psDel.executeUpdate();
+                }
+            }
+
+            if (bookIds != null && !bookIds.isEmpty()) {
+                String sqlDetail = "INSERT INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
+                try (PreparedStatement psDetail = conn.prepareStatement(sqlDetail)) {
+                    for (int bookId : bookIds) {
+                        psDetail.setInt(1, promoId);
+                        psDetail.setInt(2, bookId);
+                        psDetail.addBatch();
+                    }
+                    psDetail.executeBatch();
+                }
+            }
+
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            }
+            return false;
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ex) {}
+            }
         }
     }
 }

@@ -20,7 +20,7 @@ import java.util.Calendar;
 import java.util.List;
 
 public class EmployeeEditDialog extends JDialog {
-    private JTextField txtName, txtPhone, txtBaseSalary, txtSalaryFactor;
+    private JTextField txtName, txtPhone, txtEmail, txtBaseSalary, txtSalaryFactor;
     private JDateChooser dateChooser;
     private JComboBox<String> cboRole;
     private JCheckBox chkStatus;
@@ -42,7 +42,7 @@ public class EmployeeEditDialog extends JDialog {
 
     private void initUI() {
         setLayout(new BorderLayout(20, 10));
-        setSize(450, 700);
+        setSize(450, 750);
         setLocationRelativeTo(getParent());
         setResizable(false);
         getContentPane().setBackground(Color.WHITE);
@@ -53,12 +53,13 @@ public class EmployeeEditDialog extends JDialog {
         lbHeader.setBorder(new EmptyBorder(20, 0, 10, 0));
         add(lbHeader, BorderLayout.NORTH);
 
-        JPanel pForm = new JPanel(new GridLayout(7, 1, 10, 5));
+        JPanel pForm = new JPanel(new GridLayout(8, 1, 10, 5));
         pForm.setBorder(new EmptyBorder(0, 30, 0, 30));
         pForm.setOpaque(false);
 
         txtName = createInput("Nhập họ tên...");
-        txtPhone = createInput("Nhập 10 số điện thoại...");
+                txtPhone = createInput("Nhập 10 số điện thoại...");
+        txtEmail = createInput("Nhập email...");
         txtBaseSalary = createNumericInput("Ví dụ: 5000000");
         txtSalaryFactor = createNumericInput("Ví dụ: 1.5");
 
@@ -82,11 +83,12 @@ public class EmployeeEditDialog extends JDialog {
         chkStatus.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         chkStatus.setOpaque(false);
 
-        pForm.add(createFieldPanel("Họ và tên:", txtName));
-        pForm.add(createFieldPanel("Số điện thoại:", txtPhone));
+        pForm.add(createFieldPanel("<html>Họ và tên <font color='red'>*</font>:</html>", txtName));
+        pForm.add(createFieldPanel("<html>Số điện thoại <font color='red'>*</font>:</html>", txtPhone));
+        pForm.add(createFieldPanel("Email:", txtEmail));
         pForm.add(createFieldPanel("Ngày sinh:", dateChooser));
-        pForm.add(createFieldPanel("Lương cơ bản:", txtBaseSalary));
-        pForm.add(createFieldPanel("Hệ số lương:", txtSalaryFactor));
+        pForm.add(createFieldPanel("<html>Lương cơ bản <font color='red'>*</font>:</html>", txtBaseSalary));
+        pForm.add(createFieldPanel("<html>Hệ số lương <font color='red'>*</font>:</html>", txtSalaryFactor));
         pForm.add(createFieldPanel("Chức vụ:", cboRole));
 
         JPanel pStatus = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -172,9 +174,14 @@ public class EmployeeEditDialog extends JDialog {
             txtName.setToolTipText("Không được sửa thông tin cá nhân (Họ tên)");
 
             txtPhone.setText(employee.getEmployeePhone());
-            txtPhone.setEditable(false);
+                        txtPhone.setEditable(false);
             txtPhone.setBackground(Color.decode("#F5F5F5"));
             txtPhone.setToolTipText("Không được sửa thông tin cá nhân (Số điện thoại)");
+
+            txtEmail.setText(employee.getEmail());
+            txtEmail.setEditable(false);
+            txtEmail.setBackground(Color.decode("#F5F5F5"));
+            txtEmail.setToolTipText("Không được sửa thông tin cá nhân (Email)");
 
             dateChooser.setDate(employee.getBirthday());
             dateChooser.setEnabled(false);
@@ -185,15 +192,23 @@ public class EmployeeEditDialog extends JDialog {
 
             cboRole.setSelectedItem(employee.getRoleName());
             chkStatus.setSelected(employee.getStatus() == 1);
+            
+            if (com.bookstore.util.SharedData.currentUser != null && employee.getEmployeeId() == com.bookstore.util.SharedData.currentUser.getEmployeeId()) {
+                cboRole.setEnabled(false);
+                cboRole.setToolTipText("Không thể tự thay đổi chức vụ của bản thân!");
+                chkStatus.setEnabled(false);
+                chkStatus.setToolTipText("Không thể tự cho bản thân nghỉ việc tại đây!");
+            }
         }
     }
 
     private void saveEmployee() {
         try {
             EmployeeDTO temp = new EmployeeDTO();
-            temp.setEmployeeId(employee.getEmployeeId());
+                        temp.setEmployeeId(employee.getEmployeeId());
             temp.setEmployeeName(txtName.getText().trim());
             temp.setEmployeePhone(txtPhone.getText().trim());
+            temp.setEmail(txtEmail.getText().trim());
 
             java.util.Date utilDate = dateChooser.getDate();
             if (utilDate != null) {
@@ -219,7 +234,15 @@ public class EmployeeEditDialog extends JDialog {
             }
 
                         String result = employeeBUS.updateEmployee(temp);
-            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
+            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
+                if (com.bookstore.util.SharedData.currentUser != null && temp.getEmployeeId() == com.bookstore.util.SharedData.currentUser.getEmployeeId()) {
+                    com.bookstore.util.SharedData.currentUser.setEmployeeName(temp.getEmployeeName());
+                    com.bookstore.util.SharedData.currentUser.setEmployeePhone(temp.getEmployeePhone());
+                    com.bookstore.util.SharedData.currentUser.setEmail(temp.getEmail());
+                    if (com.bookstore.gui.main.MainFrame.getInstance() != null) {
+                        com.bookstore.gui.main.MainFrame.getInstance().updateUserInfo();
+                    }
+                }
                 JOptionPane.showMessageDialog(this, "Cập nhật thành công!");
                 parentPanel.refresh();
                 dispose();

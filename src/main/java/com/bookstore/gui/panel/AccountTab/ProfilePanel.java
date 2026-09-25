@@ -8,6 +8,7 @@ import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.util.SharedData;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
+import com.bookstore.gui.main.MainFrame;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 import com.toedter.calendar.JDateChooser;
@@ -72,7 +73,7 @@ public class ProfilePanel extends JPanel implements Refreshable {
         formCard.add(lblInfoNS, gbc);
 
         gbc.gridy++; gbc.gridwidth = 1;
-        txtName = new JTextField(); txtName.setEditable(false);
+        txtName = new JTextField();
         formCard.add(createInputGroup("Họ và tên", txtName), gbc);
 
         gbc.gridx = 1;
@@ -123,7 +124,7 @@ public class ProfilePanel extends JPanel implements Refreshable {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.gridy++; gbc.gridwidth = 1;
         txtUsername = new JTextField();
-        formCard.add(createInputGroup("Tên đăng nhập", txtUsername), gbc);
+        formCard.add(createInputGroup("Email", txtUsername), gbc);
 
         gbc.gridx = 1;
         txtPassword = new JPasswordField();
@@ -207,12 +208,36 @@ public class ProfilePanel extends JPanel implements Refreshable {
             EmployeeBUS empBus = new EmployeeBUS();
             EmployeeDTO emp = SharedData.currentUser;
             
-            emp.setEmployeePhone(txtPhone.getText().trim());
+            String newName = txtName.getText().trim();
+            String newPhone = txtPhone.getText().trim();
+            
+            if (newName.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Tên nhân viên không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtName.requestFocus();
+                return;
+            }
+            if (newPhone.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Số điện thoại không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPhone.requestFocus();
+                return;
+            }
+            
+            emp.setEmployeeName(newName);
+            emp.setEmployeePhone(newPhone);
             if (dchBirthday.getDate() != null) {
                 emp.setBirthday(new java.sql.Date(dchBirthday.getDate().getTime()));
             }
             
-            empBus.updateEmployee(emp);
+            String newUsername = txtUsername.getText().trim();
+            if (!newUsername.isEmpty()) {
+                emp.setEmail(newUsername);
+            }
+            
+            String result = empBus.updateEmployee(emp);
+            if (result != null && !result.toLowerCase().contains("thành công") && !result.equals("OK")) {
+                JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
             AccountDAO accDAO = new AccountDAO();
             AccountDTO currentAcc = null;
@@ -224,7 +249,6 @@ public class ProfilePanel extends JPanel implements Refreshable {
             }
             if (currentAcc != null) {
                 String oldUsername = currentAcc.getUsername();
-                String newUsername = txtUsername.getText().trim();
                 
                 if (!oldUsername.equals(newUsername) && !newUsername.isEmpty()) {
                     AccountBUS accBus = new AccountBUS();
@@ -240,6 +264,16 @@ public class ProfilePanel extends JPanel implements Refreshable {
                 AccountBUS accBus = new AccountBUS();
                 accBus.updateAccount(currentAcc, isChangePass);
             }
+
+            if (MainFrame.getInstance() != null) {
+                MainFrame.getInstance().updateUserInfo();
+            } else {
+                Window window = SwingUtilities.getWindowAncestor(this);
+                if (window instanceof MainFrame mainFrame) {
+                    mainFrame.updateUserInfo();
+                }
+            }
+
             JOptionPane.showMessageDialog(this, "Cập nhật thông tin thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
             txtPassword.setText("");
         }

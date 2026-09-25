@@ -14,6 +14,9 @@ public class PermissionBUS {
     }
 
     public boolean saveRolePermissions(int roleId, List<PermissionDTO> newPerms, List<Integer> actionIds) {
+        if (roleId == 1) {
+            return false;
+        }
         return permissionDAO.saveRolePermissions(roleId, newPerms, actionIds);
     }
 }

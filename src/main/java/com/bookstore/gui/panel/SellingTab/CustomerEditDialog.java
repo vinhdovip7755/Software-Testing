@@ -57,8 +57,8 @@ public class CustomerEditDialog extends JDialog {
         txtName = createInput("Nhập họ và tên...");
         txtPhone = createInput("Nhập số điện thoại (10 số)...");
 
-        pForm.add(createFieldPanel("Họ và tên:", txtName));
-        pForm.add(createFieldPanel("Số điện thoại:", txtPhone));
+        pForm.add(createFieldPanel("<html>Họ và tên <font color='red'>*</font>:</html>", txtName));
+        pForm.add(createFieldPanel("<html>Số điện thoại <font color='red'>*</font>:</html>", txtPhone));
         add(pForm, BorderLayout.CENTER);
 
         JPanel pButton = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
@@ -117,8 +117,22 @@ public class CustomerEditDialog extends JDialog {
     }
 
     private void saveCustomer() {
+
         String newName = txtName.getText().trim();
         String newPhone = txtPhone.getText().trim();
+
+        if (newName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Họ và tên không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+
+        if (newPhone.isEmpty() || !newPhone.matches("^0\\d{9}$")) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtPhone.requestFocus();
+            return;
+        }
+
 
         CustomerDTO temp = new CustomerDTO();
         temp.setCustomerName(newName);
@@ -135,7 +149,7 @@ public class CustomerEditDialog extends JDialog {
 
         JOptionPane.showMessageDialog(this, result);
 
-        if (result.contains("thành công")) {
+        if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
             parentPanel.refresh();
             dispose();
         }

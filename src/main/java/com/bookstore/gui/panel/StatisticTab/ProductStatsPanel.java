@@ -45,6 +45,8 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
     private final JTable table = new JTable(tableModel);
 
     public ProductStatsPanel(){
+        dchTuNgay.setDateFormatString("dd/MM/yyyy");
+        dchDenNgay.setDateFormatString("dd/MM/yyyy");
         initUI();
         bindEvents();
         loadThongKe();

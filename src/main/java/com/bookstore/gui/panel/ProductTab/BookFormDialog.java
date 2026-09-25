@@ -178,7 +178,20 @@ public class BookFormDialog extends JDialog {
         wrapper.setBackground(BG_COLOR);
         wrapper.add(scrollPane, BorderLayout.CENTER);
 
-        addFormField(panel, "Tên sách *", nameField = new JTextField(), true);
+        nameField = new JTextField();
+        nameField.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (nameField.getText().trim().isEmpty()) {
+                    nameField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng nhập tên sách!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    nameField.requestFocusInWindow();
+                } else {
+                    nameField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
+        addFormField(panel, "Tên sách *", nameField, true);
 
         authorPanel = new JPanel();
         authorPanel.setLayout(new BoxLayout(authorPanel, BoxLayout.Y_AXIS));
@@ -187,10 +200,34 @@ public class BookFormDialog extends JDialog {
         refreshAuthorPanel();
 
         categoryCombo = new JComboBox<>(getCategoryNames());
+        categoryCombo.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (categoryCombo.getSelectedIndex() <= 0) {
+                    categoryCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng chọn thể loại!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    categoryCombo.requestFocusInWindow();
+                } else {
+                    categoryCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         categoryCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         addFormField(panel, "Thể loại *", createQuickAddField(categoryCombo, e -> quickAddCategory()), true);
 
         supplierCombo = new JComboBox<>(getSupplierNames());
+        supplierCombo.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (supplierCombo.getSelectedIndex() <= 0) {
+                    supplierCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng chọn nhà cung cấp!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    supplierCombo.requestFocusInWindow();
+                } else {
+                    supplierCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         supplierCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         addFormField(panel, "Nhà cung cấp *", createQuickAddField(supplierCombo, e -> quickAddSupplier()), true);
 
@@ -856,12 +893,34 @@ public class BookFormDialog extends JDialog {
             book.setBookName(nameField.getText().trim());
             book.setCoverPrice(coverPrice);
             book.setPublicationYear(publicationYear);
-            book.setSellingPrice(0);
+            book.setSellingPrice(coverPrice);
             book.setQuantity(0);
             book.setTranslator(translatorField.getText().trim().isEmpty() ? null : translatorField.getText().trim());
-            book.setImage(selectedImagePath);
+            
+            // Logic to copy image to data/book_covers and save only filename
+            String finalImageName = null;
+            if (selectedImagePath != null && !selectedImagePath.trim().isEmpty()) {
+                java.io.File sourceFile = new java.io.File(selectedImagePath);
+                java.io.File destFolder = new java.io.File("data/book_covers");
+                if (!destFolder.exists()) destFolder.mkdirs();
+                
+                if (sourceFile.exists()) {
+                    if (sourceFile.getAbsolutePath().startsWith(destFolder.getAbsolutePath())) {
+                        finalImageName = sourceFile.getName();
+                    } else {
+                        finalImageName = System.currentTimeMillis() + "_" + sourceFile.getName();
+                        java.io.File destFile = new java.io.File(destFolder, finalImageName);
+                        try {
+                            java.nio.file.Files.copy(sourceFile.toPath(), destFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                        } catch (java.io.IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                }
+            }
+            book.setImage(finalImageName);
+            
             book.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
-            book.setImage(selectedImagePath);
             book.setStatus(activeRadio.isSelected() ? 1 : 0);
             book.setCategoryId(categories.get(categoryCombo.getSelectedIndex() - 1).getCategoryId());
             book.setSupplierId(suppliers.get(supplierCombo.getSelectedIndex() - 1).getSupplierId());
@@ -869,7 +928,7 @@ public class BookFormDialog extends JDialog {
             book.getAuthorIdsList().addAll(selectedAuthorIds);
         } else {
             book.setBookName(nameField.getText().trim());
-            book.setCoverPrice(coverPrice);
+            // Giữ nguyên giá bìa và giá bán khi sửa sách
             book.setPublicationYear(publicationYear);
             book.setTranslator(translatorField.getText().trim().isEmpty() ? null : translatorField.getText().trim());
             book.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
@@ -889,10 +948,18 @@ public class BookFormDialog extends JDialog {
         nameField.setText(book.getBookName());
         translatorField.setText(book.getTranslator() != null ? book.getTranslator() : "");
         coverPriceField.setText(book.getCoverPrice() == 0 ? "" : String.valueOf((long) book.getCoverPrice()));
+        coverPriceField.setEditable(false);
+        coverPriceField.setFocusable(false);
+        coverPriceField.setBackground(new Color(245, 245, 245));
+        coverPriceField.setForeground(Color.DARK_GRAY);
+        coverPriceField.setToolTipText("Không thể thay đổi giá bìa của sách đã tạo!");
         yearField.setText(book.getPublicationYear() == 0 ? "" : String.valueOf(book.getPublicationYear()));
         descriptionArea.setText(book.getDescription() != null ? book.getDescription() : "");
         if (book.getImage() != null && !book.getImage().trim().isEmpty()) {
-            File imageFile = new File(book.getImage());
+            File imageFile = new File("data/book_covers/" + book.getImage());
+            if (!imageFile.exists()) {
+                imageFile = new File(book.getImage());
+            }
             if (imageFile.exists()) {
                 selectedImagePath = imageFile.getAbsolutePath();
                 setSelectedImage(imageFile);

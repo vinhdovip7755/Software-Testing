@@ -290,7 +290,7 @@ public class InventoryPanel extends JPanel implements Refreshable {
         List<BookLotDTO> lots = bookLotDAO.getByBookId(bookId);
         for (BookLotDTO lot : lots) {
             String status = lot.getQuantityRemain() > 0 ? (lot.getQuantityRemain() < 10 ? "SẮP HẾT" : "ĐỦ HÀNG") : "HẾT HÀNG";
-            lotTableModel.addRow(new Object[]{
+            lotTableModel.insertRow(0, new Object[]{
                     lot.getLotId(),
                     lot.getImportDate(),
                     String.format("%,.0f", lot.getImportPrice()),
