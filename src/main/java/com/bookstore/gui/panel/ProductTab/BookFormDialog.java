@@ -698,12 +698,16 @@ public class BookFormDialog extends JDialog {
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, field instanceof JScrollPane ? 120 : 50));
 
-        JLabel label = new JLabel(labelText);
+        JLabel label;
+        if (labelText.endsWith("*")) {
+            String base = labelText.substring(0, labelText.length() - 1).trim();
+            label = new JLabel("<html>" + base + " <font color='#D32F2F'>*</font></html>");
+        } else {
+            label = new JLabel(labelText);
+        }
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
         label.setPreferredSize(new Dimension(120, 20));
-        if (required) {
-            label.setForeground(Color.decode("#333333"));
-        }
+        label.setForeground(Color.decode("#333333"));
 
         if (field instanceof JTextField) {
             JTextField tf = (JTextField) field;
@@ -739,9 +743,9 @@ public class BookFormDialog extends JDialog {
         JTextField name = new JTextField();
         JTextField nationality = new JTextField();
         JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
-        form.add(new JLabel("Tên tác giả:"));
+        form.add(new JLabel("<html>Tên tác giả <font color='#D32F2F'>*</font>:</html>"));
         form.add(name);
-        form.add(new JLabel("Quốc tịch:"));
+        form.add(new JLabel("<html>Quốc tịch <font color='#D32F2F'>*</font>:</html>"));
         form.add(nationality);
 
         int result = JOptionPane.showConfirmDialog(this, form, "Thêm tác giả nhanh",
@@ -787,7 +791,7 @@ public class BookFormDialog extends JDialog {
     }
 
     private void quickAddCategory() {
-        String name = JOptionPane.showInputDialog(this, "Tên thể loại:", "Thêm thể loại nhanh",
+        String name = JOptionPane.showInputDialog(this, "Tên thể loại *:", "Thêm thể loại nhanh",
                 JOptionPane.PLAIN_MESSAGE);
         if (name == null || name.trim().isEmpty()) return;
 
@@ -809,9 +813,9 @@ public class BookFormDialog extends JDialog {
         JTextField phone = new JTextField();
         JTextField address = new JTextField();
         JPanel form = new JPanel(new GridLayout(3, 2, 8, 8));
-        form.add(new JLabel("Tên nhà cung cấp:"));
+        form.add(new JLabel("<html>Tên nhà cung cấp <font color='#D32F2F'>*</font>:</html>"));
         form.add(name);
-        form.add(new JLabel("Số điện thoại:"));
+        form.add(new JLabel("<html>Số điện thoại <font color='#D32F2F'>*</font>:</html>"));
         form.add(phone);
         form.add(new JLabel("Địa chỉ:"));
         form.add(address);
@@ -858,10 +862,17 @@ public class BookFormDialog extends JDialog {
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
 
-        JLabel label = new JLabel(labelText);
+        JLabel label;
+        if (labelText.endsWith("*")) {
+            String base = labelText.substring(0, labelText.length() - 1).trim();
+            label = new JLabel("<html>" + base + " <font color='#D32F2F'>*</font></html>");
+        } else {
+            label = new JLabel(labelText);
+        }
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
         label.setPreferredSize(new Dimension(120, 20));
         label.setVerticalAlignment(JLabel.TOP);
+        label.setForeground(Color.decode("#333333"));
 
         row.add(label, BorderLayout.WEST);
         row.add(content, BorderLayout.CENTER);

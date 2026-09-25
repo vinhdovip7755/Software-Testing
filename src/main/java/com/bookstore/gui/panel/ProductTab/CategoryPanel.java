@@ -133,7 +133,7 @@ public class CategoryPanel extends JPanel implements Refreshable {
         formTitleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
         formTitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel nameLabel = new JLabel("Tên thể loại");
+        JLabel nameLabel = new JLabel("<html>Tên thể loại <font color='#D32F2F'>*</font></html>");
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 

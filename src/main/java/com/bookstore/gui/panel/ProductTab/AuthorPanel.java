@@ -199,7 +199,7 @@ public class AuthorPanel extends JPanel implements Refreshable{
         formPanel.add(formTitleLabel, gbc);
 
         gbc.gridy = 1;
-        formPanel.add(createFormLabel("Tên tác giả"), gbc);
+        formPanel.add(createFormLabel("Tên tác giả *"), gbc);
 
         nameField = new JTextField();
         nameField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -208,7 +208,7 @@ public class AuthorPanel extends JPanel implements Refreshable{
         formPanel.add(nameField, gbc);
 
         gbc.gridy = 3;
-        formPanel.add(createFormLabel("Quốc gia"), gbc);
+        formPanel.add(createFormLabel("Quốc gia *"), gbc);
 
         countryField = new JTextField();
         countryField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -386,7 +386,13 @@ public class AuthorPanel extends JPanel implements Refreshable{
     }
 
     private JLabel createFormLabel(String text) {
-        JLabel label = new JLabel(text);
+        JLabel label;
+        if (text.endsWith("*")) {
+            String baseText = text.substring(0, text.length() - 1).trim();
+            label = new JLabel("<html>" + baseText + " <font color='#D32F2F'>*</font></html>");
+        } else {
+            label = new JLabel(text);
+        }
         label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         label.setForeground(Color.decode("#333333"));
         return label;
