@@ -4,12 +4,13 @@
 - Kiểm tra lại tính năng
 - Ưu tiên viết TRD trước BRD (full tất cả tính năng), số lượng T>50
 - Sửa lại BRD
-- Viết Test Scenario (đợi nhóm Tài gửi code và BRD)
+- Viết Test Scenario (đợi nhóm Tài gửi code và BRD và TRD)
 - Viết Test Case theo Test Scenario
 - Tạo bảng ma trận BR | TR | Test Case
 - Kiểm thử nhóm Tài theo kịch bản (sửa code nhóm còn lại được cộng điểm !!!)
 - Tự sửa code nhóm mình (không sửa được trừ điểm !!!)
 - Viết báo cáo theo mẫu
+
 **Yêu cầu bài (chưa đầy đủ, các ý ở dưới là 1 vài ý của cô):
 
 - Bổ sung triển khai chi tiết
