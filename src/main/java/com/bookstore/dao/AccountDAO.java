@@ -35,6 +35,19 @@ public class AccountDAO {
         return acc;
     }
 
+    public boolean updateUsername(String oldUsername, String newUsername) {
+        String sql = "UPDATE account SET username = ? WHERE username = ?";
+        try (java.sql.Connection c = DatabaseConnection.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, newUsername);
+            ps.setString(2, oldUsername);
+            return ps.executeUpdate() > 0;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return false;
+    }
+
     public boolean updateAccount(AccountDTO acc, boolean isChangePassword) {
         String sql;
 

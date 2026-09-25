@@ -203,8 +203,8 @@ public class PromotionPanel extends JPanel {
 
         dchDateMin = new com.toedter.calendar.JDateChooser();
         dchDateMax = new com.toedter.calendar.JDateChooser();
-        dchDateMin.setDateFormatString("yyyy-MM-dd");
-        dchDateMax.setDateFormatString("yyyy-MM-dd");
+        dchDateMin.setDateFormatString("dd/MM/yyyy");
+        dchDateMax.setDateFormatString("dd/MM/yyyy");
         java.awt.Dimension dateSize = new java.awt.Dimension(130, 30);
         dchDateMin.setPreferredSize(dateSize);
         dchDateMax.setPreferredSize(dateSize);
@@ -416,7 +416,7 @@ public class PromotionPanel extends JPanel {
     public void capNhatBang(List<PromotionDTO> list) {
         model.setRowCount(0);
 
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
         for (PromotionDTO p : list) {
             String trangThaiStr = (p.getStatus() == 1) ? "Đang chạy" : "Ngừng hoạt động";

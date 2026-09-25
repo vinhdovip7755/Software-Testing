@@ -127,7 +127,7 @@ public class ImportDetailDialog extends JDialog {
                 actionPanel.add(btnApprove);
 
                 btnApprove.addActionListener(e -> {
-                    if (JOptionPane.showConfirmDialog(this, "Xácầnhận DUYỆT phiếu này?", "Xácầnhận", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                    if (JOptionPane.showConfirmDialog(this, "Xác nhận DUYỆT phiếu này?", "Xác nhận", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
                         int approverId = 1;
                         if (SharedData.currentUser != null) {
                             approverId = SharedData.currentUser.getEmployeeId();

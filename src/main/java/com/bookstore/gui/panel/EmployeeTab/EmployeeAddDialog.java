@@ -38,7 +38,7 @@ public class EmployeeAddDialog extends JDialog {
 
     private void initUI() {
         setLayout(new BorderLayout(20, 10));
-        setSize(450, 580);
+        setSize(450, 650);
         setLocationRelativeTo(getParent());
         setResizable(false);
         getContentPane().setBackground(Color.WHITE);

@@ -31,9 +31,14 @@ public class ProductStatsDAO {
 
             ResultSet rs = ps.executeQuery();
 
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy");
             while(rs.next()){
+                String timeStr = rs.getString("thoi_gian");
+                try {
+                    timeStr = sdf.format(java.sql.Date.valueOf(timeStr));
+                } catch(Exception ignored) {}
                 list.add(new ProductStatsDTO(
-                        rs.getString("thoi_gian"),
+                        timeStr,
                         rs.getInt("book_id"),
                         rs.getString("book_name"),
                         rs.getInt("so_luong")

@@ -196,7 +196,7 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
 
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc chắn muốn xóa hạng '" + rankName + "' vĩnh viễn không?",
-                "Xácầnhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+                "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 
         if (confirm == JOptionPane.YES_OPTION) {
             String message = rankBUS.deleteRank(rankId);

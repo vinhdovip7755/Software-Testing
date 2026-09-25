@@ -85,4 +85,19 @@ public class CategoryDAO {
         }
         return null;
     }
+
+    public boolean isNameExist(String name, int ignoreId) {
+        String sql = "SELECT COUNT(*) FROM category WHERE LOWER(category_name) = LOWER(?) AND category_id != ?";
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setInt(2, ignoreId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }

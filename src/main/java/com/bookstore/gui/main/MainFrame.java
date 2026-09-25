@@ -26,8 +26,16 @@
         private JButton btnLogout, btnSelling, btnProduct, btnPrice, btnImport, btnInventory, btnBill, btnEmployee, btnStats, btnAccount;
         private JPanel welcomePanel;
         private Map<JButton, String[]> menuMap = new HashMap<>();
+        private JLabel lbUserInfo;
+        private JLabel lbWelcome2;
+        private static MainFrame instance;
+
+        public static MainFrame getInstance() {
+            return instance;
+        }
 
         public MainFrame() {
+            instance = this;
             initUI();
             applyMenuPermissions();
         }
@@ -84,8 +92,8 @@
 
             gbc.gridy++;
 
-            String username = SharedData.currentUser.getEmployeeName();
-            JLabel lbWelcome2 = new JLabel("Xin chào, " + username + "!");
+            String username = SharedData.currentUser != null ? SharedData.currentUser.getEmployeeName() : "";
+            lbWelcome2 = new JLabel("Xin chào, " + username + "!");
             lbWelcome2.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 28));
             lbWelcome2.setForeground(Color.GRAY);
             panel.add(lbWelcome2, gbc);
@@ -119,21 +127,21 @@
 
             sidebar.add(Box.createVerticalStrut(10));
 
-            String currentUserName = SharedData.currentUser.getEmployeeName();
-            JLabel lbUserInfo = new JLabel("<html><div style='text-align: center; width: 120px;'>Chào: " + currentUserName + "</div></html>");
+            String currentUserName = SharedData.currentUser != null ? SharedData.currentUser.getEmployeeName() : "";
+            lbUserInfo = new JLabel("<html><div style='text-align: center; width: 120px;'>Chào: " + currentUserName + "</div></html>");
             lbUserInfo.setForeground(new Color(255, 255, 204));
             lbUserInfo.setFont(new Font(AppConstant.FONT_NAME, Font.ITALIC, 15));
             lbUserInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
             lbUserInfo.setHorizontalAlignment(SwingConstants.CENTER);
-                    lbUserInfo.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        lbUserInfo.setToolTipText("Nhấn để xem/sửa Hồ sơ cá nhân");
-        lbUserInfo.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                switchTab("PROFILE");
-            }
-        });
-        sidebar.add(lbUserInfo);
+            lbUserInfo.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            lbUserInfo.setToolTipText("Nhấn để xem/sửa Hồ sơ cá nhân");
+            lbUserInfo.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    switchTab("PROFILE");
+                }
+            });
+            sidebar.add(lbUserInfo);
             sidebar.add(Box.createVerticalStrut(20));
 
             JSeparator separator1 = new JSeparator();
@@ -198,7 +206,7 @@
             btnLogout.addActionListener(e -> {
                 int confirm = JOptionPane.showConfirmDialog(this,
                         "Bạn có chắc chắn muốn đăng xuất?",
-                        "Xácầnhận đăng xuất", JOptionPane.YES_NO_OPTION);
+                        "Xác nhận đăng xuất", JOptionPane.YES_NO_OPTION);
                 if (confirm == JOptionPane.YES_OPTION) {
                     this.dispose();
                     new LoginFrame().setVisible(true);
@@ -302,6 +310,18 @@
                     isVisible = true;
                 }
                 btn.setVisible(isVisible);
+            }
+        }
+
+        public void updateUserInfo() {
+            if (SharedData.currentUser != null) {
+                String currentUserName = SharedData.currentUser.getEmployeeName();
+                if (lbUserInfo != null) {
+                    lbUserInfo.setText("<html><div style='text-align: center; width: 120px;'>Chào: " + currentUserName + "</div></html>");
+                }
+                if (lbWelcome2 != null) {
+                    lbWelcome2.setText("Xin chào, " + currentUserName + "!");
+                }
             }
         }
     }

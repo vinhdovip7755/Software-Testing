@@ -95,10 +95,15 @@ public class AccountBUS {
     }
 
     public String updateUsername(String oldUsername, String newUsername) {
+        if (oldUsername.equals(newUsername)) return "OK";
+        
+        com.bookstore.dto.AccountDTO existing = accountDAO.selectByUsername(newUsername);
+        if (existing != null) return "Email này đã được sử dụng bởi người khác!";
+        
         com.bookstore.dto.AccountDTO acc = accountDAO.selectByUsername(oldUsername);
         if (acc == null) return "Không tìm thấy tài khoản!";
-        acc.setUsername(newUsername);
-        boolean success = accountDAO.updateAccount(acc, false);
+        
+        boolean success = accountDAO.updateUsername(oldUsername, newUsername);
         return success ? "OK" : "Lỗi Cập nhật tên đăng nhập!";
     }
 }

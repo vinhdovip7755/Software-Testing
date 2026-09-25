@@ -902,10 +902,10 @@ public class ProductPanel extends JPanel implements Refreshable {
                 BookDTO bookDTO = new BookDTO();
                 bookDTO.setBookId(book.getBookId());
                 bookDTO.setBookName(updatedBook.getBookName());
-                bookDTO.setCoverPrice(updatedBook.getCoverPrice());
+                bookDTO.setCoverPrice(book.getCoverPrice()); // Giữ nguyên giá bìa khi sửa sách
                 bookDTO.setPublicationYear(updatedBook.getPublicationYear());
-                bookDTO.setSellingPrice(updatedBook.getSellingPrice());
-                bookDTO.setQuantity(updatedBook.getQuantity());
+                bookDTO.setSellingPrice(book.getSellingPrice()); // Giữ nguyên giá bán hiện tại
+                bookDTO.setQuantity(book.getQuantity()); // Giữ nguyên tồn kho hiện tại
                 bookDTO.setTranslator(updatedBook.getTranslator());
                 bookDTO.setImage(updatedBook.getImage());
                 bookDTO.setDescription(updatedBook.getDescription());

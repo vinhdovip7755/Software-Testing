@@ -47,7 +47,7 @@ public class RoleFormDialog extends JDialog {
         pInfo.add(txtName);
         add(pInfo, BorderLayout.NORTH);
 
-        String[] headers = {"Tên chứcầnăng", "Quyền Xem", "Quyền Thao tác"};
+        String[] headers = {"Tên chức năng", "Quyền Xem", "Quyền Thao tác"};
         tableModel = new DefaultTableModel(headers, 0) {
             @Override
             public Class<?> getColumnClass(int columnIndex) {

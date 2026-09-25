@@ -265,7 +265,7 @@ public class PricePanel extends JPanel implements Refreshable {
                 return;
             }
             if (input.matches("^[0-9]+$")) {
-                JOptionPane.showMessageDialog(this, type + " không đượcầnhập số!", "Lỗi nhập liệu",
+                JOptionPane.showMessageDialog(this, type + " không được nhập số!", "Lỗi nhập liệu",
                         JOptionPane.ERROR_MESSAGE);
                 return;
             }
@@ -444,7 +444,7 @@ if(true) return;
             int confirm = JOptionPane.showConfirmDialog(this,
                     "Tỷ suất lợi nhuận: " + newPercent + "%\n" +
                             "Giá bán mới sẽ là: " + String.format("%,.0f", predictedPrice) + " VNĐ\n" +
-                            "Xácầnhận áp dụng mức giá này?",
+                            "Xác nhận áp dụng mức giá này?",
                     "Chốt giá bán",
                     JOptionPane.YES_NO_OPTION);
 

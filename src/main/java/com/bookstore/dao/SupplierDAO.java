@@ -95,4 +95,34 @@ public class SupplierDAO {
         }
         return null;
     }
+
+    public boolean isNameExist(String name, int ignoreId) {
+        String sql = "SELECT COUNT(*) FROM supplier WHERE LOWER(supplier_name) = LOWER(?) AND supplier_id != ?";
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setInt(2, ignoreId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean isPhoneExist(String phone, int ignoreId) {
+        String sql = "SELECT COUNT(*) FROM supplier WHERE supplier_phone = ? AND supplier_id != ?";
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, phone);
+            ps.setInt(2, ignoreId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }

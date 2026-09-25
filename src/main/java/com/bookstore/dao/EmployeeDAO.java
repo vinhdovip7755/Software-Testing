@@ -222,6 +222,20 @@ public class EmployeeDAO {
         return 0;
     }
 
+    public int countActiveManagersExcluding(int employeeId) {
+        String sql = "SELECT COUNT(*) FROM employee WHERE role_id IN (1, 2) AND status = 1 AND employee_id != ?";
+        try (java.sql.Connection c = DatabaseConnection.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, employeeId);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return 0;
+    }
+
     public List<EmployeeDTO> getEmployeesWithoutAccount() {
         List<EmployeeDTO> list = new ArrayList<>();
         String sql = "SELECT e.*, r.role_name FROM employee e " +

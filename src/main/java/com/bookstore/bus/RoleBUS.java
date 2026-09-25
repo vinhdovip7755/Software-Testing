@@ -17,6 +17,9 @@ public class RoleBUS {
     }
 
     public boolean updateRole(RoleDTO role) {
+        if (role != null && role.getRoleId() == 1) {
+            return false;
+        }
         return roleDAO.updateRole(role);
     }
 }

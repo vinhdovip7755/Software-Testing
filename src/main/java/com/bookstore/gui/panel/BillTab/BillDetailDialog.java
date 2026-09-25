@@ -162,7 +162,7 @@ public class BillDetailDialog extends JDialog{
         String customerName = bill.getCustomerName() == null ? "Khách lẻ" : bill.getCustomerName();
         String createdDate = bill.getCreatedDate() == null
                 ? "--"
-                : new SimpleDateFormat("HH:mm:ss - d/M/yyyy").format(bill.getCreatedDate());
+                : new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy").format(bill.getCreatedDate());
 
         lbBillId.setText("Mã hóa đơn: " + bill.getBillId());
         lbCreatedDate.setText("Ngày lập: " + createdDate);

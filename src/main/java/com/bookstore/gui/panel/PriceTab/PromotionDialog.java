@@ -88,9 +88,9 @@ public class PromotionDialog extends JDialog {
         txtPercent = new JTextField();
         txtSearchBook = new JTextField();
         dchStart = new JDateChooser(new java.util.Date());
-        dchStart.setDateFormatString("yyyy-MM-dd");
+        dchStart.setDateFormatString("dd/MM/yyyy");
         dchEnd = new JDateChooser(new java.util.Date());
-        dchEnd.setDateFormatString("yyyy-MM-dd");
+        dchEnd.setDateFormatString("dd/MM/yyyy");
         cbStatus = new JComboBox<>(new String[] { "Ngừng hoạt động", "Đang chạy" });
         cbCategory = new JComboBox<>();
         cbCategory.addItem("Tất cả thể loại");
@@ -238,7 +238,7 @@ public class PromotionDialog extends JDialog {
             int status = cbStatus.getSelectedIndex();
 
             if (start.after(end)) {
-                JOptionPane.showMessageDialog(this, "Ngày bắt đầu phải trướcầngày kết thúc!");
+                JOptionPane.showMessageDialog(this, "Ngày bắt đầu phải trước ngày kết thúc!");
                 return;
             }
 

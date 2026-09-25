@@ -90,17 +90,15 @@ public class PromotionBUS {
     }
 
     public List<BookDTO> suggestBooksByPromotionName(String promoName) {
+        if (promoName == null || promoName.trim().isEmpty()) {
+            return bookDAO.selectAllBooks();
+        }
         String name = promoName.toLowerCase();
-        int categoryId = -1;
-        if (name.contains("văn học"))
-            categoryId = 1;
-        else if (name.contains("truyện tranh"))
-            categoryId = 3;
-        else if (name.contains("kỹ năng"))
-            categoryId = 4;
-
-        if (categoryId != -1) {
-            return bookDAO.getByCategoryId(categoryId);
+        com.bookstore.dao.CategoryDAO categoryDAO = new com.bookstore.dao.CategoryDAO();
+        for (com.bookstore.dto.CategoryDTO cat : categoryDAO.selectAllCategories()) {
+            if (cat.getCategoryName() != null && name.contains(cat.getCategoryName().toLowerCase().trim())) {
+                return bookDAO.getByCategoryId(cat.getCategoryId());
+            }
         }
         return bookDAO.selectAllBooks();
     }
@@ -108,24 +106,16 @@ public class PromotionBUS {
     public boolean savePromotion(boolean isEdit, PromotionDTO dto, String name, double percent, Timestamp start,
                                  Timestamp end, int status, List<Integer> bookIds) {
         if (!isEdit) {
-
             PromotionDTO newPromo = new PromotionDTO(0, name, percent, start, end, status);
-            int newId = promotionDAO.add(newPromo);
-            if (newId > 0) {
-                return promotionDAO.savePromotionDetails(newId, bookIds);
-            }
+            return promotionDAO.savePromotionTransaction(false, newPromo, bookIds);
         } else {
             dto.setPromotionName(name);
             dto.setPercent(percent);
             dto.setStartDate(start);
             dto.setEndDate(end);
             dto.setStatus(status);
-            if (promotionDAO.update(dto)) {
-                promotionDAO.deletePromotionDetails(dto.getPromotionId());
-                return promotionDAO.savePromotionDetails(dto.getPromotionId(), bookIds);
-            }
+            return promotionDAO.savePromotionTransaction(true, dto, bookIds);
         }
-        return false;
     }
 
     public List<Integer> getSelectedBookIds(int promoId) {

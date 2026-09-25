@@ -35,7 +35,7 @@ public class BookBUS {
             return duplicateCheck;
         }
 
-        int generatedId = bookDAO.add(book);
+        int generatedId = bookDAO.addBookWithAuthorsTransaction(book, book.getAuthorIdsList());
         if (generatedId > 0) {
             book.setBookId(generatedId);
             return "Thêm sách thành công!";
@@ -52,7 +52,7 @@ public class BookBUS {
             return duplicateCheck;
         }
 
-        if (bookDAO.update(book)) {
+        if (bookDAO.updateBookWithAuthorsTransaction(book, book.getAuthorIdsList())) {
             return "Cập nhật thành công!";
         }
         return "Cập nhật thất bại!";

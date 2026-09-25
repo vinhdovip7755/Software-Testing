@@ -54,6 +54,8 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
     private TitledBorder filteredBorder;
 
     public FinancialStatsPanel() {
+        dchTuNgay.setDateFormatString("dd/MM/yyyy");
+        dchDenNgay.setDateFormatString("dd/MM/yyyy");
         initUI();
         bindEvents();
         // Set default dates
@@ -82,10 +84,19 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         JPanel pnlFilter = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         pnlFilter.setOpaque(false);
         
-        pnlFilter.add(new JLabel("Từ ngày:"));
+        JLabel lblTuNgay = new JLabel("Từ ngày:");
+        lblTuNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
+        pnlFilter.add(lblTuNgay);
+        dchTuNgay.setDateFormatString("dd/MM/yyyy");
+        dchTuNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dchTuNgay.setPreferredSize(new Dimension(150, 35));
         pnlFilter.add(dchTuNgay);
-        pnlFilter.add(new JLabel("Đến ngày:"));
+        
+        JLabel lblDenNgay = new JLabel("Đến ngày:");
+        lblDenNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
+        pnlFilter.add(lblDenNgay);
+        dchDenNgay.setDateFormatString("dd/MM/yyyy");
+        dchDenNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dchDenNgay.setPreferredSize(new Dimension(150, 35));
         pnlFilter.add(dchDenNgay);
         

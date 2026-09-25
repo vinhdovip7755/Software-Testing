@@ -198,15 +198,15 @@ public class ImportDAO {
                 return false;
             }
 
-            String sqlDetail = "INSERT INTO import_detail (import_ticket_id, book_id, quantity, cover_price, import_price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)";
+            String sqlDetail = "INSERT INTO import_ticket_detail (import_ticket_id, book_id, import_quantity, import_price, cover_price, discount_percent) VALUES (?, ?, ?, ?, ?, ?)";
             try (PreparedStatement psD = c.prepareStatement(sqlDetail)) {
                 for (com.bookstore.dto.ImportDetailDTO d : details) {
                     if (d != null) {
                         psD.setInt(1, newImportID);
                         psD.setInt(2, d.getBookID());
                         psD.setInt(3, d.getQuantity());
-                        psD.setDouble(4, d.getCoverPrice());
-                        psD.setDouble(5, d.getPrice());
+                        psD.setDouble(4, d.getPrice());
+                        psD.setDouble(5, d.getCoverPrice());
                         psD.setDouble(6, d.getDiscountPercent());
                         psD.addBatch();
                     }

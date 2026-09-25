@@ -178,7 +178,20 @@ public class BookFormDialog extends JDialog {
         wrapper.setBackground(BG_COLOR);
         wrapper.add(scrollPane, BorderLayout.CENTER);
 
-        addFormField(panel, "Tên sách *", nameField = new JTextField(), true);
+        nameField = new JTextField();
+        nameField.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (nameField.getText().trim().isEmpty()) {
+                    nameField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng nhập tên sách!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    nameField.requestFocusInWindow();
+                } else {
+                    nameField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
+        addFormField(panel, "Tên sách *", nameField, true);
 
         authorPanel = new JPanel();
         authorPanel.setLayout(new BoxLayout(authorPanel, BoxLayout.Y_AXIS));
@@ -187,10 +200,34 @@ public class BookFormDialog extends JDialog {
         refreshAuthorPanel();
 
         categoryCombo = new JComboBox<>(getCategoryNames());
+        categoryCombo.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (categoryCombo.getSelectedIndex() <= 0) {
+                    categoryCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng chọn thể loại!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    categoryCombo.requestFocusInWindow();
+                } else {
+                    categoryCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         categoryCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         addFormField(panel, "Thể loại *", createQuickAddField(categoryCombo, e -> quickAddCategory()), true);
 
         supplierCombo = new JComboBox<>(getSupplierNames());
+        supplierCombo.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (supplierCombo.getSelectedIndex() <= 0) {
+                    supplierCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng chọn nhà cung cấp!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    supplierCombo.requestFocusInWindow();
+                } else {
+                    supplierCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         supplierCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         addFormField(panel, "Nhà cung cấp *", createQuickAddField(supplierCombo, e -> quickAddSupplier()), true);
 
@@ -469,7 +506,7 @@ public class BookFormDialog extends JDialog {
         JButton cancelButton = createStyledButton("Hủy", Color.decode("#757575"));
         cancelButton.addActionListener(e -> dialog.dispose());
 
-        JButton okButton = createStyledButton("Xácầnhận", BUTTON_COLOR);
+        JButton okButton = createStyledButton("Xác nhận", BUTTON_COLOR);
         okButton.addActionListener(e -> {
             selectedAuthorIds.clear();
             for (Map.Entry<Integer, JCheckBox> entry : allCheckBoxes.entrySet()) {
@@ -538,7 +575,7 @@ public class BookFormDialog extends JDialog {
         JButton cancelButton = createStyledButton("Hủy", Color.decode("#757575"));
         cancelButton.addActionListener(e -> dialog.dispose());
 
-        JButton okButton = createStyledButton("Xácầnhận", BUTTON_COLOR);
+        JButton okButton = createStyledButton("Xác nhận", BUTTON_COLOR);
         okButton.addActionListener(e -> {
             selectedTags.clear();
             for (Map.Entry<String, JToggleButton> entry : toggleButtons.entrySet()) {
@@ -842,7 +879,7 @@ public class BookFormDialog extends JDialog {
 
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc chắn muốn lưu thông tin sách này?",
-                "Xácầnhận",
+                "Xác nhận",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.QUESTION_MESSAGE);
 
@@ -891,9 +928,8 @@ public class BookFormDialog extends JDialog {
             book.getAuthorIdsList().addAll(selectedAuthorIds);
         } else {
             book.setBookName(nameField.getText().trim());
-            book.setCoverPrice(coverPrice);
+            // Giữ nguyên giá bìa và giá bán khi sửa sách
             book.setPublicationYear(publicationYear);
-            book.setSellingPrice(coverPrice);
             book.setTranslator(translatorField.getText().trim().isEmpty() ? null : translatorField.getText().trim());
             book.setDescription(descriptionArea.getText().trim().isEmpty() ? null : descriptionArea.getText().trim());
             book.setStatus(activeRadio.isSelected() ? 1 : 0);
@@ -912,6 +948,11 @@ public class BookFormDialog extends JDialog {
         nameField.setText(book.getBookName());
         translatorField.setText(book.getTranslator() != null ? book.getTranslator() : "");
         coverPriceField.setText(book.getCoverPrice() == 0 ? "" : String.valueOf((long) book.getCoverPrice()));
+        coverPriceField.setEditable(false);
+        coverPriceField.setFocusable(false);
+        coverPriceField.setBackground(new Color(245, 245, 245));
+        coverPriceField.setForeground(Color.DARK_GRAY);
+        coverPriceField.setToolTipText("Không thể thay đổi giá bìa của sách đã tạo!");
         yearField.setText(book.getPublicationYear() == 0 ? "" : String.valueOf(book.getPublicationYear()));
         descriptionArea.setText(book.getDescription() != null ? book.getDescription() : "");
         if (book.getImage() != null && !book.getImage().trim().isEmpty()) {

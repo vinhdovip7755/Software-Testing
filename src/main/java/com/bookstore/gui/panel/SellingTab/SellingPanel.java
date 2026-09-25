@@ -53,6 +53,9 @@ public class SellingPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
+        if (SharedData.currentUser != null && txtEmployee != null) {
+            txtEmployee.setText(SharedData.currentUser.getEmployeeName());
+        }
         loadCategoriesToComBoBox();
         loadAuthorsToComboBox();
         loadBookTable();
@@ -460,9 +463,18 @@ public class SellingPanel extends JPanel implements Refreshable {
 
     private void filterBooks() {
         String keyword = txtSearch.getText().trim().toLowerCase();
-        CategoryDTO selectedCate = (CategoryDTO) cboCategory.getSelectedItem();
+        Object cateItem = cboCategory.getSelectedItem();
+        CategoryDTO selectedCate = null;
+        if (cateItem instanceof CategoryDTO) {
+            selectedCate = (CategoryDTO) cateItem;
+        }
         int cateId = (selectedCate != null) ? selectedCate.getCategoryId() : 0;
-        AuthorDTO selectedAuthor = (AuthorDTO) cboAuthor.getSelectedItem();
+
+        Object authorItem = cboAuthor.getSelectedItem();
+        AuthorDTO selectedAuthor = null;
+        if (authorItem instanceof AuthorDTO) {
+            selectedAuthor = (AuthorDTO) authorItem;
+        }
         int authorId = (selectedAuthor != null) ? selectedAuthor.getAuthorId() : 0;
         double minPrice = 0;
         double maxPrice = Double.MAX_VALUE;
@@ -711,7 +723,7 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc muốn xóa toàn bộ giỏ hàng không?",
-                "Xácầnhận", JOptionPane.YES_NO_OPTION);
+                "Xác nhận", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
             cartModel.setRowCount(0);
