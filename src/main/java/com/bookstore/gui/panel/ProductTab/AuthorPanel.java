@@ -317,8 +317,8 @@ public class AuthorPanel extends JPanel implements Refreshable{
             return;
         }
 
-        if (!name.matches("^[\\p{L}\\s.'-]+$")) {
-            JOptionPane.showMessageDialog(this, "Tên tác giả chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!name.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             nameField.requestFocus();
             return;
         }
@@ -329,8 +329,8 @@ public class AuthorPanel extends JPanel implements Refreshable{
             return;
         }
 
-        if (!country.matches("^[\\p{L}\\s-]+$")) {
-            JOptionPane.showMessageDialog(this, "Quốc tịch chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!country.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch tác giả không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             countryField.requestFocus();
             return;
         }

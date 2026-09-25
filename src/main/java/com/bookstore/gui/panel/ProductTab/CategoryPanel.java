@@ -217,8 +217,8 @@ public class CategoryPanel extends JPanel implements Refreshable {
             return;
         }
 
-        if (!newCategoryName.matches("^[\\p{L}\\s.'-]+$")) {
-            JOptionPane.showMessageDialog(this, "Tên thể loại chỉ được chứa chữ cái, dấu gạch nối và khoảng trắng!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+        if (!newCategoryName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên thể loại không hợp lệ!", "Thông báo", JOptionPane.WARNING_MESSAGE);
             categoryNameField.requestFocus();
             return;
         }

@@ -14,7 +14,7 @@ public class EmployeeBUS {
 
     public String updateEmployee(EmployeeDTO e) {
         if (e.getEmployeeName().trim().isEmpty()) return "Tên nhân viên không được để trống!";
-        if (!e.getEmployeeName().trim().matches("^[\\p{L}\\s.'-]+$")) return "Tên nhân viên chỉ được chứa chữ cái và khoảng trắng!";
+        if (!e.getEmployeeName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) return "Tên nhân viên không hợp lệ!";
         if (e.getEmployeePhone().trim().isEmpty()) return "Số điện thoại không được để trống!";
         if (!e.getEmployeePhone().matches("^0\\d{9}$")) return "Số điện thoại phải có 10 số và bắt đầu bằng 0!";
 
@@ -57,7 +57,7 @@ public class EmployeeBUS {
 
     public String addEmployee(EmployeeDTO e) {
         if (e.getEmployeeName().trim().isEmpty()) return "Tên nhân viên không được để trống!";
-        if (!e.getEmployeeName().trim().matches("^[\\p{L}\\s.'-]+$")) return "Tên nhân viên chỉ được chứa chữ cái và khoảng trắng!";
+        if (!e.getEmployeeName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) return "Tên nhân viên không hợp lệ!";
         if (e.getEmployeePhone().trim().isEmpty()) return "Số điện thoại không được để trống!";
         if (!e.getEmployeePhone().matches("^0\\d{9}$")) return "Số điện thoại phải có 10 số và bắt đầu bằng 0!";
         if (e.getEmail() == null || e.getEmail().trim().isEmpty()) return "Email không được để trống!";

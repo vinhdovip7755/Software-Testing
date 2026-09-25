@@ -94,8 +94,8 @@ public class MembershipRankDialog extends JDialog {
             return;
         }
 
-        if (!name.matches("^[\\p{L}0-9\\s.'-]+$")) {
-            JOptionPane.showMessageDialog(this, "Tên hạng chỉ được chứa chữ cái, số và khoảng trắng!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+        if (!name.matches("^(?=.*\\p{L})[\\p{L}0-9\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên hạng không hợp lệ!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             txtName.requestFocus();
             return;
         }

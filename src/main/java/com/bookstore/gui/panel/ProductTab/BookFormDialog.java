@@ -739,16 +739,16 @@ public class BookFormDialog extends JDialog {
             JOptionPane.showMessageDialog(this, "Tên tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if (!aName.matches("^[\\p{L}\\s.'-]+$")) {
-            JOptionPane.showMessageDialog(this, "Tên tác giả chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!aName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
         if (aNat.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Quốc tịch tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if (!aNat.matches("^[\\p{L}\\s-]+$")) {
-            JOptionPane.showMessageDialog(this, "Quốc tịch chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!aNat.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -912,8 +912,8 @@ public class BookFormDialog extends JDialog {
         }
 
         String trans = translatorField.getText().trim();
-        if (!trans.isEmpty() && !trans.matches("^[\\p{L}\\s.'-]+$")) {
-            JOptionPane.showMessageDialog(this, "Tên người dịch chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!trans.isEmpty() && !trans.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên người dịch không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             translatorField.requestFocus();
             return;
         }

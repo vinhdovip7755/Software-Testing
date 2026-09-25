@@ -216,8 +216,8 @@ public class ProfilePanel extends JPanel implements Refreshable {
                 txtName.requestFocus();
                 return;
             }
-            if (!newName.matches("^[\\p{L}\\s.'-]+$")) {
-                JOptionPane.showMessageDialog(this, "Tên nhân viên chỉ được chứa chữ cái và khoảng trắng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            if (!newName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+                JOptionPane.showMessageDialog(this, "Tên nhân viên không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 txtName.requestFocus();
                 return;
             }
