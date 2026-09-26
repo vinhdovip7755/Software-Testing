@@ -20,6 +20,9 @@ public class CustomerBUS {
         if (c.getCustomerName().trim().isEmpty()) {
             return "Tên khách hàng không được để trống!";
         }
+        if (!c.getCustomerName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            return "Tên khách hàng không hợp lệ!";
+        }
 
         if (c.getCustomerPhone().trim().isEmpty()) {
             return "Số điện thoại không được để trống!";
@@ -46,6 +49,9 @@ public class CustomerBUS {
     public String insertCustomer(CustomerDTO c) {
         if (c.getCustomerName().trim().isEmpty()) {
             return "Tên khách hàng không được để trống!";
+        }
+        if (!c.getCustomerName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            return "Tên khách hàng không hợp lệ!";
         }
         if (c.getCustomerPhone().trim().isEmpty()) {
             return "Số điện thoại không được để trống!";

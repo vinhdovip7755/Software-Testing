@@ -2,6 +2,7 @@ package com.bookstore.bus;
 
 import com.bookstore.dao.SupplierDAO;
 import com.bookstore.dto.SupplierDTO;
+import com.bookstore.util.AppConstant;
 import java.util.List;
 
 public class SupplierBUS {
@@ -16,8 +17,8 @@ public class SupplierBUS {
             return "Tên nhà cung cấp không được để trống!";
         if (supplier.getSupplierPhone() == null || supplier.getSupplierPhone().trim().isEmpty())
             return "Số điện thoại không được để trống!";
-        if (!supplier.getSupplierPhone().trim().matches("^0\\d{9}$"))
-            return "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)";
+        if (!supplier.getSupplierPhone().trim().matches(AppConstant.REGEX_SUPPLIER_PHONE))
+            return "Số điện thoại không hợp lệ! (Số di động 10 chữ số hoặc số bàn cố định 11 chữ số bắt đầu bằng số 0)";
 
         if (supplierDAO.isNameExist(supplier.getSupplierName().trim(), 0))
             return "Tên nhà cung cấp này đã tồn tại trong hệ thống!";
@@ -37,8 +38,8 @@ public class SupplierBUS {
             return "Tên nhà cung cấp không được để trống!";
         if (supplier.getSupplierPhone() == null || supplier.getSupplierPhone().trim().isEmpty())
             return "Số điện thoại không được để trống!";
-        if (!supplier.getSupplierPhone().trim().matches("^0\\d{9}$"))
-            return "Số điện thoại không hợp lệ! (Phải có 10 chữ số và bắt đầu bằng số 0)";
+        if (!supplier.getSupplierPhone().trim().matches(AppConstant.REGEX_SUPPLIER_PHONE))
+            return "Số điện thoại không hợp lệ! (Số di động 10 chữ số hoặc số bàn cố định 11 chữ số bắt đầu bằng số 0)";
 
         if (supplierDAO.isNameExist(supplier.getSupplierName().trim(), supplier.getSupplierId()))
             return "Tên nhà cung cấp này đã tồn tại trong hệ thống!";

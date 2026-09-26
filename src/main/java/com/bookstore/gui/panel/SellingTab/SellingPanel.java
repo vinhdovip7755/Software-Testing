@@ -407,7 +407,7 @@ public class SellingPanel extends JPanel implements Refreshable {
     }
 
     private void loadBookTable() {
-        listBooks = bookBUS.selectAllBooks();
+        listBooks = bookBUS.selectActiveBooks();
         updateProductTable(listBooks);
     }
 
@@ -493,6 +493,7 @@ public class SellingPanel extends JPanel implements Refreshable {
         List<BookDTO> filteredList = new ArrayList<>();
 
         for (BookDTO book : listBooks) {
+            if (book.getStatus() != 1) continue;
             boolean matchKeyword = keyword.isEmpty() || book.getBookName().toLowerCase().contains(keyword) || String.valueOf(book.getBookId()).contains(keyword);
             boolean matchCate = (cateId == 0) || (book.getCategoryId() == cateId);
             boolean matchAuthor = (authorId == 0) || (book.getAuthorIdsList().contains(authorId));
@@ -647,6 +648,11 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         if (selectedBook == null) return;
 
+        if (selectedBook.getStatus() == 0) {
+            JOptionPane.showMessageDialog(this, "Sản phẩm này đã ngừng bán, không thể bán!");
+            return;
+        }
+
         if (selectedBook.getQuantity() <= 0) {
             JOptionPane.showMessageDialog(this, "Sản phẩm này đã hết hàng!");
             return;
@@ -657,14 +663,15 @@ public class SellingPanel extends JPanel implements Refreshable {
                 "1");
 
         if (input == null) return;
+        input = input.trim();
+        if (!input.matches("^[1-9]\\d*$")) {
+            JOptionPane.showMessageDialog(this, "Số lượng phải là số nguyên dương lớn hơn 0!");
+            return;
+        }
 
         int quantityToAdd;
         try {
             quantityToAdd = Integer.parseInt(input);
-            if (quantityToAdd <= 0) {
-                JOptionPane.showMessageDialog(this, "Số lượng phải lớn hơn 0!");
-                return;
-            }
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Vui lòng nhập số nguyên hợp lệ!");
             return;
@@ -775,14 +782,14 @@ public class SellingPanel extends JPanel implements Refreshable {
                 currentQty);
 
         if (input == null) return;
+        input = input.trim();
+        if (!input.matches("^[1-9]\\d*$")) {
+            JOptionPane.showMessageDialog(this, "Số lượng phải là số nguyên dương lớn hơn 0!");
+            return;
+        }
 
         try {
             int newQty = Integer.parseInt(input);
-
-            if (newQty <= 0) {
-                JOptionPane.showMessageDialog(this, "Số lượng phải lớn hơn 0!");
-                return;
-            }
 
             if (newQty > book.getQuantity()) {
                 JOptionPane.showMessageDialog(this,
@@ -914,8 +921,7 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         calculateTotal();
 
-        listBooks = bookBUS.selectAllBooks();
-        updateProductTable(listBooks);
+        loadBookTable();
     }
 
     private void resetFilter() {

@@ -252,7 +252,22 @@ public class BookFormDialog extends JDialog {
         addFormField(panel, "Trạng thái *", statusPanel, true);
 
         addFormField(panel, "Người dịch", translatorField = new JTextField(), false);
-        addFormField(panel, "Giá bìa", coverPriceField = new JTextField(), false);
+        
+        coverPriceField = new JTextField();
+        coverPriceField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        boolean isAddMode = (book == null);
+        if (isAddMode) {
+            coverPriceField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.PLACEHOLDER_TEXT, "Nhập giá bán (VNĐ)...");
+            addFormField(panel, "Giá bán *", coverPriceField, true);
+        } else {
+            coverPriceField.setEditable(false);
+            coverPriceField.setFocusable(false);
+            coverPriceField.setBackground(new Color(245, 245, 245));
+            coverPriceField.setForeground(Color.DARK_GRAY);
+            coverPriceField.setToolTipText("Không thể thay đổi giá bán khi sửa sách (giá bán được quản lý tại tab Thiết lập giá)!");
+            addFormField(panel, "Giá bán", coverPriceField, false);
+        }
+        
         addFormField(panel, "Năm xuất bản", yearField = new JTextField(), false);
 
         tagPanel = new JPanel();
@@ -683,12 +698,16 @@ public class BookFormDialog extends JDialog {
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, field instanceof JScrollPane ? 120 : 50));
 
-        JLabel label = new JLabel(labelText);
+        JLabel label;
+        if (labelText.endsWith("*")) {
+            String base = labelText.substring(0, labelText.length() - 1).trim();
+            label = new JLabel("<html>" + base + " <font color='#D32F2F'>*</font></html>");
+        } else {
+            label = new JLabel(labelText);
+        }
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
         label.setPreferredSize(new Dimension(120, 20));
-        if (required) {
-            label.setForeground(Color.decode("#333333"));
-        }
+        label.setForeground(Color.decode("#333333"));
 
         if (field instanceof JTextField) {
             JTextField tf = (JTextField) field;
@@ -724,18 +743,37 @@ public class BookFormDialog extends JDialog {
         JTextField name = new JTextField();
         JTextField nationality = new JTextField();
         JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
-        form.add(new JLabel("Tên tác giả:"));
+        form.add(new JLabel("<html>Tên tác giả <font color='#D32F2F'>*</font>:</html>"));
         form.add(name);
-        form.add(new JLabel("Quốc tịch:"));
+        form.add(new JLabel("<html>Quốc tịch <font color='#D32F2F'>*</font>:</html>"));
         form.add(nationality);
 
         int result = JOptionPane.showConfirmDialog(this, form, "Thêm tác giả nhanh",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result != JOptionPane.OK_OPTION) return;
 
+        String aName = name.getText().trim();
+        String aNat = nationality.getText().trim();
+        if (aName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (!aName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên tác giả không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (aNat.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch tác giả không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (!aNat.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Quốc tịch không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         AuthorDTO author = new AuthorDTO();
-        author.setAuthorName(name.getText().trim());
-        author.setNationality(nationality.getText().trim());
+        author.setAuthorName(aName);
+        author.setNationality(aNat);
         String message = authorBUS.addAuthor(author);
         if (!message.toLowerCase().contains("thành công")) {
             JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -753,7 +791,7 @@ public class BookFormDialog extends JDialog {
     }
 
     private void quickAddCategory() {
-        String name = JOptionPane.showInputDialog(this, "Tên thể loại:", "Thêm thể loại nhanh",
+        String name = JOptionPane.showInputDialog(this, "Tên thể loại *:", "Thêm thể loại nhanh",
                 JOptionPane.PLAIN_MESSAGE);
         if (name == null || name.trim().isEmpty()) return;
 
@@ -775,9 +813,9 @@ public class BookFormDialog extends JDialog {
         JTextField phone = new JTextField();
         JTextField address = new JTextField();
         JPanel form = new JPanel(new GridLayout(3, 2, 8, 8));
-        form.add(new JLabel("Tên nhà cung cấp:"));
+        form.add(new JLabel("<html>Tên nhà cung cấp <font color='#D32F2F'>*</font>:</html>"));
         form.add(name);
-        form.add(new JLabel("Số điện thoại:"));
+        form.add(new JLabel("<html>Số điện thoại <font color='#D32F2F'>*</font>:</html>"));
         form.add(phone);
         form.add(new JLabel("Địa chỉ:"));
         form.add(address);
@@ -786,10 +824,27 @@ public class BookFormDialog extends JDialog {
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (result != JOptionPane.OK_OPTION) return;
 
+        String sName = name.getText().trim();
+        String sPhone = phone.getText().trim();
+        String sAddress = address.getText().trim();
+
+        if (sName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Tên nhà cung cấp không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (sPhone.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (!sPhone.matches(AppConstant.REGEX_SUPPLIER_PHONE)) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ! (Số di động 10 chữ số hoặc số bàn cố định 11 chữ số bắt đầu bằng số 0)", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         SupplierDTO supplier = new SupplierDTO();
-        supplier.setSupplierName(name.getText().trim());
-        supplier.setSupplierPhone(phone.getText().trim());
-        supplier.setSupplierAddress(address.getText().trim());
+        supplier.setSupplierName(sName);
+        supplier.setSupplierPhone(sPhone);
+        supplier.setSupplierAddress(sAddress);
         String message = supplierBUS.addSupplier(supplier);
         if (!message.toLowerCase().contains("thành công")) {
             JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -807,10 +862,17 @@ public class BookFormDialog extends JDialog {
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
 
-        JLabel label = new JLabel(labelText);
+        JLabel label;
+        if (labelText.endsWith("*")) {
+            String base = labelText.substring(0, labelText.length() - 1).trim();
+            label = new JLabel("<html>" + base + " <font color='#D32F2F'>*</font></html>");
+        } else {
+            label = new JLabel(labelText);
+        }
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
         label.setPreferredSize(new Dimension(120, 20));
         label.setVerticalAlignment(JLabel.TOP);
+        label.setForeground(Color.decode("#333333"));
 
         row.add(label, BorderLayout.WEST);
         row.add(content, BorderLayout.CENTER);
@@ -866,15 +928,66 @@ public class BookFormDialog extends JDialog {
             return;
         }
 
-        double coverPrice;
-        int publicationYear;
-        try {
-            coverPrice = coverPriceField.getText().trim().isEmpty() ? 0 : Double.parseDouble(coverPriceField.getText().trim());
-            publicationYear = yearField.getText().trim().isEmpty() ? 0 : Integer.parseInt(yearField.getText().trim());
-            if (coverPrice < 0 || publicationYear < 0 || publicationYear > 3000) throw new NumberFormatException();
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Giá bìa và năm xuất bản không hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        String yearStr = yearField.getText().trim();
+        if (!yearStr.isEmpty()) {
+            if (!yearStr.matches("^\\d{4}$")) {
+                JOptionPane.showMessageDialog(this, "Năm xuất bản phải là năm gồm 4 chữ số hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                yearField.requestFocus();
+                return;
+            }
+        }
+
+        String trans = translatorField.getText().trim();
+        if (!trans.isEmpty() && !trans.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên người dịch không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            translatorField.requestFocus();
             return;
+        }
+
+        double coverPrice = 0;
+        if (book == null) {
+            String priceStr = coverPriceField.getText().trim();
+            if (priceStr.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Giá bán không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                coverPriceField.requestFocus();
+                return;
+            }
+            if (!priceStr.matches("^\\d+(\\.\\d+)?$")) {
+                JOptionPane.showMessageDialog(this, "Giá bán phải là số không âm hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                coverPriceField.requestFocus();
+                return;
+            }
+            try {
+                coverPrice = Double.parseDouble(priceStr);
+                if (coverPrice < 0) {
+                    JOptionPane.showMessageDialog(this, "Giá bán không được là số âm!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    coverPriceField.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Giá bán không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                coverPriceField.requestFocus();
+                return;
+            }
+        } else {
+            coverPrice = book.getSellingPrice() > 0 ? book.getSellingPrice() : book.getCoverPrice();
+        }
+
+        int publicationYear = 0;
+        if (!yearStr.isEmpty()) {
+            try {
+                publicationYear = Integer.parseInt(yearStr);
+                int curYear = java.time.Year.now().getValue();
+                if (publicationYear < 1000 || publicationYear > curYear + 1) {
+                    JOptionPane.showMessageDialog(this, "Năm xuất bản phải từ năm 1000 đến " + (curYear + 1) + "!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    yearField.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Năm xuất bản không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                yearField.requestFocus();
+                return;
+            }
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
@@ -947,12 +1060,13 @@ public class BookFormDialog extends JDialog {
     private void loadBookData() {
         nameField.setText(book.getBookName());
         translatorField.setText(book.getTranslator() != null ? book.getTranslator() : "");
-        coverPriceField.setText(book.getCoverPrice() == 0 ? "" : String.valueOf((long) book.getCoverPrice()));
+        double displayPrice = book.getSellingPrice() > 0 ? book.getSellingPrice() : book.getCoverPrice();
+        coverPriceField.setText(displayPrice == 0 ? "0" : String.valueOf((long) displayPrice));
         coverPriceField.setEditable(false);
         coverPriceField.setFocusable(false);
         coverPriceField.setBackground(new Color(245, 245, 245));
         coverPriceField.setForeground(Color.DARK_GRAY);
-        coverPriceField.setToolTipText("Không thể thay đổi giá bìa của sách đã tạo!");
+        coverPriceField.setToolTipText("Không thể thay đổi giá bán khi sửa sách (giá bán được quản lý tại tab Thiết lập giá)!");
         yearField.setText(book.getPublicationYear() == 0 ? "" : String.valueOf(book.getPublicationYear()));
         descriptionArea.setText(book.getDescription() != null ? book.getDescription() : "");
         if (book.getImage() != null && !book.getImage().trim().isEmpty()) {

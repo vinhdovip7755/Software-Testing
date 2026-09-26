@@ -17,6 +17,10 @@ public class CategoryBUS {
             return "Tên thể loại không được để trống!";
         }
 
+        if (!category.getCategoryName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            return "Tên thể loại không hợp lệ!";
+        }
+
         if (categoryDAO.isNameExist(category.getCategoryName().trim(), 0)) {
             return "Tên thể loại này đã tồn tại trong hệ thống!";
         }
@@ -32,6 +36,10 @@ public class CategoryBUS {
     public String updateCategory(CategoryDTO category) {
         if (category.getCategoryName() == null || category.getCategoryName().trim().isEmpty()) {
             return "Tên thể loại không được để trống!";
+        }
+
+        if (!category.getCategoryName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            return "Tên thể loại không hợp lệ!";
         }
 
         if (categoryDAO.isNameExist(category.getCategoryName().trim(), category.getCategoryId())) {

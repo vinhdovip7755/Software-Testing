@@ -218,10 +218,30 @@ public class EmployeeEditDialog extends JDialog {
             }
 
             String baseSalaryStr = txtBaseSalary.getText().trim();
-            temp.setBaseSalary(baseSalaryStr.isEmpty() ? 0 : Double.parseDouble(baseSalaryStr));
+            if (baseSalaryStr.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Lương cơ bản không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtBaseSalary.requestFocus();
+                return;
+            }
+            if (!baseSalaryStr.matches("^\\d+(\\.\\d+)?$") || Double.parseDouble(baseSalaryStr) <= 0) {
+                JOptionPane.showMessageDialog(this, "Lương cơ bản phải là số dương lớn hơn 0!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtBaseSalary.requestFocus();
+                return;
+            }
+            temp.setBaseSalary(Double.parseDouble(baseSalaryStr));
 
             String salaryFactorStr = txtSalaryFactor.getText().trim();
-            temp.setSalaryFactor(salaryFactorStr.isEmpty() ? 1 : Double.parseDouble(salaryFactorStr));
+            if (salaryFactorStr.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Hệ số lương không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtSalaryFactor.requestFocus();
+                return;
+            }
+            if (!salaryFactorStr.matches("^\\d+(\\.\\d+)?$") || Double.parseDouble(salaryFactorStr) <= 0) {
+                JOptionPane.showMessageDialog(this, "Hệ số lương phải là số dương lớn hơn 0!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtSalaryFactor.requestFocus();
+                return;
+            }
+            temp.setSalaryFactor(Double.parseDouble(salaryFactorStr));
 
             temp.setStatus(chkStatus.isSelected() ? 1 : 0);
 

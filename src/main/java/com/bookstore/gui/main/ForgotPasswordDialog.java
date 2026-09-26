@@ -43,7 +43,7 @@ public class ForgotPasswordDialog extends JDialog {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
                 String email = txtEmail.getText().trim();
-                if (!email.isEmpty() && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtEmail.putClientProperty(FlatClientProperties.OUTLINE, "error");
                     javax.swing.JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
                     txtEmail.requestFocusInWindow();
@@ -123,6 +123,13 @@ public class ForgotPasswordDialog extends JDialog {
 
         if (email.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng nhập Email!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtEmail.requestFocus();
+            return;
+        }
+
+        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtEmail.requestFocus();
             return;
         }
 
@@ -197,6 +204,12 @@ public class ForgotPasswordDialog extends JDialog {
 
         if (otp.isEmpty() || newPass.isEmpty() || confirmPass.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ mã OTP và mật khẩu mới!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (!otp.matches("^\\d{6}$")) {
+            JOptionPane.showMessageDialog(this, "Mã OTP phải gồm đúng 6 chữ số!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtOtp.requestFocus();
             return;
         }
 

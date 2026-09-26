@@ -13,7 +13,7 @@ import java.util.List;
 public class ExcelUtil {
     private static final String SHEET_NAME = "Products";
     private static final String[] HEADERS = {
-            "Tên sách", "Tác giả", "Thể loại", "Nhà cung cấp", "Trạng thái", "Dịch giả", "Tags", "Mô tả"
+            "Tên sách", "Tác giả", "Thể loại", "Nhà cung cấp", "Năm xuất bản", "Giá bán", "Số lượng", "Trạng thái", "Dịch giả", "Tags", "Mô tả"
     };
 
     private ExcelUtil() {
@@ -31,10 +31,17 @@ public class ExcelUtil {
                 row.createCell(1).setCellValue(defaultString(data.getAuthorNames()));
                 row.createCell(2).setCellValue(defaultString(data.getCategoryName()));
                 row.createCell(3).setCellValue(defaultString(data.getSupplierName()));
-                row.createCell(4).setCellValue(data.getStatus() == 1 ? "Đang bán" : "Ngừng bán");
-                row.createCell(5).setCellValue(defaultString(data.getTranslator()));
-                row.createCell(6).setCellValue(defaultString(data.getTagDetail()));
-                row.createCell(7).setCellValue(defaultString(data.getDescription()));
+                if (data.getPublicationYear() > 0) {
+                    row.createCell(4).setCellValue(data.getPublicationYear());
+                } else {
+                    row.createCell(4).setCellValue("");
+                }
+                row.createCell(5).setCellValue(data.getSellingPrice());
+                row.createCell(6).setCellValue(data.getQuantity());
+                row.createCell(7).setCellValue(data.getStatus() == 1 ? "Đang bán" : "Ngừng bán");
+                row.createCell(8).setCellValue(defaultString(data.getTranslator()));
+                row.createCell(9).setCellValue(defaultString(data.getTagDetail()));
+                row.createCell(10).setCellValue(defaultString(data.getDescription()));
             }
 
             for (int i = 0; i < HEADERS.length; i++) {
@@ -65,16 +72,20 @@ public class ExcelUtil {
                     continue;
                 }
 
+                int sourceRow = i + 1;
                 ExcelBookRow data = new ExcelBookRow();
-                data.setSourceRow(i + 1);
+                data.setSourceRow(sourceRow);
                 data.setBookName(getCellValue(row.getCell(0)));
                 data.setAuthorNames(getCellValue(row.getCell(1)));
                 data.setCategoryName(getCellValue(row.getCell(2)));
                 data.setSupplierName(getCellValue(row.getCell(3)));
-                data.setStatus(parseStatus(getCellValue(row.getCell(4))));
-                data.setTranslator(getCellValue(row.getCell(5)));
-                data.setTagDetail(getCellValue(row.getCell(6)));
-                data.setDescription(getCellValue(row.getCell(7)));
+                data.setPublicationYear(parsePublicationYear(getCellValue(row.getCell(4)), sourceRow));
+                data.setSellingPrice(parseSellingPrice(getCellValue(row.getCell(5)), sourceRow));
+                data.setQuantity(parseQuantity(getCellValue(row.getCell(6)), sourceRow));
+                data.setStatus(parseStatus(getCellValue(row.getCell(7))));
+                data.setTranslator(getCellValue(row.getCell(8)));
+                data.setTagDetail(getCellValue(row.getCell(9)));
+                data.setDescription(getCellValue(row.getCell(10)));
                 rows.add(data);
             }
         }
@@ -155,6 +166,51 @@ public class ExcelUtil {
         return 1;
     }
 
+    private static int parsePublicationYear(String text, int rowNum) {
+        if (text == null || text.trim().isEmpty()) {
+            return 0;
+        }
+        try {
+            int year = (int) Math.round(Double.parseDouble(text.trim()));
+            if (year < 1000 || year > 9999) {
+                throw new IllegalArgumentException("Dòng " + rowNum + ": Năm xuất bản phải gồm 4 chữ số hợp lệ (ví dụ: 2023).");
+            }
+            return year;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Dòng " + rowNum + ": Năm xuất bản không hợp lệ: '" + text + "'.");
+        }
+    }
+
+    private static double parseSellingPrice(String text, int rowNum) {
+        if (text == null || text.trim().isEmpty()) {
+            return 0.0;
+        }
+        try {
+            double price = Double.parseDouble(text.trim().replace(",", ""));
+            if (price < 0) {
+                throw new IllegalArgumentException("Dòng " + rowNum + ": Giá bán không được là số âm.");
+            }
+            return price;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Dòng " + rowNum + ": Giá bán không hợp lệ: '" + text + "'.");
+        }
+    }
+
+    private static int parseQuantity(String text, int rowNum) {
+        if (text == null || text.trim().isEmpty()) {
+            return 0;
+        }
+        try {
+            int qty = (int) Math.round(Double.parseDouble(text.trim().replace(",", "")));
+            if (qty < 0) {
+                throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng không được là số âm.");
+            }
+            return qty;
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng không hợp lệ: '" + text + "'.");
+        }
+    }
+
     private static boolean isEmpty(Row row) {
         short lastCellNum = row.getLastCellNum();
         if (lastCellNum <= 0) {
@@ -177,6 +233,7 @@ public class ExcelUtil {
     public static class ExcelBookRow {
         private int sourceRow;
         private String bookName;
+        private int publicationYear;
         private double sellingPrice;
         private int quantity;
         private String authorNames;
@@ -194,6 +251,14 @@ public class ExcelUtil {
 
         public void setSourceRow(int sourceRow) {
             this.sourceRow = sourceRow;
+        }
+
+        public int getPublicationYear() {
+            return publicationYear;
+        }
+
+        public void setPublicationYear(int publicationYear) {
+            this.publicationYear = publicationYear;
         }
 
         public String getBookName() {

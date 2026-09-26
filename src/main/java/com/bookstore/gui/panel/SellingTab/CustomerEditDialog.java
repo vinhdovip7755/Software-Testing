@@ -127,6 +127,12 @@ public class CustomerEditDialog extends JDialog {
             return;
         }
 
+        if (!newName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Họ và tên không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+
         if (newPhone.isEmpty() || !newPhone.matches("^0\\d{9}$")) {
             JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtPhone.requestFocus();

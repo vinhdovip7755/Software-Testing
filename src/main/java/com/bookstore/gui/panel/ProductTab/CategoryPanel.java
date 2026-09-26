@@ -133,7 +133,7 @@ public class CategoryPanel extends JPanel implements Refreshable {
         formTitleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
         formTitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel nameLabel = new JLabel("Tên thể loại");
+        JLabel nameLabel = new JLabel("<html>Tên thể loại <font color='#D32F2F'>*</font></html>");
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -213,6 +213,13 @@ public class CategoryPanel extends JPanel implements Refreshable {
 
         if (newCategoryName.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Tên thể loại không được để trống.", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            categoryNameField.requestFocus();
+            return;
+        }
+
+        if (!newCategoryName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên thể loại không hợp lệ!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            categoryNameField.requestFocus();
             return;
         }
 

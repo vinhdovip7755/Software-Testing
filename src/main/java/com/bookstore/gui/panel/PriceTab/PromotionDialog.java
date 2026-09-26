@@ -226,7 +226,18 @@ public class PromotionDialog extends JDialog {
                 return;
             }
 
-            double percent = Double.parseDouble(percentStr);
+            double percent;
+            if (!percentStr.matches("^\\d+(\\.\\d+)?$")) {
+                JOptionPane.showMessageDialog(this, "Phần trăm giảm giá phải là số hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPercent.requestFocus();
+                return;
+            }
+            percent = Double.parseDouble(percentStr);
+            if (percent <= 0 || percent > 100) {
+                JOptionPane.showMessageDialog(this, "Phần trăm giảm giá phải lớn hơn 0 và nhỏ hơn hoặc bằng 100!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPercent.requestFocus();
+                return;
+            }
             java.util.Date startDate = dchStart.getDate();
             java.util.Date endDate = dchEnd.getDate();
             if (startDate == null || endDate == null) {

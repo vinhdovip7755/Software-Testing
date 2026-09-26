@@ -134,8 +134,9 @@ public class RoleFormDialog extends JDialog {
             return;
         }
 
-        if (newName.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Tên chức vụ không được để trống!");
+        if (!newName.matches("^(?=.*\\p{L})[\\p{L}0-9\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên chức vụ không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
             return;
         }
 
