@@ -13,6 +13,8 @@
 
 **Yêu cầu bài (chưa đầy đủ, các ý ở dưới là 1 vài ý của cô):
 
+- Viết TR phải đầy đủ tất cả những gì có trên form
+- Nút tắt dấu X cần viết nếu kỹ (Có thể bỏ qua)
 - Bổ sung triển khai chi tiết
 - Mô tả yêu cầu phi chức năng
 - Bảo mật dữ liệu
@@ -25,12 +27,10 @@
 
 **TR (1 vài ý cô đã nhăc):
 
-- Số điện thoại tìm kiếm khách hàng
+- Số điện thoại tìm kiếm khách hàng Done
 - Con mắt hiển thị mật khẩu Done
 - Sửa lại mục tài khoản Done
-- Họ và tên khoản trống thì sao, font tiếng Việt kí tự là gì
+- Họ và tên khoản trống thì sao, font tiếng Việt kí tự là gì Done
 - Chú ý từ ngữ ngày tháng chọn từ định dạng Done
 - Đánh dấu * vào trường thông tin bắt buộc Done
-- Điền thông tin vào trường đánh dấu *
-- Viết TR phải đầy đủ tất cả những gì có trên form
-- Nút tắt dấu X cần viết nếu kỹ (Có thể bỏ qua)
+- Điền thông tin vào trường đánh dấu * Done
