@@ -20,6 +20,12 @@ public class BookBUS {
         return bookDAO.selectAllBooks();
     }
 
+    public List<BookDTO> selectActiveBooks() {
+        return bookDAO.selectAllBooks().stream()
+                .filter(b -> b.getStatus() == 1)
+                .toList();
+    }
+
     public String addBook(BookDTO book) {
         if (book.getBookName() == null || book.getBookName().trim().isEmpty())
             return "Tên sách không được để trống!";

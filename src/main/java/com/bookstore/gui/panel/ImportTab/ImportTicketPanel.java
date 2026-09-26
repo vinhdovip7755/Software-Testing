@@ -9,6 +9,7 @@ import com.bookstore.util.SharedData;
 import com.bookstore.util.PermissionUtil;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import com.toedter.calendar.JDateChooser;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -29,7 +30,8 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
     private DefaultTableModel tableModel;
     private List<ImportTicketDTO> currentList = new ArrayList<>();
 
-    private JTextField txtSearch, txtDateFrom, txtDateTo;
+    private JTextField txtSearch;
+    private JDateChooser dchDateFrom, dchDateTo;
     private JComboBox<String> cboStatusFilter;
     private JButton btnResetFilter;
     private JCheckBox chkSelectAll;
@@ -91,10 +93,27 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
 
         cboStatusFilter = new JComboBox<>(new String[]{"Tất cả trạng thái", "Đang chờ duyệt", "Đã hoàn thành", "Đã hủy"});
 
-        JPanel pDate = new JPanel(new GridLayout(1, 2, 5, 0)); pDate.setBackground(Color.WHITE);
-        txtDateFrom = new JTextField(); txtDateFrom.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Từ ngày (dd/mm/yyyy)");
-        txtDateTo = new JTextField(); txtDateTo.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Đến ngày");
-        pDate.add(txtDateFrom); pDate.add(txtDateTo);
+        JPanel pDate = new JPanel(new GridLayout(1, 2, 8, 0));
+        pDate.setBackground(Color.WHITE);
+
+        dchDateFrom = new JDateChooser();
+        dchDateFrom.setDateFormatString("dd/MM/yyyy");
+        dchDateFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
+        dchDateFrom.setBackground(Color.WHITE);
+        if (dchDateFrom.getDateEditor().getUiComponent() instanceof JTextField editorFrom) {
+            editorFrom.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Từ ngày");
+        }
+
+        dchDateTo = new JDateChooser();
+        dchDateTo.setDateFormatString("dd/MM/yyyy");
+        dchDateTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
+        dchDateTo.setBackground(Color.WHITE);
+        if (dchDateTo.getDateEditor().getUiComponent() instanceof JTextField editorTo) {
+            editorTo.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Đến ngày");
+        }
+
+        pDate.add(dchDateFrom);
+        pDate.add(dchDateTo);
 
         btnResetFilter = new JButton("Làm mới bộ lọc");
         btnResetFilter.setBackground(Color.decode(AppConstant.GREEN_COLOR_CODE));
@@ -113,12 +132,22 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
             public void changedUpdate(DocumentEvent e) { filterData(); }
         };
         txtSearch.getDocument().addDocumentListener(dl);
-        txtDateFrom.getDocument().addDocumentListener(dl);
-        txtDateTo.getDocument().addDocumentListener(dl);
+
+        if (dchDateFrom.getDateEditor().getUiComponent() instanceof JTextField editorFrom) {
+            editorFrom.getDocument().addDocumentListener(dl);
+        }
+        if (dchDateTo.getDateEditor().getUiComponent() instanceof JTextField editorTo) {
+            editorTo.getDocument().addDocumentListener(dl);
+        }
+
+        dchDateFrom.addPropertyChangeListener("date", evt -> filterData());
+        dchDateTo.addPropertyChangeListener("date", evt -> filterData());
         cboStatusFilter.addActionListener(e -> filterData());
 
         btnResetFilter.addActionListener(e -> {
-            txtSearch.setText(""); txtDateFrom.setText(""); txtDateTo.setText("");
+            txtSearch.setText("");
+            dchDateFrom.setDate(null);
+            dchDateTo.setDate(null);
             cboStatusFilter.setSelectedIndex(0);
         });
 
@@ -357,28 +386,36 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         int statusIdx = cboStatusFilter.getSelectedIndex();
         int targetStatus = (statusIdx == 1) ? 1 : (statusIdx == 2) ? 2 : (statusIdx == 3) ? 0 : -1;
 
-        String dateFromStr = txtDateFrom.getText().trim();
-        String dateToStr = txtDateTo.getText().trim();
+        java.util.Date fromDate = dchDateFrom != null ? dchDateFrom.getDate() : null;
+        java.util.Date toDate = dchDateTo != null ? dchDateTo.getDate() : null;
+
+        if (fromDate != null) {
+            java.util.Calendar calFrom = java.util.Calendar.getInstance();
+            calFrom.setTime(fromDate);
+            calFrom.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            calFrom.set(java.util.Calendar.MINUTE, 0);
+            calFrom.set(java.util.Calendar.SECOND, 0);
+            calFrom.set(java.util.Calendar.MILLISECOND, 0);
+            fromDate = calFrom.getTime();
+        }
+
+        if (toDate != null) {
+            java.util.Calendar calTo = java.util.Calendar.getInstance();
+            calTo.setTime(toDate);
+            calTo.set(java.util.Calendar.HOUR_OF_DAY, 23);
+            calTo.set(java.util.Calendar.MINUTE, 59);
+            calTo.set(java.util.Calendar.SECOND, 59);
+            calTo.set(java.util.Calendar.MILLISECOND, 999);
+            toDate = calTo.getTime();
+        }
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-        sdf.setLenient(false);
-
-        java.util.Date fromDate = null;
-        java.util.Date toDate = null;
-
-        try {
-            if (!dateFromStr.isEmpty()) fromDate = sdf.parse(dateFromStr);
-            if (!dateToStr.isEmpty()) {
-                toDate = sdf.parse(dateToStr);
-                toDate.setTime(toDate.getTime() + (24 * 60 * 60 * 1000) - 1);
-            }
-        } catch (Exception ignored) {}
 
         int total = 0, completed = 0, pending = 0, canceled = 0;
 
         for (ImportTicketDTO dto : currentList) {
             String pnStr = "PN" + String.format("%03d", dto.getImportID());
-            String dateStr = sdf.format(dto.getCreatedDate());
+            String dateStr = dto.getCreatedDate() != null ? sdf.format(dto.getCreatedDate()) : "";
 
             boolean matchKey = keyword.isEmpty() || pnStr.toLowerCase().contains(keyword)
                     || dto.getSupplierName().toLowerCase().contains(keyword)
