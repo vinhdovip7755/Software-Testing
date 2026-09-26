@@ -44,7 +44,7 @@ public class EmployeeDAO {
 
     public List<EmployeeDTO> selectAllEmployees() {
         List<EmployeeDTO> list = new ArrayList<>();
-        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON e.role_id = r.role_id ORDER BY e.employee_id ASC";
+        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON e.role_id = r.role_id WHERE e.role_id != 1 ORDER BY e.employee_id ASC";
 
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql);

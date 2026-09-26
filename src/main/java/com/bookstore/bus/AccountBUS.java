@@ -16,7 +16,8 @@ public class AccountBUS {
             throw new Exception("Tài khoản không tồn tại!");
         }
 
-        if (acc.getStatus() == 0) {
+        EmployeeDTO emp = employeeDAO.selectById(acc.getEmployeeId());
+        if (acc.getStatus() == 0 || (emp != null && emp.getStatus() == 0)) {
             throw new Exception("Tài khoản này đã bị khóa. Vui lòng liên hệ Quản Lý!");
         }
 
@@ -24,7 +25,7 @@ public class AccountBUS {
             throw new Exception("Mật khẩu không chính xác!");
         }
 
-        return employeeDAO.selectById(acc.getEmployeeId());
+        return emp;
     }
 
     public AccountDTO selectByUsername(String username) {

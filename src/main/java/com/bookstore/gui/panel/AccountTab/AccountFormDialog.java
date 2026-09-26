@@ -125,7 +125,7 @@ public class AccountFormDialog extends JDialog {
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        autoAdd(mainPanel, new JLabel("<html>Chọn nhân viên <font color='red'>*</font>:</html>"), 0, 0, 0, gbc);
+        autoAdd(mainPanel, new JLabel("<html>Nhân viên <font color='red'>*</font>:</html>"), 0, 0, 0, gbc);
         autoAdd(mainPanel, cboEmployee, 1, 0, 1.0, gbc);
 
         autoAdd(mainPanel, new JLabel("<html>Email <font color='red'>*</font>:</html>"), 0, 1, 0, gbc);
