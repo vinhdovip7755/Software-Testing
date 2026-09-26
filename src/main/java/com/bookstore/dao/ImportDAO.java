@@ -106,10 +106,11 @@ public class ImportDAO {
             c = DatabaseConnection.getConnection();
             c.setAutoCommit(false);
             
-            String sqlUpdateStatus = "UPDATE import_ticket SET status = 2, approver_id = ?, approved_date = NOW() WHERE import_ticket_id = ? AND status = 1";
+            String sqlUpdateStatus = "UPDATE import_ticket SET status = 2, approver_id = ?, approved_date = NOW(), total_import_quantity = (SELECT COALESCE(SUM(import_quantity), 0) FROM import_ticket_detail WHERE import_ticket_id = ?) WHERE import_ticket_id = ? AND status = 1";
             try (PreparedStatement ps = c.prepareStatement(sqlUpdateStatus)) {
                 ps.setInt(1, approverId);
                 ps.setInt(2, importId);
+                ps.setInt(3, importId);
                 if (ps.executeUpdate() == 0) {
                     c.rollback();
                     return false;
@@ -180,12 +181,22 @@ public class ImportDAO {
             c = DatabaseConnection.getConnection();
             c.setAutoCommit(false);
 
-            String sqlTicket = "INSERT INTO import_ticket (employee_id, supplier_id, total_import_price, status) VALUES (?, ?, ?, 1)";
+            int totalQty = 0;
+            if (details != null) {
+                for (com.bookstore.dto.ImportDetailDTO d : details) {
+                    if (d != null) {
+                        totalQty += d.getQuantity();
+                    }
+                }
+            }
+
+            String sqlTicket = "INSERT INTO import_ticket (employee_id, supplier_id, total_import_quantity, total_import_price, status) VALUES (?, ?, ?, ?, 1)";
             int newImportID = -1;
             try (PreparedStatement ps = c.prepareStatement(sqlTicket, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setInt(1, importDTO.getEmployeeID());
                 ps.setInt(2, importDTO.getSupplierID());
-                ps.setDouble(3, importDTO.getTotalPrice());
+                ps.setInt(3, totalQty);
+                ps.setDouble(4, importDTO.getTotalPrice());
                 if (ps.executeUpdate() > 0) {
                     try (ResultSet rs = ps.getGeneratedKeys()) {
                         if (rs.next()) newImportID = rs.getInt(1);

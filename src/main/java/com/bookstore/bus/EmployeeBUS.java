@@ -21,9 +21,6 @@ public class EmployeeBUS {
         if (employeeDAO.isPhoneExist(e.getEmployeePhone(), e.getEmployeeId())) {
             return "Số điện thoại này đã tồn tại trong hệ thống!";
         }
-        if (employeeDAO.isNameExist(e.getEmployeeName(), e.getEmployeeId())) {
-            return "Tên nhân viên này đã tồn tại trong hệ thống!";
-        }
 
         if (e.getBaseSalary() < 0) {
             return "Lương cơ bản phải lớn hơn hoặc bằng 0!";
@@ -66,10 +63,6 @@ public class EmployeeBUS {
 
         if (employeeDAO.isPhoneExist(e.getEmployeePhone(), 0)) {
             return "Số điện thoại này đã tồn tại trong hệ thống!";
-        }
-
-        if (employeeDAO.isNameExist(e.getEmployeeName(), 0)) {
-            return "Tên nhân viên này đã tồn tại trong hệ thống!";
         }
 
         if (e.getBaseSalary() < 0) {

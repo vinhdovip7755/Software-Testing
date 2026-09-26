@@ -209,14 +209,13 @@ public class ProductStatsDAO {
         String sql = """
                 SELECT bk.book_id,
                 bk.book_name,
-                COALESCE(SUM(bd.quantity),0) AS so_luong
-                FROM book bk
-                LEFT JOIN bill_detail bd ON bk.book_id = bd.book_id
-                LEFT JOIN bill b ON bd.bill_id = b.bill_id
-                AND YEAR(b.created_date) = ?
+                SUM(bd.quantity) AS so_luong
+                FROM bill b
+                JOIN bill_detail bd ON b.bill_id = bd.bill_id
+                JOIN book bk ON bd.book_id = bk.book_id
+                WHERE YEAR(b.created_date) = ?
                 AND QUARTER(b.created_date) = ?
-                GROUP BY bk.book_id
-                HAVING SUM(bd.quantity) > 0
+                GROUP BY bk.book_id, bk.book_name
                 ORDER BY so_luong ASC
                 LIMIT 3
                 """;

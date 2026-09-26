@@ -158,14 +158,15 @@ create table bill (
 );
 
 create table bill_detail (
+    detail_id int auto_increment primary key,
 	bill_id int not null,
     book_id int not null,
     quantity int not null,
     unit_price decimal(15, 0),
     lot_id int,
-    primary key (bill_id, book_id),
     foreign key (bill_id) references bill(bill_id) on delete cascade,
-    foreign key (book_id) references book(book_id)
+    foreign key (book_id) references book(book_id),
+    foreign key (lot_id) references book_lot(lot_id)
 );
 
 create table import_ticket (

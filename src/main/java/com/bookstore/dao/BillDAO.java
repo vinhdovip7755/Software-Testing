@@ -93,12 +93,8 @@ public class BillDAO {
                     psFindLots.setInt(1, detail.getBookId());
                     rsLots = psFindLots.executeQuery();
 
-                    int firstLotId = -1;
                     while (rsLots.next() && requiredQty > 0) {
                         int lotId = rsLots.getInt("lot_id");
-                        if (firstLotId == -1) {
-                            firstLotId = lotId;
-                        }
                         int remainInLot = rsLots.getInt("quantity_remain");
 
                         int deductQty = Math.min(requiredQty, remainInLot);
@@ -107,6 +103,14 @@ public class BillDAO {
                         psUpdateLot.setInt(2, lotId);
                         psUpdateLot.executeUpdate();
 
+                        // Chèn 1 dòng bill_detail cho từng lô tương ứng để theo dõi giá vốn chính xác
+                        psDetail.setInt(1, generatedBillId);
+                        psDetail.setInt(2, detail.getBookId());
+                        psDetail.setInt(3, deductQty);
+                        psDetail.setDouble(4, detail.getUnitPrice());
+                        psDetail.setInt(5, lotId);
+                        psDetail.executeUpdate();
+
                         requiredQty -= deductQty;
                     }
                     rsLots.close();
@@ -114,18 +118,6 @@ public class BillDAO {
                     if (requiredQty > 0) {
                         throw new SQLException("Sách ID " + detail.getBookId() + " không đủ tồn kho trong lô!");
                     }
-
-                    // Chèn duy nhất 1 dòng vào bill_detail cho mỗi cuốn sách trong hóa đơn
-                    psDetail.setInt(1, generatedBillId);
-                    psDetail.setInt(2, detail.getBookId());
-                    psDetail.setInt(3, detail.getQuantity());
-                    psDetail.setDouble(4, detail.getUnitPrice());
-                    if (firstLotId > 0) {
-                        psDetail.setInt(5, firstLotId);
-                    } else {
-                        psDetail.setNull(5, Types.INTEGER);
-                    }
-                    psDetail.executeUpdate();
 
                     int remainQuantity = currentStock - detail.getQuantity();
 
