@@ -20,9 +20,14 @@ public class CustomerEditDialog extends JDialog {
     private CustomerPanel parentPanel;
 
     private boolean isEditMode;
+    private boolean success = false;
 
-    public CustomerEditDialog(JFrame owner, CustomerPanel parentPanel, CustomerDTO customer) {
-        super(owner, customer == null ? "Thêm Khách Hàng Mới" : "Chỉnh Sửa Khách Hàng", true);
+    public CustomerEditDialog(Window owner, CustomerPanel parentPanel, CustomerDTO customer) {
+        this(owner, parentPanel, customer, null);
+    }
+
+    public CustomerEditDialog(Window owner, CustomerPanel parentPanel, CustomerDTO customer, String initialPhone) {
+        super(owner, customer == null ? "Thêm Khách Hàng Mới" : "Chỉnh Sửa Khách Hàng", ModalityType.APPLICATION_MODAL);
 
         this.parentPanel = parentPanel;
         this.customer = customer;
@@ -33,7 +38,19 @@ public class CustomerEditDialog extends JDialog {
 
         if (isEditMode) {
             fillData();
+        } else if (initialPhone != null && !initialPhone.trim().isEmpty()) {
+            txtPhone.setText(initialPhone.trim());
+            addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowOpened(java.awt.event.WindowEvent e) {
+                    txtName.requestFocusInWindow();
+                }
+            });
         }
+    }
+
+    public boolean isSuccess() {
+        return success;
     }
 
     private void initUI() {
@@ -85,6 +102,8 @@ public class CustomerEditDialog extends JDialog {
 
         btnCancel.addActionListener(e -> dispose());
         btnSave.addActionListener(e -> saveCustomer());
+        txtName.addActionListener(e -> saveCustomer());
+        txtPhone.addActionListener(e -> saveCustomer());
     }
 
     private JPanel createFieldPanel(String labelText, JTextField textField) {
@@ -156,7 +175,10 @@ public class CustomerEditDialog extends JDialog {
         JOptionPane.showMessageDialog(this, result);
 
         if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
-            parentPanel.refresh();
+            this.success = true;
+            if (parentPanel != null) {
+                parentPanel.refresh();
+            }
             dispose();
         }
     }
