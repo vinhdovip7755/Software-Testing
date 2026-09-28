@@ -155,7 +155,7 @@ public class BillDetailDialog extends JDialog{
         }
 
         fillBillInfo(bill);
-        fillBillDetails(details, bill.getTotalBillPrice());
+        fillBillDetails(details, bill);
     }
 
     private void fillBillInfo(BillDTO bill) {
@@ -171,7 +171,7 @@ public class BillDetailDialog extends JDialog{
         lbPaymentMethod.setText("Thanh toán: " + bill.getPaymentMethodName());
     }
 
-    private void fillBillDetails(List<BillDetailDTO> details, double grandTotalFromBill) {
+    private void fillBillDetails(List<BillDetailDTO> details, BillDTO bill) {
         double subtotal = 0;
 
         for (BillDetailDTO detail : details) {
@@ -182,18 +182,19 @@ public class BillDetailDialog extends JDialog{
                     detail.getBookName(),
                     detail.getQuantity(),
                     MoneyFormatter.toVND(detail.getUnitPrice()),
-                    MoneyFormatter.toVND(0),
                     MoneyFormatter.toVND(lineTotal)
             });
         }
 
-        double tax = subtotal * VAT_RATE;
-        double grandTotal = grandTotalFromBill > 0 ? grandTotalFromBill : subtotal + tax;
+        double taxRate = (bill != null && bill.getTax() >= 0) ? bill.getTax() : VAT_RATE;
+        double tax = subtotal * taxRate;
+        double grandTotal = (bill != null && bill.getTotalBillPrice() > 0) ? bill.getTotalBillPrice() : subtotal + tax;
 
         double discount = (subtotal + tax) - grandTotal;
         if (discount < 0) discount = 0;
         lbSubtotal.setText("Tạm tính: " + MoneyFormatter.toVND(subtotal));
-        lbTax.setText("VAT (8%): " + MoneyFormatter.toVND(tax));
+        int taxPercent = (int) Math.round(taxRate * 100);
+        lbTax.setText("VAT (" + taxPercent + "%): " + MoneyFormatter.toVND(tax));
         lbDiscount.setText("Giảm giá: -" + MoneyFormatter.toVND(discount));
         lbGrandTotal.setText("Tổng thanh toán: " + MoneyFormatter.toVND(grandTotal));
     }

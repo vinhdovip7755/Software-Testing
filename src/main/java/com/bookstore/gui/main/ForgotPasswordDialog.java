@@ -59,13 +59,27 @@ public class ForgotPasswordDialog extends JDialog {
 
         txtNewPassword = new JPasswordField();
         txtNewPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mật khẩu mới");
-        txtNewPassword.putClientProperty(FlatClientProperties.STYLE, "showRevealButton: true");
         txtNewPassword.setEnabled(false);
+        char defaultEcho1 = txtNewPassword.getEchoChar();
+        JToggleButton btnEye1 = new JToggleButton();
+        btnEye1.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_closed.svg", 20, 20));
+        btnEye1.setSelectedIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_open.svg", 20, 20));
+        btnEye1.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnEye1.setFocusable(false);
+        btnEye1.addActionListener(e -> txtNewPassword.setEchoChar(btnEye1.isSelected() ? (char) 0 : defaultEcho1));
+        txtNewPassword.putClientProperty(FlatClientProperties.TEXT_FIELD_TRAILING_COMPONENT, btnEye1);
 
         txtConfirmPassword = new JPasswordField();
         txtConfirmPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Xác nhận mật khẩu mới");
-        txtConfirmPassword.putClientProperty(FlatClientProperties.STYLE, "showRevealButton: true");
         txtConfirmPassword.setEnabled(false);
+        char defaultEcho2 = txtConfirmPassword.getEchoChar();
+        JToggleButton btnEye2 = new JToggleButton();
+        btnEye2.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_closed.svg", 20, 20));
+        btnEye2.setSelectedIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_open.svg", 20, 20));
+        btnEye2.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnEye2.setFocusable(false);
+        btnEye2.addActionListener(e -> txtConfirmPassword.setEchoChar(btnEye2.isSelected() ? (char) 0 : defaultEcho2));
+        txtConfirmPassword.putClientProperty(FlatClientProperties.TEXT_FIELD_TRAILING_COMPONENT, btnEye2);
 
         btnSendOtp = new JButton("Nhận mã OTP");
         btnSendOtp.setBackground(Color.decode("#1976D2"));

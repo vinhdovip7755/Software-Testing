@@ -44,7 +44,7 @@ public class EmployeeDAO {
 
     public List<EmployeeDTO> selectAllEmployees() {
         List<EmployeeDTO> list = new ArrayList<>();
-        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON e.role_id = r.role_id WHERE e.employee_name NOT LIKE '%Admin%'";
+        String sql = "SELECT e.*, r.role_name FROM employee e JOIN role r ON e.role_id = r.role_id WHERE e.role_id != 1 ORDER BY e.employee_id ASC";
 
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql);
@@ -82,16 +82,17 @@ public class EmployeeDAO {
             c.setAutoCommit(false);
 
             String sqlEmp = "UPDATE employee SET employee_name = ?, employee_phone = ?, email = ?, birthday = ?, " +
-                    "base_salary = ?, role_id = ?, status = ? WHERE employee_id = ?";
+                    "base_salary = ?, salary_factor = ?, role_id = ?, status = ? WHERE employee_id = ?";
             psEmp = c.prepareStatement(sqlEmp);
             psEmp.setString(1, emp.getEmployeeName());
             psEmp.setString(2, emp.getEmployeePhone());
             psEmp.setString(3, emp.getEmail());
             psEmp.setDate(4, emp.getBirthday() != null ? new java.sql.Date(emp.getBirthday().getTime()) : null);
             psEmp.setDouble(5, emp.getBaseSalary());
-            psEmp.setInt(6, emp.getRoleId());
-            psEmp.setInt(7, emp.getStatus());
-            psEmp.setInt(8, emp.getEmployeeId());
+            psEmp.setDouble(6, emp.getSalaryFactor() > 0 ? emp.getSalaryFactor() : 1.0);
+            psEmp.setInt(7, emp.getRoleId());
+            psEmp.setInt(8, emp.getStatus());
+            psEmp.setInt(9, emp.getEmployeeId());
 
             psEmp.executeUpdate();
 
@@ -197,8 +198,8 @@ public class EmployeeDAO {
     }
 
     public int insertEmployee(EmployeeDTO e) {
-        String sql = "INSERT INTO employee (employee_name, employee_phone, email, birthday, base_salary, day_in, role_id) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO employee (employee_name, employee_phone, email, birthday, base_salary, salary_factor, day_in, role_id) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (java.sql.Connection conn = com.bookstore.util.DatabaseConnection.getConnection();
              java.sql.PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -207,8 +208,9 @@ public class EmployeeDAO {
             ps.setString(3, e.getEmail());
             ps.setDate(4, e.getBirthday() != null ? new java.sql.Date(e.getBirthday().getTime()) : null);
             ps.setDouble(5, e.getBaseSalary());
-            ps.setDate(6, e.getDayIn() != null ? new java.sql.Date(e.getDayIn().getTime()) : null);
-            ps.setInt(7, e.getRoleId());
+            ps.setDouble(6, e.getSalaryFactor() > 0 ? e.getSalaryFactor() : 1.0);
+            ps.setDate(7, e.getDayIn() != null ? new java.sql.Date(e.getDayIn().getTime()) : null);
+            ps.setInt(8, e.getRoleId());
 
             int affected = ps.executeUpdate();
             if (affected > 0) {

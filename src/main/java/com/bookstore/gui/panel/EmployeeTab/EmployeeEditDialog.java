@@ -124,6 +124,9 @@ public class EmployeeEditDialog extends JDialog {
     private void loadRoles() {
         roleList = roleBUS.getAllRoles();
         for (RoleDTO role : roleList) {
+            if (role.getRoleId() == 1 || "Admin".equalsIgnoreCase(role.getRoleName())) {
+                continue;
+            }
             cboRole.addItem(role.getRoleName());
         }
     }

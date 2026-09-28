@@ -141,6 +141,8 @@ public class AccountPanel extends JPanel implements Refreshable {
         searchPanel.add(lblSearch, gbc);
 
         txtSearch = new RoundedTextField(20, 15);
+        txtSearch.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        txtSearch.setPreferredSize(new Dimension(txtSearch.getPreferredSize().width, 35));
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -218,30 +220,19 @@ public class AccountPanel extends JPanel implements Refreshable {
             }
         });
 
-        txtSearch.addActionListener(e -> {
-            String keyword = txtSearch.getText().toLowerCase().trim();
-            DefaultTableModel model = (DefaultTableModel) table.getModel();
-            model.setRowCount(0);
-
-            if (keyword.isEmpty()) {
+        txtSearch.addActionListener(e -> loadAccountData());
+        txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
                 loadAccountData();
-            } else {
-                for (AccountDTO acc : listAccountGoc) {
-                    EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
-                    if (emp != null && emp.getRoleId() == 1)
-                        continue;
-                    String name = (emp != null) ? emp.getEmployeeName() : "N/A";
-                    String statusStr = (acc.getStatus() == 1 ? "Đang làm việc" : "Ngưng làm việc");
-
-                    if (name.toLowerCase().contains(keyword) ||
-                            acc.getUsername().toLowerCase().contains(keyword) ||
-                            statusStr.toLowerCase().contains(keyword)) {
-
-                        model.addRow(new Object[] {
-                                name, acc.getUsername(), "******", name, statusStr, "Sửa"
-                        });
-                    }
-                }
+            }
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                loadAccountData();
+            }
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                loadAccountData();
             }
         });
 
@@ -451,9 +442,15 @@ public class AccountPanel extends JPanel implements Refreshable {
             }
 
             if (!keyword.isEmpty()) {
-                if (!empName.toLowerCase().contains(keyword) &&
-                        !acc.getUsername().toLowerCase().contains(keyword) &&
-                        !statusStr.toLowerCase().contains(keyword)) {
+                String kwClean = removeDiacritics(keyword);
+                boolean matches = empName.toLowerCase().contains(keyword) ||
+                                  removeDiacritics(empName).contains(kwClean) ||
+                                  acc.getUsername().toLowerCase().contains(keyword) ||
+                                  empRole.toLowerCase().contains(keyword) ||
+                                  removeDiacritics(empRole).contains(kwClean) ||
+                                  statusStr.toLowerCase().contains(keyword) ||
+                                  removeDiacritics(statusStr).contains(kwClean);
+                if (!matches) {
                     continue;
                 }
             }
@@ -483,5 +480,12 @@ public class AccountPanel extends JPanel implements Refreshable {
         dialog.setVisible(true);
 
         loadAccountData();
+    }
+
+    private String removeDiacritics(String str) {
+        if (str == null) return "";
+        String nfd = java.text.Normalizer.normalize(str, java.text.Normalizer.Form.NFD);
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(nfd).replaceAll("").replace('đ', 'd').replace('Đ', 'D').toLowerCase();
     }
 }

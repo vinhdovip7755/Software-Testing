@@ -66,9 +66,23 @@ public class LoginFrame extends JFrame {
                 "borderColor: #CCCCCC;" +
                 "focusWidth: 1;" +
                 "margin: 5,10,5,10;" +
-                "showClearButton: true;" +
-                "showRevealButton: true"
+                "showClearButton: true"
         );
+
+        char defaultEcho = txtPassword.getEchoChar();
+        JToggleButton btnToggleEye = new JToggleButton();
+        btnToggleEye.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_closed.svg", 20, 20));
+        btnToggleEye.setSelectedIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_open.svg", 20, 20));
+        btnToggleEye.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnToggleEye.setFocusable(false);
+        btnToggleEye.addActionListener(e -> {
+            if (btnToggleEye.isSelected()) {
+                txtPassword.setEchoChar((char) 0);
+            } else {
+                txtPassword.setEchoChar(defaultEcho);
+            }
+        });
+        txtPassword.putClientProperty(FlatClientProperties.TEXT_FIELD_TRAILING_COMPONENT, btnToggleEye);
 
         btnLogin = new JButton("Đăng Nhập Ngay");
         btnLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));

@@ -73,9 +73,14 @@ public class AccountFormDialog extends JDialog {
 
         cboEmployee.addActionListener(e -> {
             EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
-            if (selectedEmp != null) {
+            if (selectedEmp != null && selectedEmp.getEmployeeId() != -1) {
                 txtRole.setText(selectedEmp.getRoleName());
                 if (this.account == null) {
+                    if (selectedEmp.getEmail() != null) {
+                        txtUsername.setText(selectedEmp.getEmail());
+                    } else {
+                        txtUsername.setText("");
+                    }
                     if (selectedEmp.getBirthday() != null) {
                         txtPassword.setText(new java.text.SimpleDateFormat("ddMMyyyy").format(selectedEmp.getBirthday()));
                     } else {
@@ -84,6 +89,10 @@ public class AccountFormDialog extends JDialog {
                 }
             } else {
                 txtRole.setText("");
+                if (this.account == null) {
+                    txtUsername.setText("");
+                    txtPassword.setText("");
+                }
             }
         });
 
@@ -125,7 +134,7 @@ public class AccountFormDialog extends JDialog {
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        autoAdd(mainPanel, new JLabel("<html>Chọn nhân viên <font color='red'>*</font>:</html>"), 0, 0, 0, gbc);
+        autoAdd(mainPanel, new JLabel("<html>Nhân viên <font color='red'>*</font>:</html>"), 0, 0, 0, gbc);
         autoAdd(mainPanel, cboEmployee, 1, 0, 1.0, gbc);
 
         autoAdd(mainPanel, new JLabel("<html>Email <font color='red'>*</font>:</html>"), 0, 1, 0, gbc);

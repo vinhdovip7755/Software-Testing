@@ -14,7 +14,7 @@ public class AccountDAO {
     public AccountDTO selectByUsername(String username) {
         AccountDTO acc = null;
 
-        String sql = "SELECT a.* FROM account a JOIN employee e ON a.employee_id = e.employee_id WHERE a.status = 1 AND a.username = ? AND e.status = 1 ";
+        String sql = "SELECT a.* FROM account a WHERE a.username = ?";
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, username);

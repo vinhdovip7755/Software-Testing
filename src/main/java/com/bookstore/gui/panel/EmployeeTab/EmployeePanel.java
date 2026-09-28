@@ -275,6 +275,9 @@ public class EmployeePanel extends JPanel implements Refreshable {
         cboRole.addItem("Tất cả chức vụ");
         List<RoleDTO> allRoles = roleBUS.getAllRoles();
         for (RoleDTO role : allRoles) {
+            if (role.getRoleId() == 1 || "Admin".equalsIgnoreCase(role.getRoleName())) {
+                continue;
+            }
             cboRole.addItem(role.getRoleName());
         }
 

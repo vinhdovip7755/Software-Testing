@@ -228,16 +228,17 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
     }
 
     private void updateTopProducts(int year){
-
         Date date = dchTuNgay.getDate();
+        if (date == null) date = new Date();
         int month = Integer.parseInt(new SimpleDateFormat("MM").format(date));
         int quarter = (month - 1) / 3 + 1;
+        int tuYear = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
 
-        List<ProductStatsDTO> topBanChay = bus.getTop3BanChayTheoQuy(year, quarter);
-        List<ProductStatsDTO> topBanIt = bus.getTop3BanItTheoQuy(year, quarter);
+        List<ProductStatsDTO> topBanChay = bus.getTop3BanChayTheoQuy(tuYear, quarter);
+        List<ProductStatsDTO> topBanIt = bus.getTop3BanItTheoQuy(tuYear, quarter);
 
-        StringBuilder banChay = new StringBuilder("<html><b>Top 3 bán chạy:</b><br>");
-        StringBuilder banIt = new StringBuilder("<html><b>Top 3 bán ít:</b><br>");
+        StringBuilder banChay = new StringBuilder("<html><b>Top 3 bán chạy (Q" + quarter + "/" + tuYear + "):</b><br>");
+        StringBuilder banIt = new StringBuilder("<html><b>Top 3 bán ít (Q" + quarter + "/" + tuYear + "):</b><br>");
 
         for(ProductStatsDTO p : topBanChay){
             banChay.append("- ")
@@ -258,7 +259,7 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
         }
 
         banChay.append("</html>");
-        banIt.append("</html");
+        banIt.append("</html>");
 
         lblTopBanChay.setText(banChay.toString());
         lblTopBanIt.setText(banIt.toString());
