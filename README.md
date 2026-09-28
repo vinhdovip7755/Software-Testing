@@ -1,9 +1,9 @@
 ** Thứ tự thực hiện (trên xuống)
 
-- Hoàn thiện code
-- Kiểm tra lại tính năng
-- Ưu tiên viết TRD trước BRD (full tất cả tính năng), số lượng T>50
-- Sửa lại BRD
+- Hoàn thiện code Chắc là xong...
+- Kiểm tra lại tính năng Chắc là xong rồi...
+- Ưu tiên viết TRD trước BRD (full tất cả tính năng), số lượng T>50 Done
+- Sửa lại BRD Done
 - Viết Test Scenario (đợi nhóm Tài gửi code và BRD và TRD)
 - Viết Test Case theo Test Scenario
 - Tạo bảng ma trận BR | TR | Test Case
