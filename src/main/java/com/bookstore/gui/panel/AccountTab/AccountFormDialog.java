@@ -73,9 +73,14 @@ public class AccountFormDialog extends JDialog {
 
         cboEmployee.addActionListener(e -> {
             EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
-            if (selectedEmp != null) {
+            if (selectedEmp != null && selectedEmp.getEmployeeId() != -1) {
                 txtRole.setText(selectedEmp.getRoleName());
                 if (this.account == null) {
+                    if (selectedEmp.getEmail() != null) {
+                        txtUsername.setText(selectedEmp.getEmail());
+                    } else {
+                        txtUsername.setText("");
+                    }
                     if (selectedEmp.getBirthday() != null) {
                         txtPassword.setText(new java.text.SimpleDateFormat("ddMMyyyy").format(selectedEmp.getBirthday()));
                     } else {
@@ -84,6 +89,10 @@ public class AccountFormDialog extends JDialog {
                 }
             } else {
                 txtRole.setText("");
+                if (this.account == null) {
+                    txtUsername.setText("");
+                    txtPassword.setText("");
+                }
             }
         });
 
