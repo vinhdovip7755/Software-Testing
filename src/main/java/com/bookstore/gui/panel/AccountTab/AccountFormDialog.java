@@ -140,7 +140,7 @@ public class AccountFormDialog extends JDialog {
         autoAdd(mainPanel, new JLabel("<html>Email <font color='red'>*</font>:</html>"), 0, 1, 0, gbc);
         autoAdd(mainPanel, txtUsername, 1, 1, 1.0, gbc);
 
-        autoAdd(mainPanel, this.account == null ? new JLabel("<html>Mật khẩu <font color='red'>*</font>:</html>") : new JLabel("Mật khẩu (để trống nếu không đổi):"), 0, 2, 0, gbc);
+        autoAdd(mainPanel, this.account == null ? new JLabel("<html>Mật khẩu <font color='red'>*</font>:</html>") : new JLabel("Mật khẩu:"), 0, 2, 0, gbc);
         if (this.account == null) {
             autoAdd(mainPanel, txtPassword, 1, 2, 1.0, gbc);
         } else {

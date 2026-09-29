@@ -13,7 +13,13 @@ public class PriceDAO {
         List<PriceDTO> list = new ArrayList<>();
         String sql = "SELECT b.book_id, b.book_name, c.category_name, " +
                 "GROUP_CONCAT(DISTINCT a.author_name SEPARATOR ', ') as author_names, " +
-                "IFNULL((SELECT AVG(bl.import_price) FROM book_lot bl WHERE bl.book_id = b.book_id), 0) as base_price, " +
+                "COALESCE(" +
+                "  (SELECT SUM(bl.quantity_remain * bl.import_price) / SUM(bl.quantity_remain) " +
+                "   FROM book_lot bl WHERE bl.book_id = b.book_id AND bl.quantity_remain > 0), " +
+                "  (SELECT SUM(bl.quantity_initial * bl.import_price) / SUM(bl.quantity_initial) " +
+                "   FROM book_lot bl WHERE bl.book_id = b.book_id), " +
+                "  0" +
+                ") as base_price, " +
                 "IFNULL(bp.selling_price, b.selling_price) as selling_price " +
                 "FROM book b " +
                 "JOIN category c ON b.category_id = c.category_id " +
