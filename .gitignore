@@ -1,0 +1,37 @@
+# --- Maven ---
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# --- IntelliJ IDEA ---
+# Bỏ qua toàn bộ thư mục cấu hình của IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# --- Eclipse ---
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+
+# --- NetBeans ---
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+# --- VS Code ---
+.vscode/
+
+# --- Mac OS / Windows System Files ---
+.DS_Store
+Thumbs.db
