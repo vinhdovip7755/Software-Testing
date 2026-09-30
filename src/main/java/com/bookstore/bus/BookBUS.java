@@ -20,6 +20,12 @@ public class BookBUS {
         return bookDAO.selectAllBooks();
     }
 
+    public List<BookDTO> selectActiveBooks() {
+        return bookDAO.selectAllBooks().stream()
+                .filter(b -> b.getStatus() == 1)
+                .toList();
+    }
+
     public String addBook(BookDTO book) {
         if (book.getBookName() == null || book.getBookName().trim().isEmpty())
             return "Tên sách không được để trống!";
@@ -29,13 +35,15 @@ public class BookBUS {
             return "Vui lòng chọn thể loại cho sách!";
         if (book.getSupplierId() <= 0)
             return "Vui lòng chọn nhà cung cấp cho sách!";
+        if (book.getSellingPrice() < 0 || book.getCoverPrice() < 0)
+            return "Giá bán của sách không được là số âm!";
 
         String duplicateCheck = validateDuplicate(book, false);
         if (duplicateCheck != null) {
             return duplicateCheck;
         }
 
-        int generatedId = bookDAO.add(book);
+        int generatedId = bookDAO.addBookWithAuthorsTransaction(book, book.getAuthorIdsList());
         if (generatedId > 0) {
             book.setBookId(generatedId);
             return "Thêm sách thành công!";
@@ -52,7 +60,7 @@ public class BookBUS {
             return duplicateCheck;
         }
 
-        if (bookDAO.update(book)) {
+        if (bookDAO.updateBookWithAuthorsTransaction(book, book.getAuthorIdsList())) {
             return "Cập nhật thành công!";
         }
         return "Cập nhật thất bại!";

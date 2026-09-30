@@ -20,9 +20,14 @@ public class CustomerEditDialog extends JDialog {
     private CustomerPanel parentPanel;
 
     private boolean isEditMode;
+    private boolean success = false;
 
-    public CustomerEditDialog(JFrame owner, CustomerPanel parentPanel, CustomerDTO customer) {
-        super(owner, customer == null ? "Thêm Khách Hàng Mới" : "Chỉnh Sửa Khách Hàng", true);
+    public CustomerEditDialog(Window owner, CustomerPanel parentPanel, CustomerDTO customer) {
+        this(owner, parentPanel, customer, null);
+    }
+
+    public CustomerEditDialog(Window owner, CustomerPanel parentPanel, CustomerDTO customer, String initialPhone) {
+        super(owner, customer == null ? "Thêm Khách Hàng Mới" : "Chỉnh Sửa Khách Hàng", ModalityType.APPLICATION_MODAL);
 
         this.parentPanel = parentPanel;
         this.customer = customer;
@@ -33,7 +38,19 @@ public class CustomerEditDialog extends JDialog {
 
         if (isEditMode) {
             fillData();
+        } else if (initialPhone != null && !initialPhone.trim().isEmpty()) {
+            txtPhone.setText(initialPhone.trim());
+            addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override
+                public void windowOpened(java.awt.event.WindowEvent e) {
+                    txtName.requestFocusInWindow();
+                }
+            });
         }
+    }
+
+    public boolean isSuccess() {
+        return success;
     }
 
     private void initUI() {
@@ -57,8 +74,8 @@ public class CustomerEditDialog extends JDialog {
         txtName = createInput("Nhập họ và tên...");
         txtPhone = createInput("Nhập số điện thoại (10 số)...");
 
-        pForm.add(createFieldPanel("Họ và tên:", txtName));
-        pForm.add(createFieldPanel("Số điện thoại:", txtPhone));
+        pForm.add(createFieldPanel("<html>Họ và tên <font color='red'>*</font>:</html>", txtName));
+        pForm.add(createFieldPanel("<html>Số điện thoại <font color='red'>*</font>:</html>", txtPhone));
         add(pForm, BorderLayout.CENTER);
 
         JPanel pButton = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 0));
@@ -85,6 +102,8 @@ public class CustomerEditDialog extends JDialog {
 
         btnCancel.addActionListener(e -> dispose());
         btnSave.addActionListener(e -> saveCustomer());
+        txtName.addActionListener(e -> saveCustomer());
+        txtPhone.addActionListener(e -> saveCustomer());
     }
 
     private JPanel createFieldPanel(String labelText, JTextField textField) {
@@ -117,8 +136,28 @@ public class CustomerEditDialog extends JDialog {
     }
 
     private void saveCustomer() {
+
         String newName = txtName.getText().trim();
         String newPhone = txtPhone.getText().trim();
+
+        if (newName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Họ và tên không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+
+        if (!newName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Họ và tên không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+
+        if (newPhone.isEmpty() || !newPhone.matches("^0\\d{9}$")) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtPhone.requestFocus();
+            return;
+        }
+
 
         CustomerDTO temp = new CustomerDTO();
         temp.setCustomerName(newName);
@@ -135,8 +174,11 @@ public class CustomerEditDialog extends JDialog {
 
         JOptionPane.showMessageDialog(this, result);
 
-        if (result.contains("thành công")) {
-            parentPanel.refresh();
+        if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
+            this.success = true;
+            if (parentPanel != null) {
+                parentPanel.refresh();
+            }
             dispose();
         }
     }

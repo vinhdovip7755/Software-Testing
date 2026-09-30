@@ -28,6 +28,7 @@ public class BillDetailDialog extends JDialog{
 
     private JLabel lbSubtotal;
     private JLabel lbTax;
+    private JLabel lbDiscount;
     private JLabel lbGrandTotal;
 
     private final BillBUS billBUS = new BillBUS();
@@ -75,7 +76,7 @@ public class BillDetailDialog extends JDialog{
 
 
     private JScrollPane createTablePanel() {
-        String[] columns = {"Tên sách", "Số lượng", "Đơn giá", "Giảm giá", "Thành tiền"};
+        String[] columns = {"Tên sách", "Số lượng", "Đơn giá", "Thành tiền"};
 
         model = new DefaultTableModel(columns, 0) {
             @Override
@@ -92,7 +93,7 @@ public class BillDetailDialog extends JDialog{
         DefaultTableCellRenderer center = new DefaultTableCellRenderer();
         center.setHorizontalAlignment(SwingConstants.CENTER);
 
-        for (int i = 1; i < 5; i++) {
+        for (int i = 1; i < 4; i++) {
             table.getColumnModel().getColumn(i).setCellRenderer(center);
         }
 
@@ -104,7 +105,7 @@ public class BillDetailDialog extends JDialog{
         panel.setBorder(new EmptyBorder(10, 15, 15, 15));
         panel.setBackground(Color.WHITE);
 
-        JPanel totalPanel = new JPanel(new GridLayout(3, 1, 0, 8));
+        JPanel totalPanel = new JPanel(new GridLayout(4, 1, 0, 8));
         totalPanel.setBackground(Color.WHITE);
 
         Font normalFont = new Font(AppConstant.FONT_NAME, Font.PLAIN, 15);
@@ -112,14 +113,18 @@ public class BillDetailDialog extends JDialog{
 
         lbSubtotal = new JLabel("Tạm tính: " + MoneyFormatter.toVND(0), SwingConstants.RIGHT);
         lbTax = new JLabel("VAT (8%): " + MoneyFormatter.toVND(0), SwingConstants.RIGHT);
+        lbDiscount = new JLabel("Giảm giá: -" + MoneyFormatter.toVND(0), SwingConstants.RIGHT);
         lbGrandTotal = new JLabel("Tổng thanh toán: " + MoneyFormatter.toVND(0), SwingConstants.RIGHT);
 
         lbSubtotal.setFont(normalFont);
         lbTax.setFont(normalFont);
+        lbDiscount.setFont(normalFont);
+        lbDiscount.setForeground(new java.awt.Color(220, 53, 69));
         lbGrandTotal.setFont(boldFont);
 
         totalPanel.add(lbSubtotal);
         totalPanel.add(lbTax);
+        totalPanel.add(lbDiscount);
         totalPanel.add(lbGrandTotal);
 
         JButton btnClose = new JButton("Đóng");
@@ -150,14 +155,14 @@ public class BillDetailDialog extends JDialog{
         }
 
         fillBillInfo(bill);
-        fillBillDetails(details, bill.getTotalBillPrice());
+        fillBillDetails(details, bill);
     }
 
     private void fillBillInfo(BillDTO bill) {
         String customerName = bill.getCustomerName() == null ? "Khách lẻ" : bill.getCustomerName();
         String createdDate = bill.getCreatedDate() == null
                 ? "--"
-                : new SimpleDateFormat("HH:mm:ss - d/M/yyyy").format(bill.getCreatedDate());
+                : new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy").format(bill.getCreatedDate());
 
         lbBillId.setText("Mã hóa đơn: " + bill.getBillId());
         lbCreatedDate.setText("Ngày lập: " + createdDate);
@@ -166,7 +171,7 @@ public class BillDetailDialog extends JDialog{
         lbPaymentMethod.setText("Thanh toán: " + bill.getPaymentMethodName());
     }
 
-    private void fillBillDetails(List<BillDetailDTO> details, double grandTotalFromBill) {
+    private void fillBillDetails(List<BillDetailDTO> details, BillDTO bill) {
         double subtotal = 0;
 
         for (BillDetailDTO detail : details) {
@@ -177,16 +182,20 @@ public class BillDetailDialog extends JDialog{
                     detail.getBookName(),
                     detail.getQuantity(),
                     MoneyFormatter.toVND(detail.getUnitPrice()),
-                    MoneyFormatter.toVND(0),
                     MoneyFormatter.toVND(lineTotal)
             });
         }
 
-        double tax = subtotal * VAT_RATE;
-        double grandTotal = grandTotalFromBill > 0 ? grandTotalFromBill : subtotal + tax;
+        double taxRate = (bill != null && bill.getTax() >= 0) ? bill.getTax() : VAT_RATE;
+        double tax = subtotal * taxRate;
+        double grandTotal = (bill != null && bill.getTotalBillPrice() > 0) ? bill.getTotalBillPrice() : subtotal + tax;
 
+        double discount = (subtotal + tax) - grandTotal;
+        if (discount < 0) discount = 0;
         lbSubtotal.setText("Tạm tính: " + MoneyFormatter.toVND(subtotal));
-        lbTax.setText("VAT (8%): " + MoneyFormatter.toVND(tax));
+        int taxPercent = (int) Math.round(taxRate * 100);
+        lbTax.setText("VAT (" + taxPercent + "%): " + MoneyFormatter.toVND(tax));
+        lbDiscount.setText("Giảm giá: -" + MoneyFormatter.toVND(discount));
         lbGrandTotal.setText("Tổng thanh toán: " + MoneyFormatter.toVND(grandTotal));
     }
 }

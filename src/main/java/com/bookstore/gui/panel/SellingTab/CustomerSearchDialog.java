@@ -88,8 +88,13 @@ public class CustomerSearchDialog extends JDialog {
         btnCreateNew.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         btnCreateNew.setVisible(false);
         btnCreateNew.addActionListener(e -> {
-            new CustomerEditDialog((JFrame) SwingUtilities.getWindowAncestor(this), null, null).setVisible(true);
-            performSearch();
+            String searchedPhone = txtPhone.getText().trim();
+            Window owner = SwingUtilities.getWindowAncestor(this);
+            CustomerEditDialog dialog = new CustomerEditDialog(owner, null, null, searchedPhone);
+            dialog.setVisible(true);
+            if (dialog.isSuccess()) {
+                performSearch(false);
+            }
         });
 
         btnSelect = new JButton("Chọn khách hàng này");
@@ -114,9 +119,20 @@ public class CustomerSearchDialog extends JDialog {
     }
 
     private void performSearch() {
+        performSearch(true);
+    }
+
+    private void performSearch(boolean showAlert) {
         String phone = txtPhone.getText().trim();
         if (phone.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng nhập Số điện thoại!");
+            txtPhone.requestFocus();
+            return;
+        }
+
+        if (!phone.matches("^0\\d{9}$")) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại không hợp lệ (Phải có 10 chữ số và bắt đầu bằng số 0)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtPhone.requestFocus();
             return;
         }
 
@@ -145,6 +161,9 @@ public class CustomerSearchDialog extends JDialog {
             lbPoints.setText("Điểm tích lũy: -");
             btnSelect.setEnabled(false);
             if (btnCreateNew != null) btnCreateNew.setVisible(true);
+            if (showAlert) {
+                JOptionPane.showMessageDialog(this, "Không tìm thấy khách hàng với số điện thoại: " + phone + ".\nBạn có thể nhấn '+ Tạo mới' để thêm khách hàng.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+            }
         }
     }
 

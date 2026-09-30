@@ -61,7 +61,21 @@ public class BillDAO {
                 psFindLots = c.prepareStatement(sqlFindLots);
                 psUpdateLot = c.prepareStatement(sqlUpdateLot);
 
-                for (BillDetailDTO detail : details) {
+                // Gộp các chi tiết trùng mã sách nếu có
+                java.util.Map<Integer, BillDetailDTO> consolidated = new java.util.LinkedHashMap<>();
+                for (BillDetailDTO d : details) {
+                    if (consolidated.containsKey(d.getBookId())) {
+                        BillDetailDTO exist = consolidated.get(d.getBookId());
+                        double totalCost = exist.getQuantity() * exist.getUnitPrice() + d.getQuantity() * d.getUnitPrice();
+                        int newQty = exist.getQuantity() + d.getQuantity();
+                        exist.setQuantity(newQty);
+                        exist.setUnitPrice(newQty > 0 ? totalCost / newQty : exist.getUnitPrice());
+                    } else {
+                        consolidated.put(d.getBookId(), new BillDetailDTO(d.getBillId(), d.getBookId(), d.getQuantity(), d.getUnitPrice()));
+                    }
+                }
+
+                for (BillDetailDTO detail : consolidated.values()) {
                     psCheck.setInt(1, detail.getBookId());
                     rsStock = psCheck.executeQuery();
                     int currentStock = 0;
@@ -89,6 +103,7 @@ public class BillDAO {
                         psUpdateLot.setInt(2, lotId);
                         psUpdateLot.executeUpdate();
 
+                        // Chèn 1 dòng bill_detail cho từng lô tương ứng để theo dõi giá vốn chính xác
                         psDetail.setInt(1, generatedBillId);
                         psDetail.setInt(2, detail.getBookId());
                         psDetail.setInt(3, deductQty);
@@ -265,10 +280,11 @@ public class BillDAO {
 
     public List<BillDetailDTO> getBillDetailsByBillId(int billId) {
         List<BillDetailDTO> list = new ArrayList<>();
-        String sql = "SELECT bd.bill_id, bd.book_id, b.book_name, bd.quantity, bd.unit_price " +
+        String sql = "SELECT bd.bill_id, bd.book_id, b.book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
                 "FROM bill_detail bd " +
                 "JOIN book b ON bd.book_id = b.book_id " +
                 "WHERE bd.bill_id = ? " +
+                "GROUP BY bd.bill_id, bd.book_id, b.book_name, bd.unit_price " +
                 "ORDER BY bd.book_id";
 
         try (Connection conn = DatabaseConnection.getConnection();

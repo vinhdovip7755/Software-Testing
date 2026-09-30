@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ImportPanel extends JPanel implements Refreshable {
-    private JComboBox<String> cboCategory;
+    private SearchableComboBox<String> cboCategory;
     private JTextField txtSearch;
     private JButton btnResetFilter;
     private JTable tblProduct;
@@ -28,7 +28,7 @@ public class ImportPanel extends JPanel implements Refreshable {
     private JTable tblCart;
     private DefaultTableModel cartModel;
     private SearchableComboBox<String> cboTicketSupplier;
-    private JTextField txtEmployee, txtApprover;
+    private JTextField txtEmployee, txtDate;
     private JLabel lbFinalTotal;
     private JButton btnRefresh, btnDelete, btnEdit, btnComplete;
 
@@ -46,8 +46,17 @@ public class ImportPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
-        loadCategoriesToComBoBox();
+        if (SharedData.currentUser != null && txtEmployee != null) {
+            txtEmployee.setText(SharedData.currentUser.getEmployeeName());
+        }
+        if (txtDate != null) {
+            txtDate.setText(new java.text.SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date()));
+        }
         loadSuppliersToComboBox();
+        loadCategoriesToComBoBox();
+        if (cboCategory != null) {
+            cboCategory.setEnabled(false);
+        }
         loadBookTable();
     }
 
@@ -70,10 +79,19 @@ public class ImportPanel extends JPanel implements Refreshable {
         JPanel pFilter = new JPanel(new GridLayout(2, 1, 10, 10));
         pFilter.setOpaque(false);
 
-        JPanel pRow1 = new JPanel(new GridLayout(1,2,10,10));
+        JPanel pRow1 = new JPanel(new GridLayout(1, 2, 10, 10));
         pRow1.setOpaque(false);
-        cboCategory = new JComboBox<>();
+
+        cboTicketSupplier = new SearchableComboBox<>();
+        cboTicketSupplier.setBorder(BorderFactory.createTitledBorder("Nhà Cung Cấp (*)"));
+        cboTicketSupplier.setBackground(Color.WHITE);
+
+        cboCategory = new SearchableComboBox<>();
+        cboCategory.setBorder(BorderFactory.createTitledBorder("Thể loại"));
         cboCategory.setBackground(Color.WHITE);
+        cboCategory.setEnabled(false);
+
+        pRow1.add(cboTicketSupplier);
         pRow1.add(cboCategory);
         pFilter.add(pRow1);
 
@@ -155,7 +173,7 @@ public class ImportPanel extends JPanel implements Refreshable {
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setOpaque(false);
 
-        JPanel pInfo = new JPanel(new GridLayout(1, 3, 10, 10));
+        JPanel pInfo = new JPanel(new GridLayout(1, 2, 10, 10));
         pInfo.setOpaque(false);
 
         String employeeName = "Admin (Chưa đăng nhập)";
@@ -167,20 +185,14 @@ public class ImportPanel extends JPanel implements Refreshable {
         txtEmployee.setBackground(Color.decode("#F5F5F5"));
         txtEmployee.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 13));
 
-        txtApprover = new JTextField("Hệ thống tự nhận diện khi duyệt");
-        txtApprover.setEditable(false);
-        txtApprover.setBorder(BorderFactory.createTitledBorder("Người duyệt phiếu"));
-        txtApprover.setBackground(Color.decode("#F5F5F5"));
-        txtApprover.setForeground(Color.GRAY);
-        txtApprover.setFont(new Font(AppConstant.FONT_NAME, Font.ITALIC, 13));
+        txtDate = new JTextField(new java.text.SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date()));
+        txtDate.setEditable(false);
+        txtDate.setBorder(BorderFactory.createTitledBorder("Ngày lập phiếu"));
+        txtDate.setBackground(Color.decode("#F5F5F5"));
+        txtDate.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 13));
 
-        cboTicketSupplier = new SearchableComboBox<>();
-        cboTicketSupplier.setBorder(BorderFactory.createTitledBorder("Nhà Cung Cấp"));
-        cboTicketSupplier.setBackground(Color.WHITE);
-
-        pInfo.add(cboTicketSupplier);
         pInfo.add(txtEmployee);
-        pInfo.add(txtApprover);
+        pInfo.add(txtDate);
 
         JPanel pActions = new JPanel(new GridLayout(1, 3, 10, 0));
         pActions.setOpaque(false);
@@ -261,9 +273,12 @@ public class ImportPanel extends JPanel implements Refreshable {
     }
 
     private void loadCategoriesToComBoBox() {
-        List<String> list = new ArrayList<>(); list.add("0 - Tất cả thể loại");
-        for (CategoryDTO c : categoryBUS.selectAllCategories()) list.add(c.getCategoryId() + " - " + c.getCategoryName());
-        cboCategory.setModel(new DefaultComboBoxModel<>(list.toArray(new String[0])));
+        List<String> list = new ArrayList<>(); 
+        list.add("0 - Tất cả thể loại");
+        for (CategoryDTO c : categoryBUS.selectAllCategories()) {
+            list.add(c.getCategoryId() + " - " + c.getCategoryName());
+        }
+        cboCategory.updateData(list);
     }
 
     private void loadSuppliersToComboBox() {
@@ -299,9 +314,22 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
     }
 
+    private void clearProductDetail() {
+        if (lbBookName != null) lbBookName.setText("Chọn sách để nhập");
+        if (lbCategory != null) lbCategory.setText("-");
+        if (lbPrice != null) lbPrice.setText("-");
+        if (lbQuantity != null) lbQuantity.setText("-");
+        if (lbProductImage != null) lbProductImage.setIcon(null);
+        if (tblProduct != null && tblProduct.getSelectedRow() != -1) {
+            tblProduct.clearSelection();
+        }
+    }
+
     private void filterBooks() {
-        if (cboTicketSupplier.getSelectedItem() == null) {
+        if (cboTicketSupplier == null || cboTicketSupplier.getSelectedItem() == null) {
+            if (cboCategory != null) cboCategory.setEnabled(false);
             productModel.setRowCount(0);
+            clearProductDetail();
             return;
         }
 
@@ -314,17 +342,30 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
 
         if (supId == 0) {
+            if (cboCategory != null) cboCategory.setEnabled(false);
             productModel.setRowCount(0);
+            clearProductDetail();
             return;
         }
 
+        if (cboCategory != null) {
+            cboCategory.setEnabled(true);
+        }
+
         String keyword = txtSearch.getText().trim().toLowerCase();
-        int cateId = Integer.parseInt(cboCategory.getSelectedItem().toString().split(" - ")[0]);
+        int cateId = 0;
+        if (cboCategory.getSelectedItem() != null) {
+            try {
+                cateId = Integer.parseInt(cboCategory.getSelectedItem().toString().split(" - ")[0]);
+            } catch (Exception e) {
+                cateId = 0;
+            }
+        }
 
         productModel.setRowCount(0);
+        clearProductDetail();
 
         for (BookDTO book : listBooks) {
-
             boolean matchKey = keyword.isEmpty() || book.getBookName().toLowerCase().contains(keyword);
             boolean matchCate = (cateId == 0) || (book.getCategoryId() == cateId);
             boolean matchSupplier = (book.getSupplierId() == supId);
@@ -360,34 +401,33 @@ public class ImportPanel extends JPanel implements Refreshable {
         BookDTO book = listBooks.stream().filter(b -> b.getBookId() == bookId).findFirst().orElse(null);
         if (book == null) return;
 
-        JPanel pInput = new JPanel(new GridLayout(2, 2, 10, 10));
-        JTextField txtQty = new JTextField();
-        JTextField txtDiscount = new JTextField("0");
-        pInput.add(new JLabel("Số lượng nhập:")); pInput.add(txtQty);
-        pInput.add(new JLabel("Chiết khấu NXB (%):")); pInput.add(txtDiscount);
+        if (book.getCoverPrice() <= 0) {
+            JOptionPane.showMessageDialog(this, "Sách '" + book.getBookName() + "' chưa có giá bìa hợp lệ! Vui lòng kiểm tra lại thông tin sách.", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-        if (JOptionPane.showConfirmDialog(this, pInput, "Nhập số lượng và chiết khấu", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-            try {
-                int qty = Integer.parseInt(txtQty.getText());
-                double discount = Double.parseDouble(txtDiscount.getText());
-                if (qty <= 0 || discount < 0 || discount > 100 || book.getCoverPrice() < 0) throw new Exception();
+        Window parentWindow = SwingUtilities.getWindowAncestor(this);
+        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(parentWindow, "Nhập số lượng và chiết khấu", 0, 0);
+        dialog.setVisible(true);
 
-                double price = book.getCoverPrice() * (1 - discount / 100.0);
+        if (dialog.isConfirmed()) {
+            int qty = dialog.getQuantity();
+            double discount = dialog.getDiscount();
+            double price = book.getCoverPrice() * (1 - discount / 100.0);
 
-                boolean exists = false;
-                for (int i = 0; i < cartModel.getRowCount(); i++) {
-                    if (Integer.parseInt(cartModel.getValueAt(i, 0).toString()) == bookId) {
-                        int newQty = Integer.parseInt(cartModel.getValueAt(i, 2).toString()) + qty;
-                        cartModel.setValueAt(newQty, i, 2);
-                        cartModel.setValueAt(MoneyFormatter.toVND(price), i, 3);
-                        cartModel.setValueAt(MoneyFormatter.toVND(newQty * price), i, 4);
-                        cartModel.setValueAt(discount, i, 5);
-                        exists = true; break;
-                    }
+            boolean exists = false;
+            for (int i = 0; i < cartModel.getRowCount(); i++) {
+                if (Integer.parseInt(cartModel.getValueAt(i, 0).toString()) == bookId) {
+                    int newQty = Integer.parseInt(cartModel.getValueAt(i, 2).toString()) + qty;
+                    cartModel.setValueAt(newQty, i, 2);
+                    cartModel.setValueAt(MoneyFormatter.toVND(price), i, 3);
+                    cartModel.setValueAt(MoneyFormatter.toVND(newQty * price), i, 4);
+                    cartModel.setValueAt(discount, i, 5);
+                    exists = true; break;
                 }
-                if (!exists) cartModel.addRow(new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price), discount });
-                calculateTotal();
-            } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Vui lòng nhập số lượng và chiết khấu hợp lệ!"); }
+            }
+            if (!exists) cartModel.insertRow(0, new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price), discount });
+            calculateTotal();
         }
     }
 
@@ -403,29 +443,23 @@ public class ImportPanel extends JPanel implements Refreshable {
         BookDTO book = listBooks.stream().filter(b -> b.getBookId() == bookId).findFirst().orElse(null);
         if (book == null) return;
 
-        JPanel pInput = new JPanel(new GridLayout(2, 2, 10, 10));
-        JTextField txtQty = new JTextField(cartModel.getValueAt(modelRow, 2).toString());
-        JTextField txtDiscount = new JTextField(cartModel.getValueAt(modelRow, 5).toString());
-        pInput.add(new JLabel("Số lượng nhập:")); pInput.add(txtQty);
-        pInput.add(new JLabel("Chiết khấu NXB (%):")); pInput.add(txtDiscount);
+        int currentQty = Integer.parseInt(cartModel.getValueAt(modelRow, 2).toString());
+        double currentDiscount = Double.parseDouble(cartModel.getValueAt(modelRow, 5).toString());
 
-        if (JOptionPane.showConfirmDialog(this, pInput, "Sửa số lượng và chiết khấu", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
-            return;
-        }
+        Window parentWindow = SwingUtilities.getWindowAncestor(this);
+        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(parentWindow, "Sửa số lượng và chiết khấu", currentQty, currentDiscount);
+        dialog.setVisible(true);
 
-        try {
-            int qty = Integer.parseInt(txtQty.getText().trim());
-            double discount = Double.parseDouble(txtDiscount.getText().trim());
-            if (qty <= 0 || discount < 0 || discount > 100 || book.getCoverPrice() < 0) throw new Exception();
-
+        if (dialog.isConfirmed()) {
+            int qty = dialog.getQuantity();
+            double discount = dialog.getDiscount();
             double price = book.getCoverPrice() * (1 - discount / 100.0);
+
             cartModel.setValueAt(qty, modelRow, 2);
             cartModel.setValueAt(MoneyFormatter.toVND(price), modelRow, 3);
             cartModel.setValueAt(MoneyFormatter.toVND(qty * price), modelRow, 4);
             cartModel.setValueAt(discount, modelRow, 5);
             calculateTotal();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập số lượng và chiết khấu hợp lệ!");
         }
     }
 
@@ -444,7 +478,7 @@ public class ImportPanel extends JPanel implements Refreshable {
         if (cartModel.getRowCount() == 0) { JOptionPane.showMessageDialog(this, "Phiếu nhập đang trống!"); return; }
         if (cboTicketSupplier.getSelectedItem() == null || cboTicketSupplier.getSelectedItem().toString().isEmpty()
             || cboTicketSupplier.getSelectedItem().toString().startsWith("0 -")) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn Nhà cung cấp ở góc trên bên phải!"); return;
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn Nhà cung cấp!"); return;
         }
 
         try {
@@ -487,6 +521,15 @@ public class ImportPanel extends JPanel implements Refreshable {
                 "Thêm Sách Mới", null, authors, categories, suppliers, allTags
             );
         dialog.setVisible(true);
+
+        if (dialog.isSaved() && dialog.getBook() != null) {
+            String result = bookBUS.addBook(dialog.getBook());
+            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
+                JOptionPane.showMessageDialog(this, result, "Thành công", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        }
         refresh(); // Refresh list after closed
     }
 
@@ -500,8 +543,9 @@ public class ImportPanel extends JPanel implements Refreshable {
 
         btnResetFilter.addActionListener(e -> {
             txtSearch.setText("");
-            cboCategory.setSelectedIndex(0);
-            cboTicketSupplier.setSelectedIndex(0);
+            cboTicketSupplier.resetSelection();
+            cboCategory.resetSelection();
+            if (cboCategory != null) cboCategory.setEnabled(false);
             filterBooks();
         });
 
@@ -525,6 +569,20 @@ public class ImportPanel extends JPanel implements Refreshable {
                     } else {
                         return;
                     }
+                }
+
+                String supStr = cboTicketSupplier.getSelectedItem().toString();
+                int supId = 0;
+                try {
+                    supId = Integer.parseInt(supStr.split(" - ")[0]);
+                } catch (Exception ex) {
+                    supId = 0;
+                }
+                if (supId == 0) {
+                    cboCategory.resetSelection();
+                    cboCategory.setEnabled(false);
+                } else {
+                    cboCategory.setEnabled(true);
                 }
                 filterBooks();
             }

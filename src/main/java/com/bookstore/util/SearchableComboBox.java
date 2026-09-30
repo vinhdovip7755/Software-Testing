@@ -1,6 +1,7 @@
 package com.bookstore.util;
 
 import javax.swing.*;
+import javax.swing.plaf.basic.BasicComboBoxEditor;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -22,18 +23,28 @@ public class SearchableComboBox<E> extends JComboBox<E> {
 
     private void initUI() {
         setEditable(true);
+        
+        // Custom editor that ignores setItem during filtering to preserve IME composition
+        setEditor(new BasicComboBoxEditor() {
+            @Override
+            public void setItem(Object anObject) {
+                if (isFiltering) return;
+                super.setItem(anObject);
+            }
+        });
+
         updateModel(originalItems);
 
         JTextField textEditor = (JTextField) this.getEditor().getEditorComponent();
-            textEditor.addKeyListener(new KeyAdapter() {
-                @Override
-                public void keyReleased(KeyEvent e) {
-                    if (e.getKeyCode() == KeyEvent.VK_UP || e.getKeyCode() == KeyEvent.VK_DOWN || e.getKeyCode() == KeyEvent.VK_ENTER) {
-                        return;
-                    }
-                    SwingUtilities.invokeLater(() -> filter(textEditor.getText()));
+        textEditor.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_UP || e.getKeyCode() == KeyEvent.VK_DOWN || e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    return;
                 }
-            });
+                SwingUtilities.invokeLater(() -> filter(textEditor.getText()));
+            }
+        });
     }
 
     private void filter(String textInput) {
@@ -47,9 +58,6 @@ public class SearchableComboBox<E> extends JComboBox<E> {
         }
 
         updateModel(filteredItems);
-
-        JTextField textEditor = (JTextField) this.getEditor().getEditorComponent();
-        textEditor.setText(textInput);
 
         if (!filteredItems.isEmpty()) {
             showPopup();

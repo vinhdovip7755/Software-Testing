@@ -5,6 +5,7 @@ import com.bookstore.dto.InventoryLogDTO;
 import com.bookstore.util.AppConstant;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
+import com.toedter.calendar.JDateChooser;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -13,12 +14,15 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 public class InventoryLogDialog extends JDialog {
     private JTable table;
     private DefaultTableModel tableModel;
-    private JTextField txtSearch, txtDateFrom, txtDateTo;
+    private JTextField txtSearch;
+    private JDateChooser dchDateFrom, dchDateTo;
     private JComboBox<String> cboAction;
     private JButton btnFilter, btnReset;
 
@@ -27,7 +31,7 @@ public class InventoryLogDialog extends JDialog {
 
     public InventoryLogDialog(Window parent) {
         super(parent, "Biến Động Tồn Kho (Thẻ Kho)", ModalityType.APPLICATION_MODAL);
-        setSize(950, 650);
+        setSize(1000, 650);
         setLocationRelativeTo(parent);
         setResizable(false);
         initUI();
@@ -46,35 +50,50 @@ public class InventoryLogDialog extends JDialog {
         lbTitle.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         pHeader.add(lbTitle, BorderLayout.WEST);
 
-        JPanel pFilter = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
+        JPanel pFilter = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         pFilter.setBackground(Color.WHITE);
         pFilter.setBorder(new EmptyBorder(0, 10, 10, 10));
 
         txtSearch = new JTextField();
-        txtSearch.setPreferredSize(new Dimension(200, 40));
+        txtSearch.setPreferredSize(new Dimension(180, 40));
         txtSearch.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Tìm sách, mã phiếu...");
         txtSearch.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, new FlatSVGIcon("icon/search_icon.svg").derive(18, 18));
 
-        txtDateFrom = new JTextField(); txtDateFrom.setPreferredSize(new Dimension(130, 40));
-        txtDateFrom.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Từ ngày (dd/mm/yyyy)");
-        txtDateTo = new JTextField(); txtDateTo.setPreferredSize(new Dimension(130, 40));
-        txtDateTo.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Đến ngày");
+        JLabel lblFrom = new JLabel("Từ:");
+        lblFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
+        dchDateFrom = new JDateChooser();
+        dchDateFrom.setDateFormatString("dd/MM/yyyy");
+        dchDateFrom.setPreferredSize(new Dimension(130, 40));
+        dchDateFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
+
+        JLabel lblTo = new JLabel("Đến:");
+        lblTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
+        dchDateTo = new JDateChooser();
+        dchDateTo.setDateFormatString("dd/MM/yyyy");
+        dchDateTo.setPreferredSize(new Dimension(130, 40));
+        dchDateTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
 
         cboAction = new JComboBox<>(new String[]{"Tất cả thao tác", "Nhập hàng", "Bán hàng", "Hủy/Trả hàng"});
-        cboAction.setPreferredSize(new Dimension(150, 40));
+        cboAction.setPreferredSize(new Dimension(140, 40));
 
         btnFilter = new JButton("Lọc Lịch Sử");
-        btnFilter.setPreferredSize(new Dimension(120, 40));
+        btnFilter.setPreferredSize(new Dimension(115, 40));
         btnFilter.setBackground(Color.decode("#1976D2")); btnFilter.setForeground(Color.WHITE);
         btnFilter.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
 
         btnReset = new JButton("Làm mới");
-        btnReset.setPreferredSize(new Dimension(100, 40));
+        btnReset.setPreferredSize(new Dimension(95, 40));
         btnReset.setBackground(Color.decode("#9E9E9E")); btnReset.setForeground(Color.WHITE);
         btnReset.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
 
-        pFilter.add(txtSearch); pFilter.add(txtDateFrom); pFilter.add(txtDateTo);
-        pFilter.add(cboAction); pFilter.add(btnFilter); pFilter.add(btnReset);
+        pFilter.add(txtSearch);
+        pFilter.add(lblFrom);
+        pFilter.add(dchDateFrom);
+        pFilter.add(lblTo);
+        pFilter.add(dchDateTo);
+        pFilter.add(cboAction);
+        pFilter.add(btnFilter);
+        pFilter.add(btnReset);
 
         String[] columns = {"THỜI GIAN", "TÊN SÁCH", "THAO TÁC", "BIẾN ĐỘNG", "TỒN KHO CÒN", "MÃ THAM CHIẾU"};
         tableModel = new DefaultTableModel(columns, 0) {
@@ -101,11 +120,12 @@ public class InventoryLogDialog extends JDialog {
         add(pHeader, BorderLayout.NORTH);
         add(pCenter, BorderLayout.CENTER);
 
+        txtSearch.addActionListener(e -> filterData());
         btnFilter.addActionListener(e -> filterData());
         btnReset.addActionListener(e -> {
             txtSearch.setText("");
-            txtDateFrom.setText("");
-            txtDateTo.setText("");
+            dchDateFrom.setDate(null);
+            dchDateTo.setDate(null);
             cboAction.setSelectedIndex(0);
             filterData();
         });
@@ -120,37 +140,39 @@ public class InventoryLogDialog extends JDialog {
     }
 
     private void filterData() {
-        System.out.println("Tổng số dòng log lấy từ DB: " + (currentList != null ? currentList.size() : 0));
-
         tableModel.setRowCount(0);
 
         String keyword = txtSearch.getText().trim().toLowerCase();
         int actionIdx = cboAction.getSelectedIndex();
-        String dateFromStr = txtDateFrom.getText().trim();
-        String dateToStr = txtDateTo.getText().trim();
+        Date fromDate = dchDateFrom.getDate();
+        Date toDate = dchDateTo.getDate();
 
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-        SimpleDateFormat displaySdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-        sdf.setLenient(false);
-
-        java.util.Date fromDate = null;
-        java.util.Date toDate = null;
-
-        try {
-            if (!dateFromStr.isEmpty()) {
-                fromDate = sdf.parse(dateFromStr);
-                System.out.println("Parse Từ ngày thành công: " + fromDate);
-            }
-            if (!dateToStr.isEmpty()) {
-                toDate = sdf.parse(dateToStr);
-                toDate.setTime(toDate.getTime() + (24 * 60 * 60 * 1000) - 1);
-                System.out.println("Parse Đến ngày thành công: " + toDate);
-            }
-        } catch (Exception e) {
-            System.out.println("LỖI PARSE NGÀY: Bạn đã nhập sai định dạng!");
-            txtDateFrom.setText("");
-            txtDateTo.setText("");
+        if (fromDate != null && toDate != null && fromDate.after(toDate)) {
+            JOptionPane.showMessageDialog(this, "Ngày 'Từ' không được sau ngày 'Đến'!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
         }
+
+        Calendar calFrom = null;
+        if (fromDate != null) {
+            calFrom = Calendar.getInstance();
+            calFrom.setTime(fromDate);
+            calFrom.set(Calendar.HOUR_OF_DAY, 0);
+            calFrom.set(Calendar.MINUTE, 0);
+            calFrom.set(Calendar.SECOND, 0);
+            calFrom.set(Calendar.MILLISECOND, 0);
+        }
+
+        Calendar calTo = null;
+        if (toDate != null) {
+            calTo = Calendar.getInstance();
+            calTo.setTime(toDate);
+            calTo.set(Calendar.HOUR_OF_DAY, 23);
+            calTo.set(Calendar.MINUTE, 59);
+            calTo.set(Calendar.SECOND, 59);
+            calTo.set(Calendar.MILLISECOND, 999);
+        }
+
+        SimpleDateFormat displaySdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
         if (currentList == null) return;
 
@@ -168,8 +190,8 @@ public class InventoryLogDialog extends JDialog {
 
             boolean matchDate = true;
             if (log.getCreatedDate() != null) {
-                if (fromDate != null && log.getCreatedDate().before(fromDate)) matchDate = false;
-                if (toDate != null && log.getCreatedDate().after(toDate)) matchDate = false;
+                if (calFrom != null && log.getCreatedDate().before(calFrom.getTime())) matchDate = false;
+                if (calTo != null && log.getCreatedDate().after(calTo.getTime())) matchDate = false;
             }
 
             if (matchKey && matchAction && matchDate) {

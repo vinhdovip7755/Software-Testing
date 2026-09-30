@@ -94,6 +94,24 @@ public class MembershipRankDialog extends JDialog {
             return;
         }
 
+        if (!name.matches("^(?=.*\\p{L})[\\p{L}0-9\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Tên hạng không hợp lệ!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+
+        if (!minPointStr.matches("^\\d+$")) {
+            JOptionPane.showMessageDialog(this, "Điểm tối thiểu phải là số nguyên không âm!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtMinPoint.requestFocus();
+            return;
+        }
+
+        if (!discountStr.matches("^\\d+(\\.\\d+)?$")) {
+            JOptionPane.showMessageDialog(this, "Phần trăm giảm giá phải là số từ 0 đến 100!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtDiscount.requestFocus();
+            return;
+        }
+
         int minPoint;
         double discount;
 
@@ -101,7 +119,8 @@ public class MembershipRankDialog extends JDialog {
             minPoint = Integer.parseInt(minPointStr);
             if (minPoint < 0) throw new NumberFormatException();
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Điểm tối thiểu phải là số nguyên dương!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Điểm tối thiểu phải là số nguyên không âm!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtMinPoint.requestFocus();
             return;
         }
 
@@ -110,6 +129,7 @@ public class MembershipRankDialog extends JDialog {
             if (discount < 0 || discount > 100) throw new NumberFormatException();
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this, "Phần trăm giảm giá phải là số từ 0 đến 100!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtDiscount.requestFocus();
             return;
         }
 

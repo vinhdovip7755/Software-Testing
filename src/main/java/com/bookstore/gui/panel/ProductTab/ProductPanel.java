@@ -609,7 +609,8 @@ public class ProductPanel extends JPanel implements Refreshable {
         for (BookDTO book : allBooks) {
             ExcelUtil.ExcelBookRow row = new ExcelUtil.ExcelBookRow();
             row.setBookName(book.getBookName());
-            row.setSellingPrice(book.getSellingPrice());
+            row.setPublicationYear(book.getPublicationYear());
+            row.setSellingPrice(book.getSellingPrice() > 0 ? book.getSellingPrice() : book.getCoverPrice());
             row.setQuantity(book.getQuantity());
             row.setAuthorNames(getAuthorNamesForBook(book));
             row.setCategoryName(getCategoryName(book.getCategoryId()));
@@ -656,8 +657,7 @@ public class ProductPanel extends JPanel implements Refreshable {
                     BookDTO book = mapImportedRowToBook(row);
                     String result = bookBUS.addBook(book);
 
-                    if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
-                        bookBUS.addAuthorsToBook(book.getBookId(), book.getAuthorIdsList());
+                    if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                         successCount++;
                     } else {
                         errors.add("Dòng " + row.getSourceRow() + ": " + result);
@@ -697,10 +697,16 @@ public class ProductPanel extends JPanel implements Refreshable {
     }
 
     private BookDTO mapImportedRowToBook(ExcelUtil.ExcelBookRow row) {
+        if (row.getBookName() == null || row.getBookName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Tên sách không được để trống");
+        }
+
         BookDTO book = new BookDTO();
-        book.setBookName(row.getBookName());
-        book.setSellingPrice(0);
-        book.setQuantity(0);
+        book.setBookName(row.getBookName().trim());
+        book.setPublicationYear(row.getPublicationYear());
+        book.setCoverPrice(row.getSellingPrice());
+        book.setSellingPrice(row.getSellingPrice());
+        book.setQuantity(row.getQuantity());
         book.setTranslator(row.getTranslator());
         book.setImage("");
         book.setDescription(row.getDescription());
@@ -721,7 +727,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
         List<Integer> authorIds = getAuthorIdsByNames(row.getAuthorNames());
         if (authorIds.isEmpty()) {
-            throw new IllegalArgumentException("Không tìm thấy tác giả hợp lệ trong cột tác giả");
+            throw new IllegalArgumentException("Không tìm thấy tác giả hợp lệ trong cột tác giả: " + row.getAuthorNames());
         }
         book.getAuthorIdsList().addAll(authorIds);
 
@@ -732,7 +738,7 @@ public class ProductPanel extends JPanel implements Refreshable {
     private void showImportGuideDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Hướng dẫn chuẩn hóa file import", true);
         dialog.setLayout(new BorderLayout(10, 10));
-        dialog.setSize(700, 460);
+        dialog.setSize(720, 500);
         dialog.setLocationRelativeTo(this);
 
         JPanel contentPanel = new JPanel(new BorderLayout(12, 12));
@@ -747,15 +753,15 @@ public class ProductPanel extends JPanel implements Refreshable {
         guideText.setLineWrap(true);
         guideText.setWrapStyleWord(true);
         guideText.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        guideText.setText("1) Dòng đầu tiên phải là tiêu đề cột theo đúng thứ tự:\n"
-                + "Tên sách | Tác giả | Thể loại | Nhà cung cấp | Trạng thái | Dịch giả | Tags | Mô tả\n\n"
-                + "2) Cột Tác giả có thể nhập nhiều tên, ngăn cách bằng dấu phẩy (,).\n"
-                + "3) Tên tác giả, thể loại, nhà cung cấp phải khớp dữ liệu có sẵn trong hệ thống.\n"
-                + "4) Cột Trạng thái chấp nhận: 'Đang bán', 'Ngừng bán', 1 hoặc 0.\n"
-                + "5) Không cần các cột Giá bán, Số lượng, Đường dẫn ảnh. Khi import hệ thống sẽ tự gán:\n"
-                + "   - Giá bán = 0\n"
-                + "   - Số lượng = 0\n"
-                + "   - Đường dẫn ảnh = rỗng\n\n"
+        guideText.setText("1) Dòng đầu tiên phải là tiêu đề cột theo đúng thứ tự (11 cột):\n"
+                + "Tên sách | Tác giả | Thể loại | Nhà cung cấp | Năm xuất bản | Giá bán | Số lượng | Trạng thái | Dịch giả | Tags | Mô tả\n\n"
+                + "2) Cột Tác giả: có thể nhập nhiều tên tác giả, ngăn cách bằng dấu phẩy (,).\n"
+                + "3) Tên tác giả, thể loại, nhà cung cấp: phải khớp với dữ liệu đã có trong hệ thống.\n"
+                + "4) Cột Năm xuất bản: là năm gồm 4 chữ số (ví dụ: 2023) hoặc để trống nếu chưa rõ.\n"
+                + "5) Cột Giá bán: là số không âm (VNĐ). Nếu để trống sẽ mặc định là 0.\n"
+                + "6) Cột Số lượng: là số nguyên không âm. Nếu để trống sẽ mặc định là 0.\n"
+                + "7) Cột Trạng thái: 'Đang bán', 'Ngừng bán', 1 hoặc 0 (mặc định: Đang bán).\n"
+                + "8) Đường dẫn ảnh: Khi import sẽ tự gán chuỗi rỗng (bạn có thể tải ảnh lên sau qua form Sửa sách).\n\n"
                 + "Nhấn 'Tiếp tục import' để chọn file Excel.");
         guideText.setBackground(Color.decode("#FAFAFA"));
         guideText.setBorder(new EmptyBorder(12, 12, 12, 12));
@@ -846,6 +852,8 @@ public class ProductPanel extends JPanel implements Refreshable {
             try {
                 BookDTO bookDTO = new BookDTO();
                 bookDTO.setBookName(newBook.getBookName());
+                bookDTO.setCoverPrice(newBook.getCoverPrice());
+                bookDTO.setPublicationYear(newBook.getPublicationYear());
                 bookDTO.setSellingPrice(newBook.getSellingPrice());
                 bookDTO.setQuantity(newBook.getQuantity());
                 bookDTO.setTranslator(newBook.getTranslator());
@@ -861,10 +869,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
                 String result = bookBUS.addBook(bookDTO);
 
-                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
-                    if (newBook.getAuthorIdsList() != null && !newBook.getAuthorIdsList().isEmpty()) {
-                        bookBUS.addAuthorsToBook(bookDTO.getBookId(), newBook.getAuthorIdsList());
-                    }
+                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                     loadDataFromDatabase();
                     filterBooks();
 
@@ -900,8 +905,10 @@ public class ProductPanel extends JPanel implements Refreshable {
                 BookDTO bookDTO = new BookDTO();
                 bookDTO.setBookId(book.getBookId());
                 bookDTO.setBookName(updatedBook.getBookName());
-                bookDTO.setSellingPrice(updatedBook.getSellingPrice());
-                bookDTO.setQuantity(updatedBook.getQuantity());
+                bookDTO.setCoverPrice(book.getCoverPrice()); // Giữ nguyên giá bìa khi sửa sách
+                bookDTO.setPublicationYear(updatedBook.getPublicationYear());
+                bookDTO.setSellingPrice(book.getSellingPrice()); // Giữ nguyên giá bán hiện tại
+                bookDTO.setQuantity(book.getQuantity()); // Giữ nguyên tồn kho hiện tại
                 bookDTO.setTranslator(updatedBook.getTranslator());
                 bookDTO.setImage(updatedBook.getImage());
                 bookDTO.setDescription(updatedBook.getDescription());
@@ -915,12 +922,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
                 String result = bookBUS.updateBook(bookDTO);
 
-                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.contains("cA'ng")) {
-                    bookBUS.removeAllAuthorsFromBook(book.getBookId());
-                    if (updatedBook.getAuthorIdsList() != null && !updatedBook.getAuthorIdsList().isEmpty()) {
-                        bookBUS.addAuthorsToBook(book.getBookId(), updatedBook.getAuthorIdsList());
-                    }
-
+                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                     loadDataFromDatabase();
                     filterBooks();
 
@@ -1146,6 +1148,10 @@ public class ProductPanel extends JPanel implements Refreshable {
         if (book != null && book.getImage() != null && !book.getImage().trim().isEmpty()) {
             String imagePath = "data/book_covers/" + book.getImage();
             File imageFile = new File(imagePath);
+            if (!imageFile.exists()) {
+                imagePath = book.getImage();
+                imageFile = new File(imagePath);
+            }
 
             if (imageFile.exists()) {
                 ImageIcon icon = new ImageIcon(imagePath);

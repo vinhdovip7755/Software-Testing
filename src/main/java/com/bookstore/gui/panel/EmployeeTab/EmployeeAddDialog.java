@@ -20,7 +20,7 @@ import java.util.Calendar;
 import java.util.List;
 
 public class EmployeeAddDialog extends JDialog {
-    private JTextField txtName, txtPhone, txtBaseSalary;
+    private JTextField txtName, txtPhone, txtEmail, txtBaseSalary;
     private JDateChooser dateBirthday, dateDayIn;
     private JComboBox<String> cboRole;
     private JButton btnSave, btnCancel;
@@ -38,7 +38,7 @@ public class EmployeeAddDialog extends JDialog {
 
     private void initUI() {
         setLayout(new BorderLayout(20, 10));
-        setSize(450, 580);
+        setSize(450, 650);
         setLocationRelativeTo(getParent());
         setResizable(false);
         getContentPane().setBackground(Color.WHITE);
@@ -49,12 +49,26 @@ public class EmployeeAddDialog extends JDialog {
         lbHeader.setBorder(new EmptyBorder(20, 0, 10, 0));
         add(lbHeader, BorderLayout.NORTH);
 
-        JPanel pForm = new JPanel(new GridLayout(6, 1, 10, 5));
+        JPanel pForm = new JPanel(new GridLayout(7, 1, 10, 5));
         pForm.setBorder(new EmptyBorder(0, 30, 0, 30));
         pForm.setOpaque(false);
 
         txtName = createInput("Nhập họ tên...");
         txtPhone = createInput("Nhập 10 số điện thoại...");
+                txtEmail = createInput("Nhập email...");
+        txtEmail.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                String email = txtEmail.getText().trim();
+                if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+                    txtEmail.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(EmployeeAddDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    txtEmail.requestFocusInWindow();
+                } else {
+                    txtEmail.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
         txtBaseSalary = createNumericInput("Nhập lương cơ bản (VD: 5000000)...");
 
         dateBirthday = new JDateChooser();
@@ -77,12 +91,13 @@ public class EmployeeAddDialog extends JDialog {
         cboRole.setPreferredSize(new Dimension(0, 35));
         loadRoles();
 
-        pForm.add(createFieldPanel("Họ và tên:", txtName));
-        pForm.add(createFieldPanel("Số điện thoại:", txtPhone));
-        pForm.add(createFieldPanel("Ngày sinh:", dateBirthday));
-        pForm.add(createFieldPanel("Lương cơ bản:", txtBaseSalary));
-        pForm.add(createFieldPanel("Ngày vào làm:", dateDayIn));
-        pForm.add(createFieldPanel("Chức vụ:", cboRole));
+        pForm.add(createFieldPanel("<html>Họ và tên <font color='red'>*</font>:</html>", txtName));
+        pForm.add(createFieldPanel("<html>Số điện thoại <font color='red'>*</font>:</html>", txtPhone));
+        pForm.add(createFieldPanel("<html>Email <font color='red'>*</font>:</html>", txtEmail));
+        pForm.add(createFieldPanel("<html>Ngày sinh <font color='red'>*</font>:</html>", dateBirthday));
+        pForm.add(createFieldPanel("<html>Lương cơ bản <font color='red'>*</font>:</html>", txtBaseSalary));
+        pForm.add(createFieldPanel("<html>Ngày vào làm <font color='red'>*</font>:</html>", dateDayIn));
+        pForm.add(createFieldPanel("<html>Chức vụ <font color='red'>*</font>:</html>", cboRole));
 
         add(pForm, BorderLayout.CENTER);
 
@@ -112,6 +127,9 @@ public class EmployeeAddDialog extends JDialog {
     private void loadRoles() {
         roleList = roleBUS.getAllRoles();
         for (RoleDTO role : roleList) {
+            if (role.getRoleId() == 1 || "Admin".equalsIgnoreCase(role.getRoleName())) {
+                continue;
+            }
             cboRole.addItem(role.getRoleName());
         }
     }
@@ -155,10 +173,52 @@ public class EmployeeAddDialog extends JDialog {
     }
 
     private void saveNewEmployee() {
+        if (txtName.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Họ và tên không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+        if (!txtName.getText().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            JOptionPane.showMessageDialog(this, "Họ và tên không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtName.requestFocus();
+            return;
+        }
+        if (txtPhone.getText().trim().isEmpty() || !txtPhone.getText().trim().matches("^0\\d{9}$")) {
+            JOptionPane.showMessageDialog(this, "Số điện thoại phải có 10 số và bắt đầu bằng 0!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtPhone.requestFocus();
+            return;
+        }
+        if (txtEmail.getText().trim().isEmpty() || !txtEmail.getText().trim().matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtEmail.requestFocus();
+            return;
+        }
+        if (dateBirthday.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày sinh!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            dateBirthday.requestFocus();
+            return;
+        }
+        if (txtBaseSalary.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Lương cơ bản không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtBaseSalary.requestFocus();
+            return;
+        }
+        if (!txtBaseSalary.getText().trim().matches("^\\d+(\\.\\d+)?$")) {
+            JOptionPane.showMessageDialog(this, "Lương cơ bản phải là số dương!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtBaseSalary.requestFocus();
+            return;
+        }
+        if (dateDayIn.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày vào làm!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            dateDayIn.requestFocus();
+            return;
+        }
+
         try {
             EmployeeDTO temp = new EmployeeDTO();
             temp.setEmployeeName(txtName.getText().trim());
             temp.setEmployeePhone(txtPhone.getText().trim());
+            temp.setEmail(txtEmail.getText().trim());
 
             java.util.Date utilBirthday = dateBirthday.getDate();
             java.util.Date utilDayIn = dateDayIn.getDate();
@@ -184,7 +244,7 @@ public class EmployeeAddDialog extends JDialog {
             String result = employeeBUS.addEmployee(temp);
             JOptionPane.showMessageDialog(this, result);
 
-            if (result.contains("thành công")) {
+            if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                 parentPanel.refresh();
                 dispose();
             }

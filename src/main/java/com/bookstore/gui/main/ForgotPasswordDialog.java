@@ -1,23 +1,23 @@
 package com.bookstore.gui.main;
 
 import com.bookstore.bus.AccountBUS;
+import com.bookstore.util.EmailUtil;
 import com.formdev.flatlaf.FlatClientProperties;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.text.SimpleDateFormat;
 
 public class ForgotPasswordDialog extends JDialog {
-    private JTextField txtName;
-    private JTextField txtPhone;
-    private JTextField txtDob;
+    private JTextField txtEmail;
+    private JTextField txtOtp;
     private JPasswordField txtNewPassword;
     private JPasswordField txtConfirmPassword;
-    private JButton btnVerify;
+    private JButton btnSendOtp;
     private JButton btnReset;
     private AccountBUS accountBUS = new AccountBUS();
 
-    private boolean isVerified = false;
+    private String currentOtp = "";
+    private boolean isOtpSent = false;
 
     public ForgotPasswordDialog(JFrame parent) {
         super(parent, "Khôi phục mật khẩu", true);
@@ -37,29 +37,56 @@ public class ForgotPasswordDialog extends JDialog {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.weightx = 1.0;
 
-        txtName = new JTextField();
-        txtName.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Họ và tên");
+                txtEmail = new JTextField();
+        txtEmail.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Nhập email của bạn");
+        txtEmail.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                String email = txtEmail.getText().trim();
+                if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+                    txtEmail.putClientProperty(FlatClientProperties.OUTLINE, "error");
+                    javax.swing.JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
+                    txtEmail.requestFocusInWindow();
+                } else {
+                    txtEmail.putClientProperty(FlatClientProperties.OUTLINE, null);
+                }
+            }
+        });
 
-        txtPhone = new JTextField();
-        txtPhone.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Số điện thoại đăng ký");
-
-        txtDob = new JTextField();
-        txtDob.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Ngày sinh (dd/MM/yyyy)");
+        txtOtp = new JTextField();
+        txtOtp.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mã OTP (6 số)");
+        txtOtp.setEnabled(false);
 
         txtNewPassword = new JPasswordField();
         txtNewPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mật khẩu mới");
         txtNewPassword.setEnabled(false);
+        char defaultEcho1 = txtNewPassword.getEchoChar();
+        JToggleButton btnEye1 = new JToggleButton();
+        btnEye1.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_closed.svg", 20, 20));
+        btnEye1.setSelectedIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_open.svg", 20, 20));
+        btnEye1.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnEye1.setFocusable(false);
+        btnEye1.addActionListener(e -> txtNewPassword.setEchoChar(btnEye1.isSelected() ? (char) 0 : defaultEcho1));
+        txtNewPassword.putClientProperty(FlatClientProperties.TEXT_FIELD_TRAILING_COMPONENT, btnEye1);
 
         txtConfirmPassword = new JPasswordField();
         txtConfirmPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Xác nhận mật khẩu mới");
         txtConfirmPassword.setEnabled(false);
+        char defaultEcho2 = txtConfirmPassword.getEchoChar();
+        JToggleButton btnEye2 = new JToggleButton();
+        btnEye2.setIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_closed.svg", 20, 20));
+        btnEye2.setSelectedIcon(new com.formdev.flatlaf.extras.FlatSVGIcon("icon/eye_open.svg", 20, 20));
+        btnEye2.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnEye2.setFocusable(false);
+        btnEye2.addActionListener(e -> txtConfirmPassword.setEchoChar(btnEye2.isSelected() ? (char) 0 : defaultEcho2));
+        txtConfirmPassword.putClientProperty(FlatClientProperties.TEXT_FIELD_TRAILING_COMPONENT, btnEye2);
 
-        btnVerify = new JButton("Kiểm tra thông tin");
-        btnVerify.setBackground(Color.decode("#1976D2"));
-        btnVerify.setForeground(Color.WHITE);
-        btnVerify.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        btnVerify.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnVerify.addActionListener(this::handleVerify);
+        btnSendOtp = new JButton("Nhận mã OTP");
+        btnSendOtp.setBackground(Color.decode("#1976D2"));
+        btnSendOtp.setForeground(Color.WHITE);
+        btnSendOtp.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnSendOtp.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnSendOtp.addActionListener(this::handleSendOtp);
 
         btnReset = new JButton("Đổi mật khẩu");
         btnReset.setBackground(Color.decode("#00A364"));
@@ -71,27 +98,22 @@ public class ForgotPasswordDialog extends JDialog {
 
         int gridy = 0;
         gbc.gridx = 0; gbc.gridy = gridy++;
-        mainPanel.add(new JLabel("Họ và tên:"), gbc);
+        mainPanel.add(new JLabel("Email:"), gbc);
         gbc.gridy = gridy++;
-        mainPanel.add(txtName, gbc);
-
-        gbc.gridy = gridy++;
-        mainPanel.add(new JLabel("Số điện thoại:"), gbc);
-        gbc.gridy = gridy++;
-        mainPanel.add(txtPhone, gbc);
-
-        gbc.gridy = gridy++;
-        mainPanel.add(new JLabel("Ngày sinh (dd/MM/yyyy):"), gbc);
-        gbc.gridy = gridy++;
-        mainPanel.add(txtDob, gbc);
+        mainPanel.add(txtEmail, gbc);
 
         gbc.gridy = gridy++;
         gbc.insets = new Insets(10, 5, 10, 5);
-        mainPanel.add(btnVerify, gbc);
+        mainPanel.add(btnSendOtp, gbc);
         gbc.insets = new Insets(5, 5, 5, 5);
 
         gbc.gridy = gridy++;
         mainPanel.add(new JSeparator(), gbc);
+
+        gbc.gridy = gridy++;
+        mainPanel.add(new JLabel("Mã OTP:"), gbc);
+        gbc.gridy = gridy++;
+        mainPanel.add(txtOtp, gbc);
 
         gbc.gridy = gridy++;
         mainPanel.add(new JLabel("Mật khẩu mới:"), gbc);
@@ -110,53 +132,103 @@ public class ForgotPasswordDialog extends JDialog {
         add(mainPanel);
     }
 
-    private void handleVerify(ActionEvent e) {
-        String name = txtName.getText().trim();
-        String phone = txtPhone.getText().trim();
-        String dobStr = txtDob.getText().trim();
+    private void handleSendOtp(ActionEvent e) {
+        String email = txtEmail.getText().trim();
 
-        if (name.isEmpty() || phone.isEmpty() || dobStr.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ Họ tên, SĐT và Ngày sinh!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+        if (email.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập Email!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtEmail.requestFocus();
             return;
         }
 
-        java.sql.Date dob = null;
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-            sdf.setLenient(false);
-            java.util.Date parsed = sdf.parse(dobStr);
-            dob = new java.sql.Date(parsed.getTime());
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Ngày sinh không hợp lệ! Vui lòng nhập đúng định dạng dd/MM/yyyy", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtEmail.requestFocus();
             return;
         }
 
-        String result = accountBUS.verifyEmployeeInfoByPhone(name, phone, dob);
-        if (result.equals("OK")) {
-            JOptionPane.showMessageDialog(this, "Xác minh thông tin chính xác! Bạn có thể nhập mật khẩu mới.", "Thành công", JOptionPane.INFORMATION_MESSAGE);
-            isVerified = true;
-            txtName.setEditable(false);
-            txtPhone.setEditable(false);
-            txtDob.setEditable(false);
-            btnVerify.setEnabled(false);
-
-            txtNewPassword.setEnabled(true);
-            txtConfirmPassword.setEnabled(true);
-            btnReset.setEnabled(true);
-            txtNewPassword.requestFocus();
-        } else {
-            JOptionPane.showMessageDialog(this, result, "Xác minh thất bại", JOptionPane.ERROR_MESSAGE);
+        // Check if email exists in DB (Account uses Email as username)
+        if (!accountBUS.isEmailExists(email)) {
+            JOptionPane.showMessageDialog(this, "Email này không tồn tại trong hệ thống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+
+        btnSendOtp.setEnabled(false);
+        btnSendOtp.setText("Đang gửi...");
+
+        SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Boolean doInBackground() {
+                currentOtp = EmailUtil.generateOTP();
+                return EmailUtil.sendOTP(email, currentOtp);
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    boolean success = get();
+                    if (success) {
+                        JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Mã OTP đã được gửi đến email của bạn!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                        
+                        isOtpSent = true;
+                        txtEmail.setEditable(false);
+                        
+                        txtOtp.setEnabled(true);
+                        txtNewPassword.setEnabled(true);
+                        txtConfirmPassword.setEnabled(true);
+                        btnReset.setEnabled(true);
+                        txtOtp.requestFocus();
+
+                        javax.swing.Timer timer = new javax.swing.Timer(1000, null);
+                        timer.addActionListener(new java.awt.event.ActionListener() {
+                            int countdown = 120;
+                            @Override
+                            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                                countdown--;
+                                if (countdown <= 0) {
+                                    btnSendOtp.setText("Gửi lại mã OTP");
+                                    btnSendOtp.setEnabled(true);
+                                    timer.stop();
+                                } else {
+                                    btnSendOtp.setText("Gửi lại sau " + countdown + "s");
+                                }
+                            }
+                        });
+                        timer.start();
+
+                    } else {
+                        JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Không thể gửi email. Vui lòng kiểm tra lại kết nối mạng hoặc cấu hình SMTP!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                        btnSendOtp.setEnabled(true);
+                        btnSendOtp.setText("Nhận lại mã OTP");
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        };
+        worker.execute();
     }
 
     private void handleReset(ActionEvent e) {
-        if (!isVerified) return;
-
+        if (!isOtpSent) return;
+        
+        String otp = txtOtp.getText().trim();
         String newPass = new String(txtNewPassword.getPassword());
         String confirmPass = new String(txtConfirmPassword.getPassword());
 
-        if (newPass.isEmpty() || confirmPass.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập mật khẩu mới!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+        if (otp.isEmpty() || newPass.isEmpty() || confirmPass.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ mã OTP và mật khẩu mới!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (!otp.matches("^\\d{6}$")) {
+            JOptionPane.showMessageDialog(this, "Mã OTP phải gồm đúng 6 chữ số!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            txtOtp.requestFocus();
+            return;
+        }
+
+        if (!otp.equals(currentOtp)) {
+            JOptionPane.showMessageDialog(this, "Mã OTP không chính xác!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -165,13 +237,14 @@ public class ForgotPasswordDialog extends JDialog {
             return;
         }
 
-        String phone = txtPhone.getText().trim();
-        String result = accountBUS.resetPasswordByPhone(phone, newPass);
+        String email = txtEmail.getText().trim();
+        // Here we update password by email (username is email)
+        String result = accountBUS.resetPasswordByEmail(email, newPass); // Re-using existing method since it queries by username
         if (result.equals("OK")) {
             JOptionPane.showMessageDialog(this, "Đổi mật khẩu thành công! Vui lòng đăng nhập lại.", "Thành công", JOptionPane.INFORMATION_MESSAGE);
             this.dispose();
         } else {
-            JOptionPane.showMessageDialog(this, result, "thất bại", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, result, "Thất bại", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

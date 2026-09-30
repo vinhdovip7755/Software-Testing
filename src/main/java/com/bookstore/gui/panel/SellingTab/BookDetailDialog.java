@@ -62,10 +62,22 @@ public class BookDetailDialog extends JDialog {
 
         String imageName = book.getImage();
         if (imageName != null && !imageName.trim().isEmpty()) {
-            ImageIcon icon = new ImageIcon("data/book_covers/" + imageName);
-            if (icon.getImageLoadStatus() == MediaTracker.COMPLETE) {
-                Image img = icon.getImage().getScaledInstance(200,300, Image.SCALE_SMOOTH);
-                lbImage.setIcon(new ImageIcon(img));
+            String imagePath = "data/book_covers/" + imageName;
+            java.io.File imageFile = new java.io.File(imagePath);
+            if (!imageFile.exists()) {
+                imagePath = imageName;
+                imageFile = new java.io.File(imagePath);
+            }
+            
+            if (imageFile.exists()) {
+                ImageIcon icon = new ImageIcon(imagePath);
+                if (icon.getIconWidth() > 0 && icon.getIconHeight() > 0) {
+                    Image img = icon.getImage().getScaledInstance(200, 300, Image.SCALE_SMOOTH);
+                    lbImage.setIcon(new ImageIcon(img));
+                    lbImage.setText("");
+                } else {
+                    lbImage.setText("Không có ảnh");
+                }
             } else {
                 lbImage.setText("Không có ảnh");
             }

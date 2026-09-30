@@ -45,7 +45,7 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
     private final JLabel lblQuyThapNhat = new JLabel("Quý doanh thu thấp nhất: --");
 
     private final DefaultTableModel tableModel = new DefaultTableModel(
-            new Object[]{"Thời gian", "Doanh thu", "Lợi nhuận", "Chi phí", "Vốn nhập hàng"}, 0
+            new Object[]{"Thời gian", "Doanh thu", "Lợi nhuận", "Chi phí"}, 0
     ) {
         @Override public boolean isCellEditable(int row, int column) { return false; }
     };
@@ -54,6 +54,8 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
     private TitledBorder filteredBorder;
 
     public FinancialStatsPanel() {
+        dchTuNgay.setDateFormatString("dd/MM/yyyy");
+        dchDenNgay.setDateFormatString("dd/MM/yyyy");
         initUI();
         bindEvents();
         // Set default dates
@@ -82,10 +84,19 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         JPanel pnlFilter = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         pnlFilter.setOpaque(false);
         
-        pnlFilter.add(new JLabel("Từ ngày:"));
+        JLabel lblTuNgay = new JLabel("Từ ngày:");
+        lblTuNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
+        pnlFilter.add(lblTuNgay);
+        dchTuNgay.setDateFormatString("dd/MM/yyyy");
+        dchTuNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dchTuNgay.setPreferredSize(new Dimension(150, 35));
         pnlFilter.add(dchTuNgay);
-        pnlFilter.add(new JLabel("Đến ngày:"));
+        
+        JLabel lblDenNgay = new JLabel("Đến ngày:");
+        lblDenNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
+        pnlFilter.add(lblDenNgay);
+        dchDenNgay.setDateFormatString("dd/MM/yyyy");
+        dchDenNgay.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dchDenNgay.setPreferredSize(new Dimension(150, 35));
         pnlFilter.add(dchDenNgay);
         
@@ -179,7 +190,7 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         tblChiTiet.getColumnModel().getColumn(1).setCellRenderer(new CurrencyCellRenderer());
         tblChiTiet.getColumnModel().getColumn(2).setCellRenderer(new ProfitCellRenderer());
         tblChiTiet.getColumnModel().getColumn(3).setCellRenderer(new CurrencyCellRenderer());
-        tblChiTiet.getColumnModel().getColumn(4).setCellRenderer(new CurrencyCellRenderer());
+        
 
         JScrollPane scrollPane = new JScrollPane(tblChiTiet);
         scrollPane.getViewport().setBackground(Color.WHITE);
@@ -263,8 +274,7 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
                     item.getThoiGian(),
                     item.getDoanhThu(),
                     item.getLoiNhuan(),
-                    item.getChiPhi(),
-                    item.getVonNhapHang()
+                    item.getChiPhi()
             });
         }
     }

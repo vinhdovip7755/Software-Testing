@@ -111,14 +111,14 @@ public class ImportDetailDialog extends JDialog {
         actionPanel.setBackground(Color.WHITE);
 
         if (currentTicket.getStatus() == 1) {
-            JButton btnCancel = new JButton("Hủy Phiếu");
-            btnCancel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
-            btnCancel.setForeground(Color.WHITE);
-            btnCancel.setBackground(Color.decode("#D32F2F"));
-            btnCancel.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
-            actionPanel.add(btnCancel);
-
             if (PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
+                JButton btnCancel = new JButton("Hủy Phiếu");
+                btnCancel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+                btnCancel.setForeground(Color.WHITE);
+                btnCancel.setBackground(Color.decode("#D32F2F"));
+                btnCancel.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
+                actionPanel.add(btnCancel);
+
                 JButton btnApprove = new JButton("Duyệt Nhập Kho");
                 btnApprove.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
                 btnApprove.setForeground(Color.WHITE);
@@ -138,20 +138,20 @@ public class ImportDetailDialog extends JDialog {
                         }
                     }
                 });
-            }
 
-            btnCancel.addActionListener(e -> {
-                if (JOptionPane.showConfirmDialog(this, "Bạn muốn HỦY phiếu nhập này?", "Cảnh báo", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                    int approverId = 1;
-                    if (SharedData.currentUser != null) {
-                        approverId = SharedData.currentUser.getEmployeeId();
+                btnCancel.addActionListener(e -> {
+                    if (JOptionPane.showConfirmDialog(this, "Bạn muốn HỦY phiếu nhập này?", "Cảnh báo", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                        int approverId = 1;
+                        if (SharedData.currentUser != null) {
+                            approverId = SharedData.currentUser.getEmployeeId();
+                        }
+                        if (importBUS.cancelImport(currentTicket.getImportID(), approverId)) {
+                            JOptionPane.showMessageDialog(this, "Đã hủy phiếu!");
+                            this.dispose();
+                        }
                     }
-                    if (importBUS.cancelImport(currentTicket.getImportID(), approverId)) {
-                        JOptionPane.showMessageDialog(this, "Đã hủy phiếu!");
-                        this.dispose();
-                    }
-                }
-            });
+                });
+            }
         }
         bottomPanel.add(actionPanel, BorderLayout.EAST);
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
@@ -170,7 +170,7 @@ public class ImportDetailDialog extends JDialog {
         List<ImportDetailDTO> details = importBUS.getDetailsByImportId(currentTicket.getImportID());
         for (ImportDetailDTO d : details) {
             double lineTotal = d.getQuantity() * d.getPrice();
-            tableModel.addRow(new Object[]{
+            tableModel.insertRow(0, new Object[]{
                     d.getBookID(),
                     d.getBookName(),
                     MoneyFormatter.toVND(d.getPrice()),

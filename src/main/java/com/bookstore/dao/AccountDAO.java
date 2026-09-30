@@ -14,14 +14,11 @@ public class AccountDAO {
     public AccountDTO selectByUsername(String username) {
         AccountDTO acc = null;
 
-        try {
-            Connection c = DatabaseConnection.getConnection();
-            String sql = "SELECT a.* FROM account a " +
-                    "JOIN employee e ON a.employee_id = e.employee_id " +
-                    "WHERE a.status = 1 AND a.username = ? AND e.status = 1 ";
-            PreparedStatement ps = c.prepareStatement(sql);
+        String sql = "SELECT a.* FROM account a WHERE a.username = ?";
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, username);
-            ResultSet rs = ps.executeQuery();
+            try (ResultSet rs = ps.executeQuery()) {
 
             if (rs.next()) {
                 acc = new AccountDTO(
@@ -31,11 +28,24 @@ public class AccountDAO {
                         rs.getInt("status")
                 );
             }
-            c.close();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return acc;
+    }
+
+    public boolean updateUsername(String oldUsername, String newUsername) {
+        String sql = "UPDATE account SET username = ? WHERE username = ?";
+        try (java.sql.Connection c = DatabaseConnection.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, newUsername);
+            ps.setString(2, oldUsername);
+            return ps.executeUpdate() > 0;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return false;
     }
 
     public boolean updateAccount(AccountDTO acc, boolean isChangePassword) {

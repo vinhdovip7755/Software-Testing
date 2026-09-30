@@ -8,7 +8,7 @@ import java.util.List;
 public class BookAuthorDAO {
 
     public void addAuthorsToBook(int bookId, List<Integer> authorIds) {
-        String sql = "INSERT INTO book_author (book_id, author_id) VALUES (?, ?)";
+        String sql = "INSERT IGNORE INTO book_author (book_id, author_id) VALUES (?, ?)";
 
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {

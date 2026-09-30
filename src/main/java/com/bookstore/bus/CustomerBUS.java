@@ -20,6 +20,9 @@ public class CustomerBUS {
         if (c.getCustomerName().trim().isEmpty()) {
             return "Tên khách hàng không được để trống!";
         }
+        if (!c.getCustomerName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            return "Tên khách hàng không hợp lệ!";
+        }
 
         if (c.getCustomerPhone().trim().isEmpty()) {
             return "Số điện thoại không được để trống!";
@@ -31,10 +34,6 @@ public class CustomerBUS {
 
         if (customerDAO.isPhoneExist(c.getCustomerPhone(), c.getCustomerId())) {
             return "Số điện thoại này đã thuộc về khách hàng khác!";
-        }
-
-        if (customerDAO.isNameExist(c.getCustomerName(), c.getCustomerId())) {
-            return "Tên khách hàng này đã tồn tại trong hệ thống!";
         }
 
         if (customerDAO.updateCustomerInfo(c)) {
@@ -51,6 +50,9 @@ public class CustomerBUS {
         if (c.getCustomerName().trim().isEmpty()) {
             return "Tên khách hàng không được để trống!";
         }
+        if (!c.getCustomerName().trim().matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
+            return "Tên khách hàng không hợp lệ!";
+        }
         if (c.getCustomerPhone().trim().isEmpty()) {
             return "Số điện thoại không được để trống!";
         }
@@ -61,9 +63,6 @@ public class CustomerBUS {
 
         if (customerDAO.isPhoneExist(c.getCustomerPhone(), 0)) {
             return "Số điện thoại này đã tồn tại!";
-        }
-        if (customerDAO.isNameExist(c.getCustomerName(), 0)) {
-            return "Tên khách hàng này đã tồn tại!";
         }
 
         if (customerDAO.insertCustomer(c)) {

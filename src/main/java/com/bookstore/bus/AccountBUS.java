@@ -16,7 +16,8 @@ public class AccountBUS {
             throw new Exception("Tài khoản không tồn tại!");
         }
 
-        if (acc.getStatus() == 0) {
+        EmployeeDTO emp = employeeDAO.selectById(acc.getEmployeeId());
+        if (acc.getStatus() == 0 || (emp != null && emp.getStatus() == 0)) {
             throw new Exception("Tài khoản này đã bị khóa. Vui lòng liên hệ Quản Lý!");
         }
 
@@ -24,7 +25,7 @@ public class AccountBUS {
             throw new Exception("Mật khẩu không chính xác!");
         }
 
-        return employeeDAO.selectById(acc.getEmployeeId());
+        return emp;
     }
 
     public AccountDTO selectByUsername(String username) {
@@ -54,7 +55,7 @@ public class AccountBUS {
 
         return accountDAO.insert(acc) ? "Thêm tài khoản thành công!" : "Thêm thất bại!";
     }
-        public String verifyEmployeeInfoByPhone(String name, String phone, java.util.Date dob) {
+        public boolean isEmailExists(String email) { return accountDAO.selectByUsername(email) != null; } public String verifyEmployeeInfoByPhone(String name, String phone, java.util.Date dob) {
         com.bookstore.dao.EmployeeDAO empDAO = new com.bookstore.dao.EmployeeDAO();
         com.bookstore.dto.EmployeeDTO emp = null;
         for (com.bookstore.dto.EmployeeDTO e : empDAO.selectAllEmployees()) {
@@ -71,7 +72,7 @@ public class AccountBUS {
         return "OK";
     }
 
-    public String resetPasswordByPhone(String phone, String newPass) {
+    public String resetPasswordByEmail(String email, String newPass) { AccountDTO acc = accountDAO.selectByUsername(email); if(acc == null) return "Không tìm thấy tài khoản"; acc.setPassword(newPass); return accountDAO.updateAccount(acc, true) ? "OK" : "Lỗi cập nhật mật khẩu"; } public String resetPasswordByPhone(String phone, String newPass) {
         com.bookstore.dao.EmployeeDAO empDAO = new com.bookstore.dao.EmployeeDAO();
         com.bookstore.dto.EmployeeDTO emp = null;
         for (com.bookstore.dto.EmployeeDTO e : empDAO.selectAllEmployees()) {
@@ -95,10 +96,15 @@ public class AccountBUS {
     }
 
     public String updateUsername(String oldUsername, String newUsername) {
+        if (oldUsername.equals(newUsername)) return "OK";
+        
+        com.bookstore.dto.AccountDTO existing = accountDAO.selectByUsername(newUsername);
+        if (existing != null) return "Email này đã được sử dụng bởi người khác!";
+        
         com.bookstore.dto.AccountDTO acc = accountDAO.selectByUsername(oldUsername);
         if (acc == null) return "Không tìm thấy tài khoản!";
-        acc.setUsername(newUsername);
-        boolean success = accountDAO.updateAccount(acc, false);
+        
+        boolean success = accountDAO.updateUsername(oldUsername, newUsername);
         return success ? "OK" : "Lỗi Cập nhật tên đăng nhập!";
     }
 }

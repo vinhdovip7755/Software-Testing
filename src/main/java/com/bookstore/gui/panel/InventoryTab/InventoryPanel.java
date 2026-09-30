@@ -127,7 +127,8 @@ public class InventoryPanel extends JPanel implements Refreshable {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn một cuốn sách để xem chi tiết lô!");
                 return;
             }
-            BookDTO selectedBook = (BookDTO) tableModel.getValueAt(row, 0);
+            int modelRow = table.convertRowIndexToModel(row);
+            BookDTO selectedBook = (BookDTO) tableModel.getValueAt(modelRow, 0);
             loadLotData(selectedBook.getBookId());
             
             JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Chi tiết lô nhập: " + selectedBook.getBookName(), Dialog.ModalityType.APPLICATION_MODAL);
@@ -251,7 +252,8 @@ public class InventoryPanel extends JPanel implements Refreshable {
             if (!e.getValueIsAdjusting()) {
                 int row = table.getSelectedRow();
                 if (row >= 0) {
-                    BookDTO selectedBook = (BookDTO) tableModel.getValueAt(row, 0);
+                    int modelRow = table.convertRowIndexToModel(row);
+                    BookDTO selectedBook = (BookDTO) tableModel.getValueAt(modelRow, 0);
                     loadLotData(selectedBook.getBookId());
                 } else {
                     lotTableModel.setRowCount(0);
@@ -290,7 +292,7 @@ public class InventoryPanel extends JPanel implements Refreshable {
         List<BookLotDTO> lots = bookLotDAO.getByBookId(bookId);
         for (BookLotDTO lot : lots) {
             String status = lot.getQuantityRemain() > 0 ? (lot.getQuantityRemain() < 10 ? "SẮP HẾT" : "ĐỦ HÀNG") : "HẾT HÀNG";
-            lotTableModel.addRow(new Object[]{
+            lotTableModel.insertRow(0, new Object[]{
                     lot.getLotId(),
                     lot.getImportDate(),
                     String.format("%,.0f", lot.getImportPrice()),

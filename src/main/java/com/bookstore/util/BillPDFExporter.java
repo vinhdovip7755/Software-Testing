@@ -128,11 +128,10 @@ public class BillPDFExporter {
             sumTxt.setSpacingBefore(15);
             document.add(sumTxt);
 
-            if (memberDiscount > 1) {
-                Paragraph discountTxt = new Paragraph("Giảm giá thành viên: -" + MoneyFormatter.toVND(memberDiscount), normalFont);
-                discountTxt.setAlignment(Element.ALIGN_RIGHT);
-                document.add(discountTxt);
-            }
+            if (memberDiscount < 0) memberDiscount = 0;
+            Paragraph discountTxt = new Paragraph("Tổng giảm giá (tích lũy/thành viên): -" + MoneyFormatter.toVND(memberDiscount), normalFont);
+            discountTxt.setAlignment(Element.ALIGN_RIGHT);
+            document.add(discountTxt);
 
             Paragraph vatLine = new Paragraph("Thuế VAT(+" + vatStr + "%): " + MoneyFormatter.toVND(vatAmount), normalFont);
             vatLine.setAlignment(Element.ALIGN_RIGHT);
@@ -143,7 +142,7 @@ public class BillPDFExporter {
             document.add(total);
 
             Paragraph footer1 = new Paragraph("Cảm ơn quý khách và hẹn gặp lại!", normalFont);
-            Paragraph footer2 = new Paragraph("Mọi góp ý xin gửi đến zalo: 0909901421: LÊ NGỌC QUÝ", normalFont);
+            Paragraph footer2 = new Paragraph("Mọi góp ý xin gửi đến hộp thư điện tử: hotro.adminhethong@gmail.com ", normalFont);
             footer1.setAlignment(Element.ALIGN_CENTER);
             footer1.setSpacingBefore(30);
             footer2.setAlignment(Element.ALIGN_CENTER);

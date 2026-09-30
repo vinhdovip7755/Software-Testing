@@ -4,6 +4,7 @@ import com.bookstore.bus.*;
 import com.bookstore.dao.*;
 import com.bookstore.dto.*;
 import javax.swing.*;
+import com.toedter.calendar.JDateChooser;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
 
@@ -17,7 +18,7 @@ public class PromotionDialog extends JDialog {
     private JComboBox<String> cbCategory;
     private CategoryBUS categoryBUS = new CategoryBUS();
     private JTextField txtID, txtTen, txtPercent, txtSearchBook;
-    private JSpinner spStart, spEnd;
+    private JDateChooser dchStart, dchEnd;
     private JTable bookTable;
     private DefaultTableModel bookModel;
     private PromotionBUS bus = new PromotionBUS();
@@ -86,10 +87,10 @@ public class PromotionDialog extends JDialog {
         txtTen = new JTextField();
         txtPercent = new JTextField();
         txtSearchBook = new JTextField();
-        spStart = new JSpinner(new SpinnerDateModel());
-        spStart.setEditor(new JSpinner.DateEditor(spStart, "yyyy-MM-dd HH:mm:ss"));
-        spEnd = new JSpinner(new SpinnerDateModel());
-        spEnd.setEditor(new JSpinner.DateEditor(spEnd, "yyyy-MM-dd HH:mm:ss"));
+        dchStart = new JDateChooser(new java.util.Date());
+        dchStart.setDateFormatString("dd/MM/yyyy");
+        dchEnd = new JDateChooser(new java.util.Date());
+        dchEnd.setDateFormatString("dd/MM/yyyy");
         cbStatus = new JComboBox<>(new String[] { "Ngừng hoạt động", "Đang chạy" });
         cbCategory = new JComboBox<>();
         cbCategory.addItem("Tất cả thể loại");
@@ -109,10 +110,10 @@ public class PromotionDialog extends JDialog {
         addComponent(infoPanel, new JLabel("Thể loại:"), 0, 2, 0, 0);
         addComponent(infoPanel, cbCategory, 1, 2, 1.0, 0);
         addComponent(infoPanel, new JLabel("Ngày bắt đầu:"), 2, 2, 0, 0);
-        addComponent(infoPanel, spStart, 3, 2, 1.0, 0);
+        addComponent(infoPanel, dchStart, 3, 2, 1.0, 0);
 
         addComponent(infoPanel, new JLabel("Ngày kết thúc:"), 0, 3, 0, 0);
-        addComponent(infoPanel, spEnd, 1, 3, 1.0, 0);
+        addComponent(infoPanel, dchEnd, 1, 3, 1.0, 0);
         addComponent(infoPanel, new JLabel("Trạng thái:"), 2, 3, 0, 0);
         addComponent(infoPanel, cbStatus, 3, 3, 1.0, 0);
 
@@ -158,9 +159,24 @@ public class PromotionDialog extends JDialog {
         btnPanel.add(btnCancel);
         btnPanel.add(btnSave);
 
-        add(infoPanel, BorderLayout.NORTH);
-        add(new JScrollPane(bookTable), BorderLayout.CENTER);
-        add(btnPanel, BorderLayout.SOUTH);
+        JCheckBox chkSelectAll = new JCheckBox("Chọn tất cả sách trong danh sách bên dưới");
+        chkSelectAll.setFont(new java.awt.Font(com.bookstore.util.AppConstant.FONT_NAME, java.awt.Font.BOLD, 13));
+        chkSelectAll.addActionListener(e -> {
+            boolean isSelected = chkSelectAll.isSelected();
+            for (int i = 0; i < bookModel.getRowCount(); i++) {
+                bookModel.setValueAt(isSelected, i, 0);
+            }
+            saveCurrentSelection();
+        });
+        
+        JPanel tableWrapper = new JPanel(new java.awt.BorderLayout(0, 5));
+        tableWrapper.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        tableWrapper.add(chkSelectAll, java.awt.BorderLayout.NORTH);
+        tableWrapper.add(new JScrollPane(bookTable), java.awt.BorderLayout.CENTER);
+
+        add(infoPanel, java.awt.BorderLayout.NORTH);
+        add(tableWrapper, java.awt.BorderLayout.CENTER);
+        add(btnPanel, java.awt.BorderLayout.SOUTH);
     }
 
     private void loadBookList(List<BookDTO> books) {
@@ -188,8 +204,8 @@ public class PromotionDialog extends JDialog {
         txtID.setText("KM" + data.getPromotionId());
         txtTen.setText(data.getPromotionName());
         txtPercent.setText(String.valueOf(data.getPercent()));
-        spStart.setValue(data.getStartDate());
-        spEnd.setValue(data.getEndDate());
+        dchStart.setDate(data.getStartDate());
+        dchEnd.setDate(data.getEndDate());
         cbStatus.setSelectedIndex(data.getStatus());
 
         List<Integer> selectedIds = bus.getSelectedBookIds(data.getPromotionId());
@@ -210,9 +226,26 @@ public class PromotionDialog extends JDialog {
                 return;
             }
 
-            double percent = Double.parseDouble(percentStr);
-            Timestamp start = new Timestamp(((java.util.Date) spStart.getValue()).getTime());
-            Timestamp end = new Timestamp(((java.util.Date) spEnd.getValue()).getTime());
+            double percent;
+            if (!percentStr.matches("^\\d+(\\.\\d+)?$")) {
+                JOptionPane.showMessageDialog(this, "Phần trăm giảm giá phải là số hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPercent.requestFocus();
+                return;
+            }
+            percent = Double.parseDouble(percentStr);
+            if (percent <= 0 || percent > 100) {
+                JOptionPane.showMessageDialog(this, "Phần trăm giảm giá phải lớn hơn 0 và nhỏ hơn hoặc bằng 100!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPercent.requestFocus();
+                return;
+            }
+            java.util.Date startDate = dchStart.getDate();
+            java.util.Date endDate = dchEnd.getDate();
+            if (startDate == null || endDate == null) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày hợp lệ!");
+                return;
+            }
+            java.sql.Timestamp start = new java.sql.Timestamp(startDate.getTime());
+            java.sql.Timestamp end = new java.sql.Timestamp(endDate.getTime());
             int status = cbStatus.getSelectedIndex();
 
             if (start.after(end)) {
