@@ -1,15 +1,15 @@
 ** Thứ tự thực hiện (trên xuống)
 
-- Hoàn thiện code Chắc là xong...
-- Kiểm tra lại tính năng Chắc là xong rồi...
+- Hoàn thiện code (Fix tính năng theo Defect Report)
+- Kiểm tra lại tính năng Kiểm tra lại theo Test Scenario
 - Ưu tiên viết TRD trước BRD (full tất cả tính năng), số lượng T>50 Done
 - Sửa lại BRD Done
-- Viết Test Scenario (đợi nhóm Tài gửi code và BRD và TRD)
-- Viết Test Case theo Test Scenario
-- Tạo bảng ma trận BR | TR | Test Case
-- Kiểm thử nhóm Tài theo kịch bản (sửa code nhóm còn lại được cộng điểm !!!)
-- Tự sửa code nhóm mình (không sửa được trừ điểm !!!)
-- Viết báo cáo theo mẫu
+- Viết Test Scenario (đợi nhóm Tài gửi code và BRD và TRD) Done
+- Viết Test Case theo Test Scenario Done
+- Tạo bảng ma trận BR | TR | Test Case Done
+- Kiểm thử nhóm Tài theo kịch bản (sửa code nhóm còn lại được cộng điểm !!!) Done
+- Tự sửa code nhóm mình (không sửa được trừ điểm !!!) Done
+- Viết báo cáo theo mẫu Done
 
 **Yêu cầu bài (chưa đầy đủ, các ý ở dưới là 1 vài ý của cô):
 
