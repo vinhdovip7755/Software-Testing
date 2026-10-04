@@ -389,9 +389,15 @@ public class PromotionPanel extends JPanel {
             }
         } else if (rbThoiGian.isSelected()) {
             type = "Thời gian";
+            java.util.Date minDate = dchDateMin.getDate();
+            java.util.Date maxDate = dchDateMax.getDate();
+            if (minDate != null && maxDate != null && minDate.after(maxDate)) {
+                JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-            String startStr = dchDateMin.getDate() != null ? sdf.format(dchDateMin.getDate()) : "";
-            String endStr = dchDateMax.getDate() != null ? sdf.format(dchDateMax.getDate()) : "";
+            String startStr = minDate != null ? sdf.format(minDate) : "";
+            String endStr = maxDate != null ? sdf.format(maxDate) : "";
             input = startStr + "|" + endStr;
         } else {
             input = txtSearch.getText().trim();

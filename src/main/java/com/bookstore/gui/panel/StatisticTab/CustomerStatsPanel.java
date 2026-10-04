@@ -255,7 +255,7 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
                 return;
             }
             if (dFrom.after(dTo)) {
-                JOptionPane.showMessageDialog(this, "Ngày 'Từ' không được lớn hơn ngày 'Đến'!", "Lỗi logic", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
@@ -307,7 +307,7 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
         }
         if (dFrom.after(dTo)) {
             if (showMessage) {
-                JOptionPane.showMessageDialog(this, "Ngày 'Từ' không được lớn hơn ngày 'Đến'!", "Lỗi logic", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
             return;
         }

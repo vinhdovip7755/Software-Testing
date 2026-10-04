@@ -91,7 +91,7 @@ public class DefectFixVerificationTest {
     }
 
     @Test
-    @DisplayName("DF04 - TC044: Bắt lỗi biên chéo bộ lọc ngày (Từ ngày > Đến ngày)")
+    @DisplayName("DF04 - TC044: Bắt lỗi biên chéo bộ lọc ngày (Từ ngày > Đến ngày) trên toàn hệ thống")
     void testDF04_DateRangeCrossBoundaryValidation() {
         System.out.println("[RUNNING] DF04: Kiểm tra chặn lọc biên Từ ngày > Đến ngày...");
         Date fromDate = new Date(2026 - 1900, 8, 30); // 30/09/2026
@@ -99,7 +99,22 @@ public class DefectFixVerificationTest {
 
         boolean isInvalid = fromDate.after(toDate);
         assertTrue(isInvalid, "Biên chéo Từ ngày > Đến ngày phải được nhận diện là không hợp lệ");
-        System.out.println("[PASS] DF04: Chặn thành công trường hợp Từ ngày > Đến ngày.");
+
+        // Kiểm tra FinancialStatsBUS chặn Từ ngày > Đến ngày
+        com.bookstore.bus.FinancialStatsBUS finBus = new com.bookstore.bus.FinancialStatsBUS();
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {
+            finBus.validateThongKeTheoNgay(fromDate, toDate);
+        });
+        assertTrue(ex.getMessage().contains("không được lớn hơn"), "Phải có thông báo lỗi ràng buộc ngày hợp lý");
+
+        // Kiểm tra PromotionBUS chặn Ngày bắt đầu > Ngày kết thúc
+        com.bookstore.bus.PromotionBUS promoBus = new com.bookstore.bus.PromotionBUS();
+        java.sql.Timestamp tsStart = new java.sql.Timestamp(fromDate.getTime());
+        java.sql.Timestamp tsEnd = new java.sql.Timestamp(toDate.getTime());
+        boolean saveResult = promoBus.savePromotion(false, null, "Test Promo", 10.0, tsStart, tsEnd, 1, java.util.Collections.emptyList());
+        assertFalse(saveResult, "PromotionBUS phải từ chối lưu khuyến mãi có ngày bắt đầu > ngày kết thúc");
+
+        System.out.println("[PASS] DF04: Chặn thành công trường hợp Từ ngày > Đến ngày trên toàn hệ thống.");
     }
 
     @Test

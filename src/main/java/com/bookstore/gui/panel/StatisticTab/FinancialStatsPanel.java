@@ -226,7 +226,7 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         try {
             thongKeBus.validateThongKeTheoNgay(tuNgay, denNgay);
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

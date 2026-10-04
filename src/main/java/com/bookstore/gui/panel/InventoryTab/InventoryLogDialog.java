@@ -148,7 +148,7 @@ public class InventoryLogDialog extends JDialog {
         Date toDate = dchDateTo.getDate();
 
         if (fromDate != null && toDate != null && fromDate.after(toDate)) {
-            JOptionPane.showMessageDialog(this, "Ngày 'Từ' không được sau ngày 'Đến'!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

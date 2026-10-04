@@ -28,7 +28,7 @@ public class FinancialStatsBUS {
         }
 
         if (tuNgay.after(denNgay)) {
-            throw new IllegalArgumentException("'Từ ngày' không được lớn hơn 'Đến ngày'.");
+            throw new IllegalArgumentException("Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!");
         }
     }
 

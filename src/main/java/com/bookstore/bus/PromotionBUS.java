@@ -105,6 +105,9 @@ public class PromotionBUS {
 
     public boolean savePromotion(boolean isEdit, PromotionDTO dto, String name, double percent, Timestamp start,
                                  Timestamp end, int status, List<Integer> bookIds) {
+        if (start != null && end != null && start.after(end)) {
+            return false;
+        }
         if (!isEdit) {
             PromotionDTO newPromo = new PromotionDTO(0, name, percent, start, end, status);
             return promotionDAO.savePromotionTransaction(false, newPromo, bookIds);

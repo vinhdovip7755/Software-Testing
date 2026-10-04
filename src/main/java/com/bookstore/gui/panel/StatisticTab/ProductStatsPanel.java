@@ -179,12 +179,12 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
         Date denNgay = dchDenNgay.getDate();
 
         if(tuNgay == null || denNgay == null){
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày");
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         if(tuNgay.after(denNgay)){
-            JOptionPane.showMessageDialog(this, "Từ ngày không được lớn hơn đến ngày");
+            JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

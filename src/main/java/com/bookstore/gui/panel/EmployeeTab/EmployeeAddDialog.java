@@ -222,6 +222,10 @@ public class EmployeeAddDialog extends JDialog {
 
             java.util.Date utilBirthday = dateBirthday.getDate();
             java.util.Date utilDayIn = dateDayIn.getDate();
+            if (utilBirthday != null && utilDayIn != null && utilBirthday.after(utilDayIn)) {
+                JOptionPane.showMessageDialog(this, "Ngày sinh không được lớn hơn ngày vào làm!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             if (utilBirthday != null && utilDayIn != null) {
                 temp.setBirthday(new Date(utilBirthday.getTime()));
                 temp.setDayIn(new Date(utilDayIn.getTime()));

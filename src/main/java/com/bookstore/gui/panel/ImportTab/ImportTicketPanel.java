@@ -389,6 +389,11 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         java.util.Date fromDate = dchDateFrom != null ? dchDateFrom.getDate() : null;
         java.util.Date toDate = dchDateTo != null ? dchDateTo.getDate() : null;
 
+        if (fromDate != null && toDate != null && fromDate.after(toDate)) {
+            JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         if (fromDate != null) {
             java.util.Calendar calFrom = java.util.Calendar.getInstance();
             calFrom.setTime(fromDate);

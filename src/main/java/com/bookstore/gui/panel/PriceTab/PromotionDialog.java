@@ -241,7 +241,7 @@ public class PromotionDialog extends JDialog {
             java.util.Date startDate = dchStart.getDate();
             java.util.Date endDate = dchEnd.getDate();
             if (startDate == null || endDate == null) {
-                JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày hợp lệ!");
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             java.sql.Timestamp start = new java.sql.Timestamp(startDate.getTime());
@@ -249,7 +249,7 @@ public class PromotionDialog extends JDialog {
             int status = cbStatus.getSelectedIndex();
 
             if (start.after(end)) {
-                JOptionPane.showMessageDialog(this, "Ngày bắt đầu phải trước ngày kết thúc!");
+                JOptionPane.showMessageDialog(this, "Ngày bắt đầu không được lớn hơn ngày kết thúc!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
