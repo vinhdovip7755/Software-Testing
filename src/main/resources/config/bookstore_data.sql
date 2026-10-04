@@ -497,6 +497,12 @@ INSERT INTO bill_detail (bill_id, book_id, quantity, unit_price, lot_id) VALUES
 (16, 6, 2, 65000, 30),
 (16, 21, 1, 85000, 14);
 
+-- Cập nhật snapshot tên sách lịch sử cho các dòng chi tiết hóa đơn mẫu (Bảo toàn dữ liệu theo DF05)
+UPDATE bill_detail bd
+JOIN book b ON bd.book_id = b.book_id
+SET bd.book_name = b.book_name
+WHERE bd.book_name IS NULL;
+
 -- 19. NHẬT KÝ BIẾN ĐỘNG KHO (INVENTORY LOGS)
 INSERT INTO inventory_log (action, change_quantity, remain_quantity, reference_id, created_date, book_id) VALUES
 ('Nhập hàng', 50, 50, 1, '2025-10-15 10:15:00', 1),

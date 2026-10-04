@@ -166,8 +166,7 @@ create table bill_detail (
     unit_price decimal(15, 0),
     lot_id int,
     foreign key (bill_id) references bill(bill_id) on delete cascade,
-    foreign key (book_id) references book(book_id),
-    foreign key (lot_id) references book_lot(lot_id)
+    foreign key (book_id) references book(book_id)
 );
 
 create table import_ticket (
