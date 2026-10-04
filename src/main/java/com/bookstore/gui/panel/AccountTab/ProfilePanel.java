@@ -240,10 +240,23 @@ public class ProfilePanel extends JPanel implements Refreshable {
             }
 
             String newPass = new String(txtPassword.getPassword()).trim();
-            if (!newPass.isEmpty() && newPass.length() < 4) {
-                JOptionPane.showMessageDialog(this, "Mật khẩu mới phải có ít nhất 4 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                txtPassword.requestFocus();
-                return;
+            if (!newPass.isEmpty()) {
+                if (newPass.length() < 4) {
+                    JOptionPane.showMessageDialog(this, "Mật khẩu mới phải có ít nhất 4 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    txtPassword.requestFocus();
+                    return;
+                }
+                AccountDAO checkAccDAO = new AccountDAO();
+                for (AccountDTO a : checkAccDAO.selectAllAccounts()) {
+                    if (a.getEmployeeId() == emp.getEmployeeId()) {
+                        if (newPass.equals(a.getPassword())) {
+                            JOptionPane.showMessageDialog(this, "Mật khẩu mới không được trùng với mật khẩu cũ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                            txtPassword.requestFocus();
+                            return;
+                        }
+                        break;
+                    }
+                }
             }
 
             EmployeeDTO tempEmp = new EmployeeDTO();

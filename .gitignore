@@ -35,3 +35,13 @@ build/
 # --- Mac OS / Windows System Files ---
 .DS_Store
 Thumbs.db
+
+#Agent AI
+.agents/
+.claude/
+
+#Document
+/docs
+
+#Scratch
+/scratch

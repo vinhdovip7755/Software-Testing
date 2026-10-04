@@ -161,6 +161,7 @@ create table bill_detail (
     detail_id int auto_increment primary key,
 	bill_id int not null,
     book_id int not null,
+    book_name varchar(255),
     quantity int not null,
     unit_price decimal(15, 0),
     lot_id int,

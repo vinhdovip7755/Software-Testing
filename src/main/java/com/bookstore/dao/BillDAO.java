@@ -9,10 +9,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BillDAO {
+    static {
+        ensureBillDetailBookNameColumn();
+    }
+
+    private static void ensureBillDetailBookNameColumn() {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            if (conn != null) {
+                DatabaseMetaData meta = conn.getMetaData();
+                boolean exists = false;
+                try (ResultSet rs = meta.getColumns(null, null, "bill_detail", "book_name")) {
+                    if (rs.next()) {
+                        exists = true;
+                    }
+                }
+                if (!exists) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.executeUpdate("ALTER TABLE bill_detail ADD COLUMN book_name VARCHAR(255) NULL AFTER book_id");
+                        stmt.executeUpdate("UPDATE bill_detail bd JOIN book b ON bd.book_id = b.book_id SET bd.book_name = b.book_name WHERE bd.book_name IS NULL");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignored if table already altered or restricted
+        }
+    }
+
     public int createBillTransaction(BillDTO bill, List<BillDetailDTO> details) {
         String sqlBill = "INSERT INTO bill(total_bill_price, tax, employee_id, customer_id, payment_method_id, earned_points) VALUES (?, ?, ?, ?, ?, ?)";
-        String sqlDetail = "INSERT INTO bill_detail (bill_id, book_id, quantity, unit_price, lot_id) VALUES (?, ?, ?, ?, ?)";
-        String sqlCheckStock = "SELECT quantity FROM book WHERE book_id = ? FOR UPDATE";
+        String sqlDetail = "INSERT INTO bill_detail (bill_id, book_id, book_name, quantity, unit_price, lot_id) VALUES (?, ?, ?, ?, ?, ?)";
+        String sqlCheckStock = "SELECT quantity, book_name FROM book WHERE book_id = ? FOR UPDATE";
         String sqlUpdateStock = "UPDATE book SET quantity = quantity - ? WHERE book_id = ?";
         String sqlLog = "INSERT INTO inventory_log (action, change_quantity, remain_quantity, reference_id, book_id) VALUES (?, ?, ?, ?, ?)";
         String sqlFindLots = "SELECT lot_id, quantity_remain FROM book_lot WHERE book_id = ? AND quantity_remain > 0 ORDER BY import_date ASC FOR UPDATE";
@@ -70,8 +96,11 @@ public class BillDAO {
                         int newQty = exist.getQuantity() + d.getQuantity();
                         exist.setQuantity(newQty);
                         exist.setUnitPrice(newQty > 0 ? totalCost / newQty : exist.getUnitPrice());
+                        if ((exist.getBookName() == null || exist.getBookName().isEmpty()) && d.getBookName() != null) {
+                            exist.setBookName(d.getBookName());
+                        }
                     } else {
-                        consolidated.put(d.getBookId(), new BillDetailDTO(d.getBillId(), d.getBookId(), d.getQuantity(), d.getUnitPrice()));
+                        consolidated.put(d.getBookId(), new BillDetailDTO(d.getBillId(), d.getBookId(), d.getBookName(), d.getQuantity(), d.getUnitPrice()));
                     }
                 }
 
@@ -79,10 +108,16 @@ public class BillDAO {
                     psCheck.setInt(1, detail.getBookId());
                     rsStock = psCheck.executeQuery();
                     int currentStock = 0;
+                    String bookNameFromDb = null;
                     if (rsStock.next()) {
                         currentStock = rsStock.getInt("quantity");
+                        bookNameFromDb = rsStock.getString("book_name");
                     }
                     rsStock.close();
+
+                    String finalBookName = (detail.getBookName() != null && !detail.getBookName().trim().isEmpty())
+                            ? detail.getBookName()
+                            : (bookNameFromDb != null ? bookNameFromDb : "");
 
                     if (currentStock < detail.getQuantity()) {
                         throw new SQLException("Sách ID " + detail.getBookId() + " không đủ tồn kho! (Còn: " + currentStock + ", Khách mua: " + detail.getQuantity() + ")");
@@ -106,9 +141,10 @@ public class BillDAO {
                         // Chèn 1 dòng bill_detail cho từng lô tương ứng để theo dõi giá vốn chính xác
                         psDetail.setInt(1, generatedBillId);
                         psDetail.setInt(2, detail.getBookId());
-                        psDetail.setInt(3, deductQty);
-                        psDetail.setDouble(4, detail.getUnitPrice());
-                        psDetail.setInt(5, lotId);
+                        psDetail.setString(3, finalBookName);
+                        psDetail.setInt(4, deductQty);
+                        psDetail.setDouble(5, detail.getUnitPrice());
+                        psDetail.setInt(6, lotId);
                         psDetail.executeUpdate();
 
                         requiredQty -= deductQty;
@@ -210,11 +246,12 @@ public class BillDAO {
 
     public List<BillDTO> getAllBills() {
         List<BillDTO> list = new ArrayList<>();
-        String sql = "SELECT *, employee_name, customer_name, payment_method_name " +
+        String sql = "SELECT b.*, employee_name, customer_name, payment_method_name " +
                 "FROM bill b " +
                 "JOIN employee e ON e.employee_id = b.employee_id " +
                 "LEFT JOIN customer c ON c.customer_id = b.customer_id " +
-                "JOIN payment_method pm ON pm.payment_method_id = b.payment_method_id";
+                "JOIN payment_method pm ON pm.payment_method_id = b.payment_method_id " +
+                "ORDER BY b.created_date DESC, b.bill_id DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -280,11 +317,11 @@ public class BillDAO {
 
     public List<BillDetailDTO> getBillDetailsByBillId(int billId) {
         List<BillDetailDTO> list = new ArrayList<>();
-        String sql = "SELECT bd.bill_id, bd.book_id, b.book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
+        String sql = "SELECT bd.bill_id, bd.book_id, COALESCE(bd.book_name, b.book_name) as book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
                 "FROM bill_detail bd " +
                 "JOIN book b ON bd.book_id = b.book_id " +
                 "WHERE bd.bill_id = ? " +
-                "GROUP BY bd.bill_id, bd.book_id, b.book_name, bd.unit_price " +
+                "GROUP BY bd.bill_id, bd.book_id, COALESCE(bd.book_name, b.book_name), bd.unit_price " +
                 "ORDER BY bd.book_id";
 
         try (Connection conn = DatabaseConnection.getConnection();

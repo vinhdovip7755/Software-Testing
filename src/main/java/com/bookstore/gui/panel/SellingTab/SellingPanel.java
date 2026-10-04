@@ -461,8 +461,16 @@ public class SellingPanel extends JPanel implements Refreshable {
         lbProductImage.setBackground(Color.decode("#06b962"));
     }
 
+    private String removeDiacritics(String str) {
+        if (str == null) return "";
+        String nfd = java.text.Normalizer.normalize(str, java.text.Normalizer.Form.NFD);
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(nfd).replaceAll("").replace('đ', 'd').replace('Đ', 'D').toLowerCase();
+    }
+
     private void filterBooks() {
         String keyword = txtSearch.getText().trim().toLowerCase();
+        String unaccentKeyword = removeDiacritics(keyword);
         Object cateItem = cboCategory.getSelectedItem();
         CategoryDTO selectedCate = null;
         if (cateItem instanceof CategoryDTO) {
@@ -494,7 +502,12 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         for (BookDTO book : listBooks) {
             if (book.getStatus() != 1) continue;
-            boolean matchKeyword = keyword.isEmpty() || book.getBookName().toLowerCase().contains(keyword) || String.valueOf(book.getBookId()).contains(keyword);
+            String bookName = book.getBookName() != null ? book.getBookName().toLowerCase() : "";
+            String unaccentBookName = removeDiacritics(bookName);
+            boolean matchKeyword = keyword.isEmpty()
+                    || bookName.contains(keyword)
+                    || unaccentBookName.contains(unaccentKeyword)
+                    || String.valueOf(book.getBookId()).contains(keyword);
             boolean matchCate = (cateId == 0) || (book.getCategoryId() == cateId);
             boolean matchAuthor = (authorId == 0) || (book.getAuthorIdsList().contains(authorId));
             boolean matchPrice = (book.getSellingPrice() >= minPrice && book.getSellingPrice() <= maxPrice);
@@ -843,12 +856,13 @@ public class SellingPanel extends JPanel implements Refreshable {
         List<BillDetailDTO> details = new ArrayList<>();
         for (int i = 0; i < cartModel.getRowCount(); i++) {
             int bookId = Integer.parseInt(cartModel.getValueAt(i, 0).toString());
+            String bookName = cartModel.getValueAt(i, 1).toString();
             int quantity = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
 
             double totalRow = MoneyFormatter.toDouble(cartModel.getValueAt(i, 5).toString());
             double unitPrice = totalRow / quantity;
 
-            details.add(new BillDetailDTO(0, bookId, quantity, unitPrice));
+            details.add(new BillDetailDTO(0, bookId, bookName, quantity, unitPrice));
         }
 
         BillBUS billBUS = new BillBUS();

@@ -238,6 +238,18 @@ public class BillPanel extends JPanel implements Refreshable {
         btnFilter.addActionListener(e -> {
             Date rawFromDate = dchFrom.getDate();
             Date rawToDate = dchTo.getDate();
+            if (rawFromDate == null) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày bắt đầu (Từ ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (rawToDate == null) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (rawFromDate.after(rawToDate)) {
+                JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             String keyword = txtSearch.getText().trim().toLowerCase();
 
             Calendar calFrom = Calendar.getInstance();
@@ -304,6 +316,13 @@ public class BillPanel extends JPanel implements Refreshable {
 
         BillBUS billBUS = new BillBUS();
         List<BillDTO> list = billBUS.getAllBills();
+        list.sort((b1, b2) -> {
+            if (b1.getCreatedDate() != null && b2.getCreatedDate() != null) {
+                int cmp = b2.getCreatedDate().compareTo(b1.getCreatedDate());
+                if (cmp != 0) return cmp;
+            }
+            return Integer.compare(b2.getBillId(), b1.getBillId());
+        });
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
 
         for (BillDTO bill : list){

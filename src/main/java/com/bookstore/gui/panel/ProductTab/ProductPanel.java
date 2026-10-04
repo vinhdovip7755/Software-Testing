@@ -424,8 +424,16 @@ public class ProductPanel extends JPanel implements Refreshable {
         }
     }
 
+    private String removeDiacritics(String str) {
+        if (str == null) return "";
+        String nfd = java.text.Normalizer.normalize(str, java.text.Normalizer.Form.NFD);
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(nfd).replaceAll("").replace('đ', 'd').replace('Đ', 'D').toLowerCase();
+    }
+
     private void filterBooks() {
         String searchText = searchField.getText().toLowerCase().trim();
+        String unaccentSearch = removeDiacritics(searchText);
         Object selectedAuthorObj = authorCombo.getSelectedItem();
         Object selectedCategoryObj = categoryCombo.getSelectedItem();
         Object selectedSupplierObj = supplierCombo.getSelectedItem();
@@ -438,8 +446,11 @@ public class ProductPanel extends JPanel implements Refreshable {
         List<BookDTO> filtered = new ArrayList<>();
 
         for (BookDTO book : allBooks) {
-
-            if (!searchText.isEmpty() && !book.getBookName().toLowerCase().contains(searchText)) {
+            String bName = book.getBookName() != null ? book.getBookName().toLowerCase() : "";
+            boolean matchText = searchText.isEmpty()
+                    || bName.contains(searchText)
+                    || removeDiacritics(bName).contains(unaccentSearch);
+            if (!matchText) {
                 continue;
             }
 

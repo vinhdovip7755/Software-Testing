@@ -37,6 +37,21 @@ public class AccountBUS {
             return "Tên đăng nhập không hợp lệ!";
         }
 
+        if (isChangePassword) {
+            AccountDTO existingAcc = accountDAO.selectByUsername(acc.getUsername());
+            if (existingAcc == null && acc.getEmployeeId() > 0) {
+                for (AccountDTO a : accountDAO.selectAllAccounts()) {
+                    if (a.getEmployeeId() == acc.getEmployeeId()) {
+                        existingAcc = a;
+                        break;
+                    }
+                }
+            }
+            if (existingAcc != null && existingAcc.getPassword() != null && existingAcc.getPassword().equals(acc.getPassword())) {
+                return "Mật khẩu mới không được trùng với mật khẩu cũ!";
+            }
+        }
+
         boolean success = accountDAO.updateAccount(acc, isChangePassword);
 
         if (success) {
