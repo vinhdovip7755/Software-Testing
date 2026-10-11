@@ -98,6 +98,8 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
 
         dchDateFrom = new JDateChooser();
         dchDateFrom.setDateFormatString("dd/MM/yyyy");
+        dchDateFrom.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchDateFrom.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchDateFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
         dchDateFrom.setBackground(Color.WHITE);
         if (dchDateFrom.getDateEditor().getUiComponent() instanceof JTextField editorFrom) {
@@ -106,6 +108,8 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
 
         dchDateTo = new JDateChooser();
         dchDateTo.setDateFormatString("dd/MM/yyyy");
+        dchDateTo.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchDateTo.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchDateTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
         dchDateTo.setBackground(Color.WHITE);
         if (dchDateTo.getDateEditor().getUiComponent() instanceof JTextField editorTo) {
@@ -391,6 +395,10 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
 
         if (fromDate != null && toDate != null && fromDate.after(toDate)) {
             JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if ((fromDate != null && AppConstant.isDateOutOfBounds(fromDate)) || (toDate != null && AppConstant.isDateOutOfBounds(toDate))) {
+            JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

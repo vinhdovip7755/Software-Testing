@@ -107,6 +107,22 @@ public class DefectFixVerificationTest {
         });
         assertTrue(ex.getMessage().contains("không được lớn hơn"), "Phải có thông báo lỗi ràng buộc ngày hợp lý");
 
+        // Kiểm tra chặn ngày ngoài khoảng hệ thống [01/01/2026 - 31/12/2099]
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy");
+        try {
+            Date beforeMin = sdf.parse("31/12/2025");
+            Date afterMax = sdf.parse("01/01/2100");
+            assertTrue(com.bookstore.util.AppConstant.isDateOutOfBounds(beforeMin), "Ngày 31/12/2025 phải nằm ngoài biên dưới");
+            assertTrue(com.bookstore.util.AppConstant.isDateOutOfBounds(afterMax), "Ngày 01/01/2100 phải nằm ngoài biên trên");
+
+            IllegalArgumentException exBounds = assertThrows(IllegalArgumentException.class, () -> {
+                finBus.validateThongKeTheoNgay(beforeMin, toDate);
+            });
+            assertTrue(exBounds.getMessage().contains("01/01/2026 đến 31/12/2099"), "Phải thông báo lỗi biên ngày hệ thống");
+        } catch (java.text.ParseException e) {
+            fail("Lỗi parse ngày: " + e.getMessage());
+        }
+
         // Kiểm tra PromotionBUS chặn Ngày bắt đầu > Ngày kết thúc
         com.bookstore.bus.PromotionBUS promoBus = new com.bookstore.bus.PromotionBUS();
         java.sql.Timestamp tsStart = new java.sql.Timestamp(fromDate.getTime());
@@ -114,7 +130,7 @@ public class DefectFixVerificationTest {
         boolean saveResult = promoBus.savePromotion(false, null, "Test Promo", 10.0, tsStart, tsEnd, 1, java.util.Collections.emptyList());
         assertFalse(saveResult, "PromotionBUS phải từ chối lưu khuyến mãi có ngày bắt đầu > ngày kết thúc");
 
-        System.out.println("[PASS] DF04: Chặn thành công trường hợp Từ ngày > Đến ngày trên toàn hệ thống.");
+        System.out.println("[PASS] DF04: Chặn thành công trường hợp Từ ngày > Đến ngày và ngoài khoảng [01/01/2026 - 31/12/2099] trên toàn hệ thống.");
     }
 
     @Test

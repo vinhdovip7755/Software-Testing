@@ -10,6 +10,7 @@ import java.util.List;
 
 import com.bookstore.dto.*;
 import com.bookstore.bus.*;
+import com.bookstore.util.AppConstant;
 
 public class PromotionPanel extends JPanel {
     private JRadioButton rbTen, rbPhanTram, rbThoiGian;
@@ -205,6 +206,10 @@ public class PromotionPanel extends JPanel {
         dchDateMax = new com.toedter.calendar.JDateChooser();
         dchDateMin.setDateFormatString("dd/MM/yyyy");
         dchDateMax.setDateFormatString("dd/MM/yyyy");
+        dchDateMin.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchDateMin.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
+        dchDateMax.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchDateMax.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         java.awt.Dimension dateSize = new java.awt.Dimension(130, 30);
         dchDateMin.setPreferredSize(dateSize);
         dchDateMax.setPreferredSize(dateSize);
@@ -393,6 +398,10 @@ public class PromotionPanel extends JPanel {
             java.util.Date maxDate = dchDateMax.getDate();
             if (minDate != null && maxDate != null && minDate.after(maxDate)) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if ((minDate != null && AppConstant.isDateOutOfBounds(minDate)) || (maxDate != null && AppConstant.isDateOutOfBounds(maxDate))) {
+                JOptionPane.showMessageDialog(this, "Khoảng ngày tìm kiếm phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");

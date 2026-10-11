@@ -63,6 +63,8 @@ public class InventoryLogDialog extends JDialog {
         lblFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dchDateFrom = new JDateChooser();
         dchDateFrom.setDateFormatString("dd/MM/yyyy");
+        dchDateFrom.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchDateFrom.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchDateFrom.setPreferredSize(new Dimension(130, 40));
         dchDateFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
 
@@ -70,6 +72,8 @@ public class InventoryLogDialog extends JDialog {
         lblTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dchDateTo = new JDateChooser();
         dchDateTo.setDateFormatString("dd/MM/yyyy");
+        dchDateTo.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchDateTo.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchDateTo.setPreferredSize(new Dimension(130, 40));
         dchDateTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 13));
 
@@ -149,6 +153,10 @@ public class InventoryLogDialog extends JDialog {
 
         if (fromDate != null && toDate != null && fromDate.after(toDate)) {
             JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if ((fromDate != null && AppConstant.isDateOutOfBounds(fromDate)) || (toDate != null && AppConstant.isDateOutOfBounds(toDate))) {
+            JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

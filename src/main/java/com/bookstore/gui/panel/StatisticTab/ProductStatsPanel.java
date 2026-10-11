@@ -79,6 +79,10 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
 
         dchTuNgay.setDateFormatString("dd/MM/yyyy");
         dchDenNgay.setDateFormatString("dd/MM/yyyy");
+        dchTuNgay.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchTuNgay.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
+        dchDenNgay.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchDenNgay.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
 
         cboThongKeTheo.setPreferredSize(new Dimension(120,30));
         dchTuNgay.setPreferredSize(new Dimension(120,30));
@@ -185,6 +189,11 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
 
         if(tuNgay.after(denNgay)){
             JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if(AppConstant.isDateOutOfBounds(tuNgay) || AppConstant.isDateOutOfBounds(denNgay)){
+            JOptionPane.showMessageDialog(this, "Khoảng ngày thống kê phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 

@@ -56,6 +56,10 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
     public FinancialStatsPanel() {
         dchTuNgay.setDateFormatString("dd/MM/yyyy");
         dchDenNgay.setDateFormatString("dd/MM/yyyy");
+        dchTuNgay.setMinSelectableDate(com.bookstore.util.AppConstant.SYSTEM_MIN_DATE);
+        dchTuNgay.setMaxSelectableDate(com.bookstore.util.AppConstant.SYSTEM_MAX_DATE);
+        dchDenNgay.setMinSelectableDate(com.bookstore.util.AppConstant.SYSTEM_MIN_DATE);
+        dchDenNgay.setMaxSelectableDate(com.bookstore.util.AppConstant.SYSTEM_MAX_DATE);
         initUI();
         bindEvents();
         // Set default dates

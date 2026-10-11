@@ -30,6 +30,10 @@ public class FinancialStatsBUS {
         if (tuNgay.after(denNgay)) {
             throw new IllegalArgumentException("Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!");
         }
+
+        if (com.bookstore.util.AppConstant.isDateOutOfBounds(tuNgay) || com.bookstore.util.AppConstant.isDateOutOfBounds(denNgay)) {
+            throw new IllegalArgumentException("Khoảng ngày thống kê phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!");
+        }
     }
 
     public void validateThongKeTheoNam(Date ngayChon) {

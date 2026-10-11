@@ -98,6 +98,8 @@ public class BillPanel extends JPanel implements Refreshable {
         lbFrom.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
         dchFrom = new JDateChooser(new Date());
         dchFrom.setDateFormatString("dd/MM/yyyy");
+        dchFrom.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchFrom.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
         dchFrom.setPreferredSize(new Dimension(140, 30));
 
@@ -105,6 +107,8 @@ public class BillPanel extends JPanel implements Refreshable {
         lbTo.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
         dchTo = new JDateChooser(new Date());
         dchTo.setDateFormatString("dd/MM/yyyy");
+        dchTo.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchTo.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
         dchTo.setPreferredSize(new Dimension(140, 30));
 
@@ -248,6 +252,10 @@ public class BillPanel extends JPanel implements Refreshable {
             }
             if (rawFromDate.after(rawToDate)) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (AppConstant.isDateOutOfBounds(rawFromDate) || AppConstant.isDateOutOfBounds(rawToDate)) {
+                JOptionPane.showMessageDialog(this, "Khoảng ngày hợp lệ phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             String keyword = txtSearch.getText().trim().toLowerCase();

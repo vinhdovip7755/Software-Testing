@@ -14,7 +14,7 @@ public class EmployeeTabbedPane extends JPanel implements Refreshable {
         tabbedPane.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_AREA_ALIGNMENT, FlatClientProperties.TABBED_PANE_ALIGN_CENTER);
 
         tabbedPane.addTab("Danh sách nhân viên", new EmployeePanel());
-        tabbedPane.addTab("Bảng lương theo tháng", new SalaryPanel());
+        // tabbedPane.addTab("Bảng lương theo tháng", new SalaryPanel());
 
         add(tabbedPane, BorderLayout.CENTER);
 

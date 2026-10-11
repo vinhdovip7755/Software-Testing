@@ -12,4 +12,23 @@ public class AppConstant {
     // Số điện thoại Nhà xuất bản / Nhà cung cấp: Di động 10 số, số bàn cố định 11 số (đầu 02x), hoặc tổng đài Hotline 1800/1900
     public static final String REGEX_SUPPLIER_PHONE = "^(0\\d{9,10}|1[89]00\\d{4,6})$";
     public static final String REGEX_EMAIL = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
+
+    // Ràng buộc khoảng ngày hệ thống toàn cục: 01/01/2026 đến 31/12/2099
+    public static final java.util.Date SYSTEM_MIN_DATE;
+    public static final java.util.Date SYSTEM_MAX_DATE;
+    static {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.set(2026, java.util.Calendar.JANUARY, 1, 0, 0, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+        SYSTEM_MIN_DATE = cal.getTime();
+        cal.set(2099, java.util.Calendar.DECEMBER, 31, 23, 59, 59);
+        cal.set(java.util.Calendar.MILLISECOND, 999);
+        SYSTEM_MAX_DATE = cal.getTime();
+    }
+
+    public static boolean isDateOutOfBounds(java.util.Date date) {
+        if (date == null) return false;
+        return date.before(SYSTEM_MIN_DATE) || date.after(SYSTEM_MAX_DATE);
+    }
 }
+

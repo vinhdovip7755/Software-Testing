@@ -78,12 +78,16 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
         lblFrom.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dcFrom = new JDateChooser();
         dcFrom.setDateFormatString("dd/MM/yyyy");
+        dcFrom.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dcFrom.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dcFrom.setPreferredSize(new Dimension(150, 35));
 
         JLabel lblTo = new JLabel("Đến:");
         lblTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 14));
         dcTo = new JDateChooser();
         dcTo.setDateFormatString("dd/MM/yyyy");
+        dcTo.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dcTo.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dcTo.setPreferredSize(new Dimension(150, 35));
 
         btnFilterDate = new JButton("Lọc ngày");
@@ -308,6 +312,12 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
         if (dFrom.after(dTo)) {
             if (showMessage) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+            return;
+        }
+        if (AppConstant.isDateOutOfBounds(dFrom) || AppConstant.isDateOutOfBounds(dTo)) {
+            if (showMessage) {
+                JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
             return;
         }

@@ -7,6 +7,7 @@ import javax.swing.*;
 import com.toedter.calendar.JDateChooser;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
+import com.bookstore.util.AppConstant;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -89,8 +90,12 @@ public class PromotionDialog extends JDialog {
         txtSearchBook = new JTextField();
         dchStart = new JDateChooser(new java.util.Date());
         dchStart.setDateFormatString("dd/MM/yyyy");
+        dchStart.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchStart.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchEnd = new JDateChooser(new java.util.Date());
         dchEnd.setDateFormatString("dd/MM/yyyy");
+        dchEnd.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
+        dchEnd.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         cbStatus = new JComboBox<>(new String[] { "Ngừng hoạt động", "Đang chạy" });
         cbCategory = new JComboBox<>();
         cbCategory.addItem("Tất cả thể loại");
@@ -247,6 +252,11 @@ public class PromotionDialog extends JDialog {
             java.sql.Timestamp start = new java.sql.Timestamp(startDate.getTime());
             java.sql.Timestamp end = new java.sql.Timestamp(endDate.getTime());
             int status = cbStatus.getSelectedIndex();
+
+            if (AppConstant.isDateOutOfBounds(startDate) || AppConstant.isDateOutOfBounds(endDate)) {
+                JOptionPane.showMessageDialog(this, "Khoảng ngày khuyến mãi phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
             if (start.after(end)) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu không được lớn hơn ngày kết thúc!", "Lỗi", JOptionPane.ERROR_MESSAGE);
