@@ -1,13 +1,10 @@
 package com.bookstore.bus;
 
 import com.bookstore.dao.BookDAO;
-import com.bookstore.dao.BookLotDAO;
 import com.bookstore.dao.ImportDAO;
 import com.bookstore.dao.ImportDetailDAO;
-import com.bookstore.dto.BookLotDTO;
 import com.bookstore.dto.ImportTicketDTO;
 import com.bookstore.dto.ImportDetailDTO;
-import com.bookstore.dto.InventoryLogDTO;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.util.ImportApprovalPolicy;
 import com.bookstore.util.SharedData;
@@ -18,9 +15,8 @@ public class ImportBUS {
 
     private ImportDAO importDAO = new ImportDAO();
     private ImportDetailDAO detailDAO = new ImportDetailDAO();
+    @SuppressWarnings("unused")
     private BookDAO bookDAO = new BookDAO();
-    private InventoryLogBUS logBUS = new InventoryLogBUS();
-    private BookLotDAO bookLotDAO = new BookLotDAO();
 
     public List<ImportTicketDTO> getAllImports() {
         return importDAO.getAll();

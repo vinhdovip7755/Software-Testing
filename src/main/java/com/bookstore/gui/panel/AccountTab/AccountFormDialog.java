@@ -17,6 +17,7 @@ public class AccountFormDialog extends JDialog {
     private final AccountApiClient accountApiClient = new AccountApiClient();
     private final EmployeeApiClient employeeApiClient = new EmployeeApiClient();
 
+    @SuppressWarnings("unused")
     private AccountPanel parentPanel;
     private JComboBox<EmployeeDTO> cboEmployee;
     private JTextField txtUsername, txtRole;

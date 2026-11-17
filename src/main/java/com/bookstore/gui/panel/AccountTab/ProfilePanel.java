@@ -198,8 +198,6 @@ public class ProfilePanel extends JPanel implements Refreshable {
 
     private void handleUpdate(ActionEvent e) {
         if (SharedData.currentUser != null) {
-            EmployeeDTO emp = SharedData.currentUser;
-            
             String newName = txtName.getText().trim();
             String newPhone = txtPhone.getText().trim();
             

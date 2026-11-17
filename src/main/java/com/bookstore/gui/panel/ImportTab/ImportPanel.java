@@ -391,6 +391,7 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
     }
 
+    @SuppressWarnings("unused")
     private void fillAllBook(){
         productModel.setRowCount(0);
         for (BookDTO book : listBooks) {

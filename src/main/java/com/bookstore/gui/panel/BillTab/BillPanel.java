@@ -353,6 +353,7 @@ public class BillPanel extends JPanel implements Refreshable {
         updateStatistics();
     }
 
+    @SuppressWarnings("unchecked")
     private void applyTodayFilter(){
         TableRowSorter<DefaultTableModel> sorter = (TableRowSorter<DefaultTableModel>) table.getRowSorter();
         Date today = new Date();
