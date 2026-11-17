@@ -7,6 +7,9 @@ public class FinancialStatsDTO {
     private double vonNhapHang;
     private double loiNhuan;
 
+    public FinancialStatsDTO() {
+    }
+
     public FinancialStatsDTO(String thoiGian, double doanhThu, double chiPhi, double vonNhapHang) {
         this.thoiGian = thoiGian;
         this.doanhThu = doanhThu;
@@ -51,5 +54,9 @@ public class FinancialStatsDTO {
 
     public double getLoiNhuan() {
         return loiNhuan;
+    }
+
+    public void setLoiNhuan(double loiNhuan) {
+        this.loiNhuan = loiNhuan;
     }
 }

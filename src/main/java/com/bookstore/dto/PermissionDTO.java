@@ -5,6 +5,9 @@ public class PermissionDTO {
     private boolean isView;
     private boolean isAction;
 
+    public PermissionDTO() {
+    }
+
     public PermissionDTO(String actionCode, boolean isView, boolean isAction) {
         this.actionCode = actionCode;
         this.isView = isView;

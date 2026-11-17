@@ -1,5 +1,7 @@
     package com.bookstore.gui.main;
 
+    import com.bookstore.api.client.ApiException;
+    import com.bookstore.api.client.AuthApiClient;
     import com.bookstore.dto.PermissionDTO;
     import com.bookstore.gui.panel.StatisticTab.StatisticsTabbedPane;
     import com.bookstore.gui.panel.AccountTab.AccountTabbedPane;
@@ -208,6 +210,15 @@
                         "Bạn có chắc chắn muốn đăng xuất?",
                         "Xác nhận đăng xuất", JOptionPane.YES_NO_OPTION);
                 if (confirm == JOptionPane.YES_OPTION) {
+                    try {
+                        new AuthApiClient().logout();
+                    } catch (ApiException apiException) {
+                        JOptionPane.showMessageDialog(this,
+                                "Đã đăng xuất khỏi ứng dụng nhưng không thể thu hồi phiên API: " + apiException.getMessage(),
+                                "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                    }
+                    SharedData.currentUser = null;
+                    SharedData.userPermissions = Map.of();
                     this.dispose();
                     new LoginFrame().setVisible(true);
                 }

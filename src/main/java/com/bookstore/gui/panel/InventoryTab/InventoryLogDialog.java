@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.InventoryTab;
 
-import com.bookstore.bus.InventoryLogBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.InventoryApiClient;
 import com.bookstore.dto.InventoryLogDTO;
 import com.bookstore.util.AppConstant;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -26,7 +27,7 @@ public class InventoryLogDialog extends JDialog {
     private JComboBox<String> cboAction;
     private JButton btnFilter, btnReset;
 
-    private InventoryLogBUS logBUS = new InventoryLogBUS();
+    private final InventoryApiClient inventoryApiClient = new InventoryApiClient();
     private List<InventoryLogDTO> currentList = new ArrayList<>();
 
     public InventoryLogDialog(Window parent) {
@@ -136,11 +137,13 @@ public class InventoryLogDialog extends JDialog {
     }
 
     private void loadData() {
-        currentList = logBUS.getAll();
-        if (currentList == null) {
-            currentList = new ArrayList<>();
+        try {
+            currentList = inventoryApiClient.getInventoryLogs();
+            filterData();
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải lịch sử tồn kho",
+                    JOptionPane.ERROR_MESSAGE);
         }
-        filterData();
     }
 
     private void filterData() {

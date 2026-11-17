@@ -1,7 +1,9 @@
 package com.bookstore.gui.panel.StatisticTab;
 
-import com.bookstore.bus.FinancialStatsBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.StatisticsApiClient;
 import com.bookstore.dto.FinancialStatsDTO;
+import com.bookstore.dto.FinancialQuarterSummaryDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
 import com.toedter.calendar.JDateChooser;
@@ -15,12 +17,14 @@ import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 public class FinancialStatsPanel extends JPanel implements Refreshable {
-    private final FinancialStatsBUS thongKeBus = new FinancialStatsBUS();
+    private final StatisticsApiClient statisticsApiClient = new StatisticsApiClient();
     private final NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
     
     private final JDateChooser dchTuNgay = new JDateChooser();
@@ -227,60 +231,82 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         Date tuNgay = dchTuNgay.getDate();
         Date denNgay = dchDenNgay.getDate();
 
-        try {
-            thongKeBus.validateThongKeTheoNgay(tuNgay, denNgay);
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+        if (tuNgay == null || denNgay == null) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn đầy đủ khoảng thời gian.", "Lỗi",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (tuNgay.after(denNgay)) {
+            JOptionPane.showMessageDialog(this,
+                    "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!",
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (AppConstant.isDateOutOfBounds(tuNgay) || AppConstant.isDateOutOfBounds(denNgay)) {
+            JOptionPane.showMessageDialog(this,
+                    "Khoảng ngày thống kê phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!",
+                    "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        // Update title with formatted dates
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
-        filteredBorder.setTitle("Thống kê từ ngày " + sdf.format(tuNgay) + " đến ngày " + sdf.format(denNgay));
-        repaint();
+        try {
+            LocalDate from = toLocalDate(tuNgay);
+            LocalDate to = toLocalDate(denNgay);
+            List<FinancialStatsDTO> currentData = statisticsApiClient.getFinancialStatsByDay(from, to);
+            FinancialStatsDTO totalData = statisticsApiClient.getTotalFinancialStats();
+            int year = from.getYear();
+            FinancialQuarterSummaryDTO summary = statisticsApiClient.getFinancialQuarterSummary(year);
 
-        // 1. Load Filtered Data
-        List<FinancialStatsDTO> currentData = thongKeBus.getThongKeTheoNgay(tuNgay, denNgay);
-        double fDoanhThu = currentData.stream().mapToDouble(FinancialStatsDTO::getDoanhThu).sum();
-        double fChiPhi = currentData.stream().mapToDouble(FinancialStatsDTO::getChiPhi).sum();
-        double fVon = currentData.stream().mapToDouble(FinancialStatsDTO::getVonNhapHang).sum();
-        double fLoiNhuan = fDoanhThu - fChiPhi;
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+            filteredBorder.setTitle("Thống kê từ ngày " + sdf.format(tuNgay) + " đến ngày " + sdf.format(denNgay));
+            repaint();
 
-        lblDoanhThuFiltered.setText(formatCurrency(fDoanhThu));
-        lblVonNhapHangFiltered.setText(formatCurrency(fVon));
-        lblLoiNhuanFiltered.setText(formatCurrency(fLoiNhuan));
-        lblLoiNhuanFiltered.setForeground(fLoiNhuan < 0 ? new Color(198, 40, 40) : new Color(22, 163, 74));
+            double fDoanhThu = currentData.stream().mapToDouble(FinancialStatsDTO::getDoanhThu).sum();
+            double fChiPhi = currentData.stream().mapToDouble(FinancialStatsDTO::getChiPhi).sum();
+            double fVon = currentData.stream().mapToDouble(FinancialStatsDTO::getVonNhapHang).sum();
+            double fLoiNhuan = fDoanhThu - fChiPhi;
 
-        // 2. Load Total Data
-        FinancialStatsDTO totalData = thongKeBus.getThongKeTong();
-        lblDoanhThuTotal.setText(formatCurrency(totalData.getDoanhThu()));
-        lblVonNhapHangTotal.setText(formatCurrency(totalData.getVonNhapHang()));
-        lblLoiNhuanTotal.setText(formatCurrency(totalData.getLoiNhuan()));
-        lblLoiNhuanTotal.setForeground(totalData.getLoiNhuan() < 0 ? new Color(198, 40, 40) : new Color(22, 163, 74));
+            lblDoanhThuFiltered.setText(formatCurrency(fDoanhThu));
+            lblVonNhapHangFiltered.setText(formatCurrency(fVon));
+            lblLoiNhuanFiltered.setText(formatCurrency(fLoiNhuan));
+            lblLoiNhuanFiltered.setForeground(fLoiNhuan < 0 ? new Color(198, 40, 40) : new Color(22, 163, 74));
 
-        // 3. Update Quarter Info
-        int year = thongKeBus.extractYear(tuNgay);
-        FinancialStatsBUS.QuyDoanhThuSummary summary = thongKeBus.getQuyDoanhThuSummary(year);
-        if (summary == null) {
-            lblQuyCaoNhat.setText("Quý doanh thu cao nhất (" + year + "): Không có dữ liệu");
-            lblQuyThapNhat.setText("Quý doanh thu thấp nhất (" + year + "): Không có dữ liệu");
-        } else {
-            lblQuyCaoNhat.setText("Quý doanh thu cao nhất (" + summary.getNam() + "): Q" + summary.getQuyCaoNhat()
-                    + " - " + formatCurrency(summary.getDoanhThuQuyCaoNhat()));
-            lblQuyThapNhat.setText("Quý doanh thu thấp nhất (" + summary.getNam() + "): Q" + summary.getQuyThapNhat()
-                    + " - " + formatCurrency(summary.getDoanhThuQuyThapNhat()));
+            lblDoanhThuTotal.setText(formatCurrency(totalData.getDoanhThu()));
+            lblVonNhapHangTotal.setText(formatCurrency(totalData.getVonNhapHang()));
+            lblLoiNhuanTotal.setText(formatCurrency(totalData.getLoiNhuan()));
+            lblLoiNhuanTotal.setForeground(totalData.getLoiNhuan() < 0
+                    ? new Color(198, 40, 40)
+                    : new Color(22, 163, 74));
+
+            if (!summary.isHasData()) {
+                lblQuyCaoNhat.setText("Quý doanh thu cao nhất (" + year + "): Không có dữ liệu");
+                lblQuyThapNhat.setText("Quý doanh thu thấp nhất (" + year + "): Không có dữ liệu");
+            } else {
+                lblQuyCaoNhat.setText("Quý doanh thu cao nhất (" + summary.getYear() + "): Q"
+                        + summary.getHighestRevenueQuarter() + " - "
+                        + formatCurrency(summary.getHighestQuarterRevenue()));
+                lblQuyThapNhat.setText("Quý doanh thu thấp nhất (" + summary.getYear() + "): Q"
+                        + summary.getLowestRevenueQuarter() + " - "
+                        + formatCurrency(summary.getLowestQuarterRevenue()));
+            }
+
+            tableModel.setRowCount(0);
+            for (FinancialStatsDTO item : currentData) {
+                tableModel.addRow(new Object[]{
+                        item.getThoiGian(),
+                        item.getDoanhThu(),
+                        item.getLoiNhuan(),
+                        item.getChiPhi()
+                });
+            }
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải thống kê tài chính",
+                    JOptionPane.ERROR_MESSAGE);
         }
+    }
 
-        // 4. Update Table
-        tableModel.setRowCount(0);
-        for (FinancialStatsDTO item : currentData) {
-            tableModel.addRow(new Object[]{
-                    item.getThoiGian(),
-                    item.getDoanhThu(),
-                    item.getLoiNhuan(),
-                    item.getChiPhi()
-            });
-        }
+    private LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
     private String formatCurrency(double amount) {

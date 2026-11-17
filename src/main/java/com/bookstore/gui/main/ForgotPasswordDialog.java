@@ -1,7 +1,7 @@
 package com.bookstore.gui.main;
 
-import com.bookstore.bus.AccountBUS;
-import com.bookstore.util.EmailUtil;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.PasswordResetApiClient;
 import com.formdev.flatlaf.FlatClientProperties;
 import javax.swing.*;
 import java.awt.*;
@@ -14,9 +14,7 @@ public class ForgotPasswordDialog extends JDialog {
     private JPasswordField txtConfirmPassword;
     private JButton btnSendOtp;
     private JButton btnReset;
-    private AccountBUS accountBUS = new AccountBUS();
-
-    private String currentOtp = "";
+    private final PasswordResetApiClient passwordResetApiClient = new PasswordResetApiClient();
     private boolean isOtpSent = false;
 
     public ForgotPasswordDialog(JFrame parent) {
@@ -147,62 +145,53 @@ public class ForgotPasswordDialog extends JDialog {
             return;
         }
 
-        // Check if email exists in DB (Account uses Email as username)
-        if (!accountBUS.isEmailExists(email)) {
-            JOptionPane.showMessageDialog(this, "Email này không tồn tại trong hệ thống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
         btnSendOtp.setEnabled(false);
         btnSendOtp.setText("Đang gửi...");
 
-        SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
             @Override
-            protected Boolean doInBackground() {
-                currentOtp = EmailUtil.generateOTP();
-                return EmailUtil.sendOTP(email, currentOtp);
+            protected Void doInBackground() {
+                passwordResetApiClient.requestOtp(email);
+                return null;
             }
 
             @Override
             protected void done() {
                 try {
-                    boolean success = get();
-                    if (success) {
-                        JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Mã OTP đã được gửi đến email của bạn!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
-                        
-                        isOtpSent = true;
-                        txtEmail.setEditable(false);
-                        
-                        txtOtp.setEnabled(true);
-                        txtNewPassword.setEnabled(true);
-                        txtConfirmPassword.setEnabled(true);
-                        btnReset.setEnabled(true);
-                        txtOtp.requestFocus();
+                    get();
+                    JOptionPane.showMessageDialog(ForgotPasswordDialog.this,
+                            "Nếu email có trong hệ thống, mã OTP sẽ được gửi đến địa chỉ đó.",
+                            "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                    isOtpSent = true;
+                    txtEmail.setEditable(false);
+                    txtOtp.setEnabled(true);
+                    txtNewPassword.setEnabled(true);
+                    txtConfirmPassword.setEnabled(true);
+                    btnReset.setEnabled(true);
+                    txtOtp.requestFocus();
 
-                        javax.swing.Timer timer = new javax.swing.Timer(1000, null);
-                        timer.addActionListener(new java.awt.event.ActionListener() {
-                            int countdown = 120;
-                            @Override
-                            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                                countdown--;
-                                if (countdown <= 0) {
-                                    btnSendOtp.setText("Gửi lại mã OTP");
-                                    btnSendOtp.setEnabled(true);
-                                    timer.stop();
-                                } else {
-                                    btnSendOtp.setText("Gửi lại sau " + countdown + "s");
-                                }
+                    javax.swing.Timer timer = new javax.swing.Timer(1000, null);
+                    timer.addActionListener(new java.awt.event.ActionListener() {
+                        int countdown = 120;
+                        @Override
+                        public void actionPerformed(java.awt.event.ActionEvent evt) {
+                            countdown--;
+                            if (countdown <= 0) {
+                                btnSendOtp.setText("Gửi lại mã OTP");
+                                btnSendOtp.setEnabled(true);
+                                timer.stop();
+                            } else {
+                                btnSendOtp.setText("Gửi lại sau " + countdown + "s");
                             }
-                        });
-                        timer.start();
-
-                    } else {
-                        JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Không thể gửi email. Vui lòng kiểm tra lại kết nối mạng hoặc cấu hình SMTP!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                        btnSendOtp.setEnabled(true);
-                        btnSendOtp.setText("Nhận lại mã OTP");
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
+                        }
+                    });
+                    timer.start();
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    showRequestError("Yêu cầu bị gián đoạn.");
+                } catch (java.util.concurrent.ExecutionException ex) {
+                    Throwable cause = ex.getCause();
+                    showRequestError(cause instanceof ApiException ? cause.getMessage() : "Không thể gửi mã OTP.");
                 }
             }
         };
@@ -227,24 +216,24 @@ public class ForgotPasswordDialog extends JDialog {
             return;
         }
 
-        if (!otp.equals(currentOtp)) {
-            JOptionPane.showMessageDialog(this, "Mã OTP không chính xác!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
         if (!newPass.equals(confirmPass)) {
             JOptionPane.showMessageDialog(this, "Mật khẩu xác nhận không khớp!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         String email = txtEmail.getText().trim();
-        // Here we update password by email (username is email)
-        String result = accountBUS.resetPasswordByEmail(email, newPass); // Re-using existing method since it queries by username
-        if (result.equals("OK")) {
+        try {
+            passwordResetApiClient.resetPassword(email, otp, newPass);
             JOptionPane.showMessageDialog(this, "Đổi mật khẩu thành công! Vui lòng đăng nhập lại.", "Thành công", JOptionPane.INFORMATION_MESSAGE);
             this.dispose();
-        } else {
-            JOptionPane.showMessageDialog(this, result, "Thất bại", JOptionPane.ERROR_MESSAGE);
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Thất bại", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void showRequestError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Lỗi API", JOptionPane.ERROR_MESSAGE);
+        btnSendOtp.setEnabled(true);
+        btnSendOtp.setText("Nhận lại mã OTP");
     }
 }

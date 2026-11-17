@@ -1,6 +1,18 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.*;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.AuthorApiClient;
+import com.bookstore.api.client.BookApiClient;
+import com.bookstore.api.client.BillApiClient;
+import com.bookstore.api.client.CategoryApiClient;
+import com.bookstore.api.client.MembershipRankApiClient;
+import com.bookstore.api.client.PromotionApiClient;
+import com.bookstore.api.client.SystemParameterApiClient;
+import com.bookstore.api.client.SupplierApiClient;
+import com.bookstore.api.contract.BookPromotionDTO;
+import com.bookstore.api.contract.BillCreateRequestDTO;
+import com.bookstore.api.contract.BillCreateResponseDTO;
+import com.bookstore.api.contract.BillLineItemRequestDTO;
 import com.bookstore.dto.*;
 import com.bookstore.util.*;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -16,7 +28,9 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SellingPanel extends JPanel implements Refreshable {
     private JComboBox<CategoryDTO> cboCategory;
@@ -35,17 +49,20 @@ public class SellingPanel extends JPanel implements Refreshable {
     private JLabel lbSubTotal, lbDiscountPromo, lbDiscountMember, lbTax, lbFinalTotal;
     private JButton btnRefresh, btnDelete, btnEdit, btnPay;
 
-    private CategoryBUS categoryBUS = new CategoryBUS();
-    private AuthorBUS authorBUS = new AuthorBUS();
-    private BookBUS bookBUS = new BookBUS();
-    private PromotionBUS promotionBUS = new PromotionBUS();
-    private MembershipRankBUS rankBUS = new MembershipRankBUS();
-    private CustomerBUS customerBUS = new CustomerBUS();
-    private SystemParameterBUS systemParameterBUS = new SystemParameterBUS();
+    private final CategoryApiClient categoryApiClient = new CategoryApiClient();
+    private final AuthorApiClient authorApiClient = new AuthorApiClient();
+    private final BookApiClient bookApiClient = new BookApiClient();
+    private final PromotionApiClient promotionApiClient = new PromotionApiClient();
+    private final BillApiClient billApiClient = new BillApiClient();
+    private final MembershipRankApiClient rankApiClient = new MembershipRankApiClient();
+    private final SystemParameterApiClient systemParameterApiClient = new SystemParameterApiClient();
+    private final SupplierApiClient supplierApiClient = new SupplierApiClient();
 
     private List<BookDTO> listBooks = new ArrayList<>();
+    private final Map<Integer, BookPromotionDTO> cartPromotions = new HashMap<>();
     private CustomerDTO currentCustomer = null;
-    private double finalTotal = 0;
+    private double currentRankDiscountPercent;
+    private double vatRate = Double.NaN;
 
     public SellingPanel() {
         initUI();
@@ -56,6 +73,7 @@ public class SellingPanel extends JPanel implements Refreshable {
         if (SharedData.currentUser != null && txtEmployee != null) {
             txtEmployee.setText(SharedData.currentUser.getEmployeeName());
         }
+        loadSellingSettings();
         loadCategoriesToComBoBox();
         loadAuthorsToComboBox();
         loadBookTable();
@@ -76,6 +94,7 @@ public class SellingPanel extends JPanel implements Refreshable {
         loadAuthorsToComboBox();
         loadBookTable();
         addEvents();
+        loadSellingSettings();
     }
 
     private JPanel createLeftPanel() {
@@ -394,21 +413,55 @@ public class SellingPanel extends JPanel implements Refreshable {
     }
 
     private void loadCategoriesToComBoBox() {
-        List<CategoryDTO> list = categoryBUS.selectAllCategories();
+        List<CategoryDTO> list;
+        try {
+            list = categoryApiClient.selectAllCategories();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải thể loại", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         list.add(0, new CategoryDTO(0, "Tất cả thể loại"));
         CategoryDTO[] categoryArray = list.toArray(new CategoryDTO[0]);
         cboCategory.setModel(new DefaultComboBoxModel<>(categoryArray));
     }
 
     private void loadAuthorsToComboBox() {
-        List<AuthorDTO> list = authorBUS.selectAllAuthors();
+        List<AuthorDTO> list;
+        try {
+            list = authorApiClient.selectAllAuthors();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải tác giả", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         list.add(0, new AuthorDTO(0, "Tất cả tác giả", "Tất cả tác giả"));
         cboAuthor.updateData(list);
     }
 
     private void loadBookTable() {
-        listBooks = bookBUS.selectActiveBooks();
-        updateProductTable(listBooks);
+        try {
+            listBooks = bookApiClient.selectActiveBooks();
+            updateProductTable(listBooks);
+        } catch (ApiException e) {
+            listBooks = new ArrayList<>();
+            updateProductTable(listBooks);
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải danh mục sách", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void loadSellingSettings() {
+        try {
+            vatRate = systemParameterApiClient.getVatRate();
+            if (!Double.isFinite(vatRate) || vatRate < 0 || vatRate > 1) {
+                throw new ApiException(502, "Cấu hình thuế VAT không hợp lệ.");
+            }
+            btnPay.setEnabled(true);
+            calculateTotal();
+        } catch (ApiException e) {
+            vatRate = Double.NaN;
+            btnPay.setEnabled(false);
+            calculateTotal();
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải cấu hình bán hàng", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void fillProductDetail() {
@@ -539,18 +592,27 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         CustomerDTO customer = dialog.getSelectedCustomer();
         if (customer != null) {
-            this.currentCustomer = customer;
-            btnCustomer.setText(customer.getCustomerName());
+            try {
+                MembershipRankDTO rank = rankApiClient.getRankByPoint(customer.getPoint());
+                this.currentCustomer = customer;
+                currentRankDiscountPercent = rank.getDiscountPercent();
+                btnCustomer.setText(customer.getCustomerName());
 
-            MembershipRankDTO rank = rankBUS.getRankByPoint(customer.getPoint());
-
-            if (rank.getDiscountPercent() > 0) {
-                txtRank.setText(rank.getRankName() + " (-" + (int)rank.getDiscountPercent() + "%)");
-            } else {
-                txtRank.setText(rank.getRankName());
+                if (rank.getDiscountPercent() > 0) {
+                    txtRank.setText(rank.getRankName() + " (-" + (int)rank.getDiscountPercent() + "%)");
+                } else {
+                    txtRank.setText(rank.getRankName());
+                }
+            } catch (ApiException e) {
+                this.currentCustomer = null;
+                currentRankDiscountPercent = 0;
+                btnCustomer.setText("Khách lẻ");
+                txtRank.setText("-");
+                JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải hạng thành viên", JOptionPane.ERROR_MESSAGE);
             }
         } else {
             this.currentCustomer = null;
+            currentRankDiscountPercent = 0;
             btnCustomer.setText("Khách lẻ");
             txtRank.setText("-");
         }
@@ -574,12 +636,24 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         if (selectedBook != null) {
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            BookDetailDialog detailFrame = new BookDetailDialog(parentFrame, selectedBook);
-            detailFrame.setVisible(true);
+            try {
+                SupplierDTO supplier = selectedBook.getSupplierId() > 0
+                        ? supplierApiClient.getById(selectedBook.getSupplierId())
+                        : null;
+                BookDetailDialog detailFrame = new BookDetailDialog(parentFrame, selectedBook, supplier);
+                detailFrame.setVisible(true);
+            } catch (ApiException e) {
+                JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
     private void calculateTotal() {
+        if (!Double.isFinite(vatRate)) {
+            lbTax.setText("—");
+            lbFinalTotal.setText("—");
+            return;
+        }
         double totalOriginal = 0;
         double totalCart = 0;
         boolean hasPromotion = false;
@@ -602,7 +676,8 @@ public class SellingPanel extends JPanel implements Refreshable {
 
             if (percent > 0) {
                 hasPromotion = true;
-                String name = promotionBUS.getPromotionNameByBookId(bookId);
+                BookPromotionDTO promotion = cartPromotions.get(bookId);
+                String name = promotion == null ? null : promotion.promotionName();
                 if (name != null && !name.isEmpty()) {
                     promoNames.add(name);
                 }
@@ -628,14 +703,12 @@ public class SellingPanel extends JPanel implements Refreshable {
         double discountPromo = totalOriginal - totalCart;
         double discountMember = 0;
         if (currentCustomer != null) {
-            MembershipRankDTO rank = rankBUS.getRankByPoint(currentCustomer.getPoint());
-            discountMember = totalCart * (rank.getDiscountPercent() / 100.0);
+            discountMember = totalCart * (currentRankDiscountPercent / 100.0);
         }
 
         double subTotalAfterDiscount = totalCart - discountMember;
-        double vatRate = systemParameterBUS.getVAT();
         double taxAmount = subTotalAfterDiscount * vatRate;
-        finalTotal = subTotalAfterDiscount + taxAmount;
+        double finalTotal = subTotalAfterDiscount + taxAmount;
 
         lbSubTotal.setText(MoneyFormatter.toVND(totalOriginal));
         lbDiscountPromo.setText(MoneyFormatter.toVND(discountPromo));
@@ -690,7 +763,18 @@ public class SellingPanel extends JPanel implements Refreshable {
             return;
         }
 
-        double promoPercent = promotionBUS.getPromotionPercentByBookId(bookId);
+        BookPromotionDTO promotion;
+        try {
+            promotion = promotionApiClient.getPromotionForBook(bookId);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải khuyến mãi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        double promoPercent = promotion.percent();
+        if (!Double.isFinite(promoPercent) || promoPercent < 0 || promoPercent > 100) {
+            JOptionPane.showMessageDialog(this, "Phần trăm khuyến mãi không hợp lệ.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         double oldPrice = selectedBook.getSellingPrice();
         double newPrice = oldPrice * (1 - promoPercent / 100);
 
@@ -712,6 +796,7 @@ public class SellingPanel extends JPanel implements Refreshable {
 
                 double total = newQty * newPrice;
                 cartModel.setValueAt(MoneyFormatter.toVND(total), i, 5);
+                cartPromotions.put(bookId, promotion);
                 exists = true;
                 break;
             }
@@ -733,6 +818,7 @@ public class SellingPanel extends JPanel implements Refreshable {
                     (int)promoPercent + "%",
                     MoneyFormatter.toVND(total)
             });
+            cartPromotions.put(bookId, promotion);
         }
 
         calculateTotal();
@@ -747,6 +833,7 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         if (confirm == JOptionPane.YES_OPTION) {
             cartModel.setRowCount(0);
+            cartPromotions.clear();
             calculateTotal();
 
             txtPromo.setText("Không có CTKM nào áp dụng");
@@ -762,7 +849,9 @@ public class SellingPanel extends JPanel implements Refreshable {
             return;
         }
 
+        int bookId = Integer.parseInt(cartModel.getValueAt(selectedRow, 0).toString());
         cartModel.removeRow(selectedRow);
+        cartPromotions.remove(bookId);
         calculateTotal();
     }
 
@@ -837,40 +926,33 @@ public class SellingPanel extends JPanel implements Refreshable {
 
         int paymentMethodId = paymentChoice + 1;
 
-        double finalTotal = MoneyFormatter.toDouble(lbFinalTotal.getText());
-        int employeeId = SharedData.currentUser.getEmployeeId();
-
         int customerId = 0;
-        int earnedPoints = 0;
-
-        int pointsPer10K = systemParameterBUS.getEarnedPointsPer10K();
-
         if (currentCustomer != null) {
             customerId = currentCustomer.getCustomerId();
-            earnedPoints = (int) (finalTotal / 10000) * pointsPer10K;
         }
 
-        double vatRate = systemParameterBUS.getVAT();
-        BillDTO bill = new BillDTO(0, null, finalTotal, vatRate, employeeId, customerId, paymentMethodId, earnedPoints);
-
-        List<BillDetailDTO> details = new ArrayList<>();
+        List<BillLineItemRequestDTO> details = new ArrayList<>();
         for (int i = 0; i < cartModel.getRowCount(); i++) {
             int bookId = Integer.parseInt(cartModel.getValueAt(i, 0).toString());
-            String bookName = cartModel.getValueAt(i, 1).toString();
             int quantity = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
-
-            double totalRow = MoneyFormatter.toDouble(cartModel.getValueAt(i, 5).toString());
-            double unitPrice = totalRow / quantity;
-
-            details.add(new BillDetailDTO(0, bookId, bookName, quantity, unitPrice));
+            details.add(new BillLineItemRequestDTO(bookId, quantity));
         }
 
-        BillBUS billBUS = new BillBUS();
-        int newBillId = billBUS.createBill(bill, details);
+        BillCreateResponseDTO bill;
+        try {
+            bill = billApiClient.createBill(
+                    new BillCreateRequestDTO(customerId, paymentMethodId, details)
+            );
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể hoàn tất hóa đơn", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        int newBillId = bill.billId();
 
         if (newBillId > 0) {
             int choice = JOptionPane.showConfirmDialog(this,
-                    "Thanh toán thành công! Bạn có muốn in hóa đơn (PDF) không?",
+                    "Thanh toán thành công: " + MoneyFormatter.toVND(bill.totalBillPrice())
+                            + "\nBạn có muốn in hóa đơn (PDF) không?",
                     "In hóa đơn", JOptionPane.YES_NO_OPTION);
 
             if (choice == JOptionPane.YES_OPTION) {
@@ -885,10 +967,19 @@ public class SellingPanel extends JPanel implements Refreshable {
                         savePath += ".pdf";
                     }
 
-                    String customerName = currentCustomer == null ? "Khách lẻ" : currentCustomer.getCustomerName();
-                    List<Object[]> cartData = getCartDataFromTable();
+                    List<Object[]> cartData = bill.details().stream()
+                            .map(line -> new Object[]{
+                                    line.bookId(),
+                                    line.bookName(),
+                                    line.quantity(),
+                                    MoneyFormatter.toVND(line.unitPrice()),
+                                    (int) line.promotionPercent() + "%",
+                                    MoneyFormatter.toVND(line.totalPrice())
+                            })
+                            .toList();
+                    String customerName = bill.customerName();
                     boolean isExported = BillPDFExporter.exportInvoice(savePath, newBillId, customerName,
-                            cartData, bill.getTotalBillPrice());
+                            cartData, bill.totalBillPrice(), bill.tax());
 
                     if (isExported) {
                         JOptionPane.showMessageDialog(this, "Đã xuất hóa đơn thành công!");
@@ -908,25 +999,9 @@ public class SellingPanel extends JPanel implements Refreshable {
         }
     }
 
-    private List<Object[]> getCartDataFromTable() {
-        List<Object[]> cartData = new ArrayList<>();
-        for (int i = 0; i < cartModel.getRowCount(); i++) {
-            Object bookId = cartModel.getValueAt(i, 0);
-            Object bookName = cartModel.getValueAt(i, 1);
-            Object quantity = cartModel.getValueAt(i, 2);
-            Object price = cartModel.getValueAt(i, 3);
-            Object discount = cartModel.getValueAt(i, 4);
-            Object subTotal = cartModel.getValueAt(i, 5);
-
-            Object[] row = new Object[]{bookId, bookName, quantity, price, discount, subTotal};
-            cartData.add(row);
-        }
-
-        return cartData;
-    }
-
     private void resetSellingPanel() {
         cartModel.setRowCount(0);
+        cartPromotions.clear();
         currentCustomer = null;
         btnCustomer.setText("Khách lẻ");
         txtRank.setText("-");

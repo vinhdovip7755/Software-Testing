@@ -39,6 +39,33 @@ public class CustomerDAO {
         return customer;
     }
 
+    public CustomerDTO selectById(int customerId) {
+        String sql = "SELECT c.customer_id, c.customer_name, c.customer_phone, c.point, c.rank_id, m.rank_name " +
+                "FROM customer c " +
+                "JOIN membership_rank m ON c.rank_id = m.rank_id " +
+                "WHERE c.customer_id = ?";
+
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, customerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new CustomerDTO(
+                            rs.getInt("customer_id"),
+                            rs.getString("customer_name"),
+                            rs.getString("customer_phone"),
+                            rs.getInt("point"),
+                            rs.getInt("rank_id"),
+                            rs.getString("rank_name")
+                    );
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public List<CustomerDTO> selectAllCustomers() {
         List<CustomerDTO> list = new ArrayList<>();
         String sql = "SELECT c.customer_id, c.customer_name, c.customer_phone, c.point, c.rank_id, m.rank_name " +

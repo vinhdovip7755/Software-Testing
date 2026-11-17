@@ -15,9 +15,10 @@ import com.bookstore.dto.AuthorDTO;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.CategoryDTO;
 import com.bookstore.dto.SupplierDTO;
-import com.bookstore.bus.AuthorBUS;
-import com.bookstore.bus.CategoryBUS;
-import com.bookstore.bus.SupplierBUS;
+import com.bookstore.api.client.AuthorApiClient;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.CategoryApiClient;
+import com.bookstore.api.client.SupplierApiClient;
 
 public class BookFormDialog extends JDialog {
     private static final Color BG_COLOR = Color.WHITE;
@@ -48,9 +49,9 @@ public class BookFormDialog extends JDialog {
 
     private Set<Integer> selectedAuthorIds = new HashSet<>();
     private Set<String> selectedTags = new HashSet<>();
-    private final AuthorBUS authorBUS = new AuthorBUS();
-    private final CategoryBUS categoryBUS = new CategoryBUS();
-    private final SupplierBUS supplierBUS = new SupplierBUS();
+    private final AuthorApiClient authorBUS = new AuthorApiClient();
+    private final CategoryApiClient categoryBUS = new CategoryApiClient();
+    private final SupplierApiClient supplierBUS = new SupplierApiClient();
 
     public BookFormDialog(Frame parent, String title, BookDTO book,
                           List<AuthorDTO> authors,
@@ -774,13 +775,24 @@ public class BookFormDialog extends JDialog {
         AuthorDTO author = new AuthorDTO();
         author.setAuthorName(aName);
         author.setNationality(aNat);
-        String message = authorBUS.addAuthor(author);
+        String message;
+        try {
+            message = authorBUS.addAuthor(author);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể thêm tác giả", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         if (!message.toLowerCase().contains("thành công")) {
             JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        authors = authorBUS.selectAllAuthors();
+        try {
+            authors = authorBUS.selectAllAuthors();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải tác giả", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         for (AuthorDTO item : authors) {
             if (item.getAuthorName().equalsIgnoreCase(author.getAuthorName())) {
                 selectedAuthorIds.add(item.getAuthorId());
@@ -797,13 +809,24 @@ public class BookFormDialog extends JDialog {
 
         CategoryDTO category = new CategoryDTO();
         category.setCategoryName(name.trim());
-        String message = categoryBUS.addCategory(category);
+        String message;
+        try {
+            message = categoryBUS.addCategory(category);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể thêm thể loại", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         if (!message.toLowerCase().contains("thành công")) {
             JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        categories = categoryBUS.selectAllCategories();
+        try {
+            categories = categoryBUS.selectAllCategories();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải thể loại", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         categoryCombo.setModel(new DefaultComboBoxModel<>(getCategoryNames()));
         categoryCombo.setSelectedItem(name.trim());
     }
@@ -845,13 +868,24 @@ public class BookFormDialog extends JDialog {
         supplier.setSupplierName(sName);
         supplier.setSupplierPhone(sPhone);
         supplier.setSupplierAddress(sAddress);
-        String message = supplierBUS.addSupplier(supplier);
+        String message;
+        try {
+            message = supplierBUS.addSupplier(supplier);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể thêm nhà cung cấp", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         if (!message.toLowerCase().contains("thành công")) {
             JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        suppliers = supplierBUS.selectAll();
+        try {
+            suppliers = supplierBUS.selectAll();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải nhà cung cấp", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         supplierCombo.setModel(new DefaultComboBoxModel<>(getSupplierNames()));
         supplierCombo.setSelectedItem(name.getText().trim());
     }

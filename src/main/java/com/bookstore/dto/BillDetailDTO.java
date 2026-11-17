@@ -7,6 +7,9 @@ public class BillDetailDTO {
     private int quantity;
     private double unitPrice;
 
+    public BillDetailDTO() {
+    }
+
     public BillDetailDTO(int billId, int bookId, String bookName, int quantity, double unitPrice) {
         this.billId = billId;
         this.bookId = bookId;

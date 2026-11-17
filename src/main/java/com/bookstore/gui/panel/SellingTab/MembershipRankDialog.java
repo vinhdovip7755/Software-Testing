@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.MembershipRankBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.MembershipRankApiClient;
 import com.bookstore.dto.MembershipRankDTO;
 import com.bookstore.util.AppConstant;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -15,7 +16,7 @@ public class MembershipRankDialog extends JDialog {
     private JTextField txtDiscount;
     private JButton btnSave, btnCancel;
 
-    private MembershipRankBUS rankBUS = new MembershipRankBUS();
+    private final MembershipRankApiClient rankApiClient = new MembershipRankApiClient();
     private MembershipRankDTO rankDTO;
 
     public MembershipRankDialog(Frame parent, MembershipRankDTO rankDTO) {
@@ -138,23 +139,19 @@ public class MembershipRankDialog extends JDialog {
         dto.setMinPoint(minPoint);
         dto.setDiscountPercent(discount);
 
-        if (rankDTO == null) {
-            boolean success = rankBUS.addRank(dto);
-            if (success) {
+        try {
+            if (rankDTO == null) {
+                rankApiClient.addRank(dto);
                 JOptionPane.showMessageDialog(this, "Thêm hạng thành viên thành công!");
                 dispose();
             } else {
-                JOptionPane.showMessageDialog(this, "Thêm thất bại. Tên hạng có thể đã tồn tại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            }
-        } else {
-            dto.setRankId(rankDTO.getRankId());
-            boolean success = rankBUS.updateRank(dto);
-            if (success) {
+                dto.setRankId(rankDTO.getRankId());
+                rankApiClient.updateRank(dto);
                 JOptionPane.showMessageDialog(this, "Cập nhật hạng thành viên thành công!");
                 dispose();
-            } else {
-                JOptionPane.showMessageDialog(this, "Cập nhật thất bại. Vui lòng kiểm tra lại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi lưu hạng thành viên", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

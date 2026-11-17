@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.CustomerBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.CustomerApiClient;
 import com.bookstore.dto.CustomerDTO;
 import com.bookstore.util.AppConstant;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -16,7 +17,7 @@ public class CustomerEditDialog extends JDialog {
     private JLabel lbHeader;
 
     private CustomerDTO customer;
-    private CustomerBUS customerBUS;
+    private final CustomerApiClient customerApiClient = new CustomerApiClient();
     private CustomerPanel parentPanel;
 
     private boolean isEditMode;
@@ -32,8 +33,6 @@ public class CustomerEditDialog extends JDialog {
         this.parentPanel = parentPanel;
         this.customer = customer;
         this.isEditMode = (customer != null);
-        this.customerBUS = new CustomerBUS();
-
         initUI();
 
         if (isEditMode) {
@@ -163,23 +162,24 @@ public class CustomerEditDialog extends JDialog {
         temp.setCustomerName(newName);
         temp.setCustomerPhone(newPhone);
 
-        String result = "";
-
-        if (isEditMode) {
-            temp.setCustomerId(customer.getCustomerId());
-            result = customerBUS.updateCustomerInfo(temp);
-        } else {
-            result = customerBUS.insertCustomer(temp);
-        }
-
-        JOptionPane.showMessageDialog(this, result);
-
-        if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
-            this.success = true;
-            if (parentPanel != null) {
-                parentPanel.refresh();
+        try {
+            String result;
+            if (isEditMode) {
+                temp.setCustomerId(customer.getCustomerId());
+                result = customerApiClient.updateCustomerInfo(temp);
+            } else {
+                result = customerApiClient.insertCustomer(temp);
             }
-            dispose();
+            JOptionPane.showMessageDialog(this, result);
+            if (result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
+                this.success = true;
+                if (parentPanel != null) {
+                    parentPanel.refresh();
+                }
+                dispose();
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi lưu khách hàng", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.CustomerBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.CustomerApiClient;
 import com.bookstore.dto.CustomerDTO;
 import com.bookstore.util.AppConstant;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -14,7 +15,7 @@ public class CustomerSearchDialog extends JDialog {
     private JButton btnSelect, btnGuest, btnFind, btnCreateNew;
 
     private CustomerDTO selectedCustomer = null;
-    private CustomerBUS customerBUS = new CustomerBUS();
+    private final CustomerApiClient customerApiClient = new CustomerApiClient();
 
     public CustomerSearchDialog(JFrame parent) {
         super(parent, "Tìm kiếm khách hàng", true);
@@ -136,7 +137,19 @@ public class CustomerSearchDialog extends JDialog {
             return;
         }
 
-        CustomerDTO customer = customerBUS.selectByPhone(phone);
+        CustomerDTO customer;
+        try {
+            customer = customerApiClient.selectByPhone(phone);
+        } catch (ApiException e) {
+            selectedCustomer = null;
+            lbName.setText("Không thể tìm khách hàng");
+            lbRank.setText("Hạng thành viên: -");
+            lbPoints.setText("Điểm tích lũy: -");
+            btnSelect.setEnabled(false);
+            btnCreateNew.setVisible(false);
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tìm khách hàng", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         
         if (customer != null) {
             this.selectedCustomer = customer;

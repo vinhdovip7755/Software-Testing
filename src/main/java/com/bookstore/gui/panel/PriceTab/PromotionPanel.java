@@ -9,15 +9,17 @@ import java.text.SimpleDateFormat;
 import java.util.List;
 
 import com.bookstore.dto.*;
-import com.bookstore.bus.*;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.PromotionApiClient;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.Refreshable;
 
-public class PromotionPanel extends JPanel {
+public class PromotionPanel extends JPanel implements Refreshable {
     private JRadioButton rbTen, rbPhanTram, rbThoiGian;
     private List<PromotionDTO> listPromotions;
     private List<PromotionDTO> listHienThi;
 
-    private PromotionBUS bus = new PromotionBUS();
+    private final PromotionApiClient apiClient = new PromotionApiClient();
     private JTable table;
     private JPanel cardPanel;
     private WhiteBoxPanel whiteBox;
@@ -38,8 +40,7 @@ public class PromotionPanel extends JPanel {
         loadData();
 
         Timer statusTimer = new Timer(60000, e -> {
-            bus.updateAutoStatus();
-            capNhatBang(bus.selectAllPromotions());
+            loadData();
         });
         statusTimer.start();
     }
@@ -378,8 +379,17 @@ public class PromotionPanel extends JPanel {
     }
 
     public void loadData() {
-        listPromotions = bus.selectAllPromotions();
-        capNhatBang(listPromotions);
+        try {
+            listPromotions = apiClient.getAllPromotions();
+            capNhatBang(listPromotions);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải khuyến mãi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    @Override
+    public void refresh() {
+        loadData();
     }
 
     private void SearchProcessing() {
@@ -414,7 +424,7 @@ public class PromotionPanel extends JPanel {
 
         if (input.isEmpty() || input.equals("|")) {
             if (hasSearched) {
-                capNhatBang(bus.selectAllPromotions());
+                loadData();
                 hasSearched = false;
             } else {
                 JOptionPane.showMessageDialog(this, "Vui lòng nhập dữ liệu tìm kiếm!", "Thông báo",
@@ -424,8 +434,12 @@ public class PromotionPanel extends JPanel {
         }
 
         hasSearched = true;
-        listHienThi = bus.search(input, type);
-        capNhatBang(listHienThi);
+        try {
+            listHienThi = apiClient.searchPromotions(input, type);
+            capNhatBang(listHienThi);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tìm khuyến mãi", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public void capNhatBang(List<PromotionDTO> list) {

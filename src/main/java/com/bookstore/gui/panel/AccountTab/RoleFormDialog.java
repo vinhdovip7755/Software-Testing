@@ -1,30 +1,29 @@
 package com.bookstore.gui.panel.AccountTab;
 
-import com.bookstore.bus.*;
-import com.bookstore.dto.*;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.RoleApiClient;
+import com.bookstore.api.contract.RoleActionPermissionDTO;
+import com.bookstore.api.contract.RoleSaveRequestDTO;
+import com.bookstore.dto.RoleDTO;
 import com.bookstore.util.AppConstant;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class RoleFormDialog extends JDialog {
     private RoleDTO role;
     private JTextField txtName;
     private DefaultTableModel tableModel;
     private JTable table;
-    private List<ActionDTO> listActions;
-
-    private RoleBUS roleBUS = new RoleBUS();
-    private ActionBUS actionBUS = new ActionBUS();
-    private PermissionBUS permissionBUS = new PermissionBUS();
+    private List<RoleActionPermissionDTO> permissionRows;
+    private final RoleApiClient roleApiClient = new RoleApiClient();
 
     private boolean isSaved = false;
     private boolean isAddMode;
+    private boolean permissionsLoaded;
 
     public RoleFormDialog(Frame owner, RoleDTO role) {
         super(owner, role.getRoleId() == 0 ? "Thêm mới Chức vụ" : "Chỉnh sửa Chức vụ", true);
@@ -108,20 +107,29 @@ public class RoleFormDialog extends JDialog {
     }
 
     private void loadData() {
-        listActions = actionBUS.selectAllActions();
-        Map<String, PermissionDTO> currentPerms = permissionBUS.getPermissionsByRoleId(role.getRoleId());
-
-        tableModel.setRowCount(0);
-        for (ActionDTO action : listActions) {
-            PermissionDTO perm = currentPerms.get(action.getActionCode());
-            boolean canView = (perm != null && perm.isView());
-            boolean canAction = (perm != null && perm.isAction());
-
-            tableModel.addRow(new Object[]{ action.getActionName(), canView, canAction });
+        try {
+            permissionRows = roleApiClient.getPermissions(role.getRoleId());
+            permissionsLoaded = true;
+            tableModel.setRowCount(0);
+            for (RoleActionPermissionDTO permission : permissionRows) {
+                tableModel.addRow(new Object[]{
+                        permission.getActionName(),
+                        permission.isCanView(),
+                        permission.isCanAction()
+                });
+            }
+        } catch (ApiException e) {
+            permissionRows = List.of();
+            permissionsLoaded = false;
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void saveRole() {
+        if (!permissionsLoaded) {
+            JOptionPane.showMessageDialog(this, "Không thể tải danh sách quyền từ API.", "Lỗi API", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         if (table.isEditing()) {
             table.getCellEditor().stopCellEditing();
         }
@@ -140,47 +148,30 @@ public class RoleFormDialog extends JDialog {
             return;
         }
 
-        role.setRoleName(newName);
-        int targetRoleId = role.getRoleId();
-
-        if (isAddMode) {
-            targetRoleId = roleBUS.insertRole(role);
-
-            if (targetRoleId == 0) {
-                JOptionPane.showMessageDialog(this, "Thêm thất bại! Tên chức vụ có thể đã tồn tại.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-        } else {
-            boolean updateSuccess = roleBUS.updateRole(role);
-
-            if (!updateSuccess) {
-                JOptionPane.showMessageDialog(this, "Cập nhật tên chức vụ thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-        }
-
-        List<PermissionDTO> newPerms = new ArrayList<>();
-        List<Integer> actionIds = new ArrayList<>();
-
+        List<RoleActionPermissionDTO> permissions = new java.util.ArrayList<>();
         for (int i = 0; i < tableModel.getRowCount(); i++) {
             boolean isView = (boolean) tableModel.getValueAt(i, 1);
             boolean isAction = (boolean) tableModel.getValueAt(i, 2);
-
-            ActionDTO action = listActions.get(i);
-
-            newPerms.add(new PermissionDTO(action.getActionCode(), isView, isAction));
-            actionIds.add(action.getActionId());
+            RoleActionPermissionDTO original = permissionRows.get(i);
+            permissions.add(new RoleActionPermissionDTO(
+                    original.getActionId(),
+                    original.getActionCode(),
+                    original.getActionName(),
+                    isView,
+                    isAction
+            ));
         }
 
-        boolean success = permissionBUS.saveRolePermissions(targetRoleId, newPerms, actionIds);
-
-        if (success) {
-            String msg = isAddMode ? "Thêm chức vụ mới thành công!" : "Cập nhật phân quyền thành công!";
-            JOptionPane.showMessageDialog(this, msg);
+        RoleSaveRequestDTO request = new RoleSaveRequestDTO(newName, permissions);
+        try {
+            String message = isAddMode
+                    ? roleApiClient.createRole(request)
+                    : roleApiClient.updateRole(role.getRoleId(), request);
+            JOptionPane.showMessageDialog(this, message);
             isSaved = true;
             dispose();
-        } else {
-            JOptionPane.showMessageDialog(this, "Lỗi hệ thống khi lưu chi tiết quyền!", "Lỗi Fatal", JOptionPane.ERROR_MESSAGE);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 

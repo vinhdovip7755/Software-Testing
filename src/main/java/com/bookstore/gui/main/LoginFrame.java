@@ -1,7 +1,6 @@
 package com.bookstore.gui.main;
 
-import com.bookstore.bus.AccountBUS;
-import com.bookstore.bus.PermissionBUS;
+import com.bookstore.api.client.AuthApiClient;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.SharedData;
@@ -14,7 +13,7 @@ public class LoginFrame extends JFrame {
     private JTextField txtUsername;
     private JPasswordField txtPassword;
     private JButton btnLogin;
-    private AccountBUS accountBUS = new AccountBUS();
+    private final AuthApiClient authApiClient = new AuthApiClient();
 
     public LoginFrame() {
         setTitle("Ứng Dụng Quản Lý Bán Sách");
@@ -188,11 +187,11 @@ public class LoginFrame extends JFrame {
         }
 
         try {
-            EmployeeDTO employee = accountBUS.login(username, password);
+            com.bookstore.api.contract.ApiSessionDTO session = authApiClient.login(username, password);
+            EmployeeDTO employee = session.getEmployee();
             if (employee != null) {
                 SharedData.currentUser = employee;
-                PermissionBUS permissionBUS = new PermissionBUS();
-                SharedData.userPermissions = permissionBUS.getPermissionsByRoleId(employee.getRoleId());
+                SharedData.userPermissions = session.getPermissions();
                 JOptionPane.showMessageDialog(this, "Xin chào " + employee.getEmployeeName() + "!",
                     "Đăng nhập thành công", JOptionPane.INFORMATION_MESSAGE);
                 this.dispose();

@@ -1,6 +1,6 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.SupplierBUS;
+import com.bookstore.dto.SupplierDTO;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.SupplierDTO;
 import com.bookstore.util.AppConstant;
@@ -11,12 +11,12 @@ import java.awt.*;
 
 public class BookDetailDialog extends JDialog {
     private BookDTO book;
-    private SupplierBUS supplierBUS;
+    private SupplierDTO supplier;
 
-    public BookDetailDialog(JFrame parent, BookDTO book) {
+    public BookDetailDialog(JFrame parent, BookDTO book, SupplierDTO supplier) {
         super(parent, "Chi Tiết Sản Phẩm", true);
         this.book = book;
-        this.supplierBUS = new SupplierBUS();
+        this.supplier = supplier;
         initUI();
     }
 
@@ -98,7 +98,6 @@ public class BookDetailDialog extends JDialog {
 
         int row = 0;
 
-        SupplierDTO supplier = supplierBUS.getById(book.getSupplierId());
         String supplierName = (supplier != null) ? supplier.getSupplierName() : "Không rõ";
 
         addDetailRow(pBookDetail, gbc, row++,"Tên sản phẩm: ", book.getBookName());

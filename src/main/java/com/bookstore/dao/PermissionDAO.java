@@ -30,7 +30,7 @@ public class PermissionDAO {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể tải phân quyền của chức vụ.", e);
         }
         return map;
     }

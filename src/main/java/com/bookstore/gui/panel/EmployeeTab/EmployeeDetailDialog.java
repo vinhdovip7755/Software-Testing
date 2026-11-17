@@ -1,6 +1,6 @@
 package com.bookstore.gui.panel.EmployeeTab;
 
-import com.bookstore.bus.EmployeeBUS;
+import com.bookstore.api.contract.EmployeeActivityDTO;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.util.AppConstant;
 
@@ -11,11 +11,12 @@ import java.text.SimpleDateFormat;
 
 public class EmployeeDetailDialog extends JDialog {
     private EmployeeDTO employee;
-    private final EmployeeBUS employeeBUS = new EmployeeBUS();
+    private final EmployeeActivityDTO activity;
 
-    public EmployeeDetailDialog(JFrame owner, EmployeeDTO employee) {
+    public EmployeeDetailDialog(JFrame owner, EmployeeDTO employee, EmployeeActivityDTO activity) {
         super(owner, "Chi Tiết Nhân Viên", true);
         this.employee = employee;
+        this.activity = activity;
         initUI();
     }
 
@@ -40,10 +41,6 @@ public class EmployeeDetailDialog extends JDialog {
         double totalSalary = employee.getBaseSalary() * employee.getSalaryFactor();
         String baseSalaryStr = String.format("%,.0f VNĐ", employee.getBaseSalary());
         String totalSalaryStr = String.format("%,.0f VNĐ", totalSalary);
-
-        int billCount = employeeBUS.getBillCountByEmployee(employee.getEmployeeId());
-        int createdImportCount = employeeBUS.getCreatedImportCountByEmployee(employee.getEmployeeId());
-        int approvedImportCount = employeeBUS.getApprovedImportCountByEmployee(employee.getEmployeeId());
 
         JPanel pContent = new JPanel(new GridLayout(0, 1, 0, 5));
         pContent.setBackground(Color.WHITE);
@@ -76,7 +73,7 @@ public class EmployeeDetailDialog extends JDialog {
         pBill.setOpaque(false);
         JLabel lbBillLabel = new JLabel("Số hóa đơn bán hàng đã tạo: ");
         lbBillLabel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
-        JLabel lbBillValue = new JLabel(billCount + " hóa đơn");
+        JLabel lbBillValue = new JLabel(activity.billCount() + " hóa đơn");
         lbBillValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 15));
         lbBillValue.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         pBill.add(lbBillLabel, BorderLayout.WEST);
@@ -86,7 +83,7 @@ public class EmployeeDetailDialog extends JDialog {
         pCreated.setOpaque(false);
         JLabel lbCreatedLabel = new JLabel("Số đơn nhập hàng đã tạo: ");
         lbCreatedLabel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
-        JLabel lbCreatedValue = new JLabel(createdImportCount + " đơn");
+        JLabel lbCreatedValue = new JLabel(activity.createdImportCount() + " đơn");
         lbCreatedValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 15));
         lbCreatedValue.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         pCreated.add(lbCreatedLabel, BorderLayout.WEST);
@@ -96,7 +93,7 @@ public class EmployeeDetailDialog extends JDialog {
         pApproved.setOpaque(false);
         JLabel lbApprovedLabel = new JLabel("Số đơn nhập hàng đã duyệt: ");
         lbApprovedLabel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
-        JLabel lbApprovedValue = new JLabel(approvedImportCount + " đơn");
+        JLabel lbApprovedValue = new JLabel(activity.approvedImportCount() + " đơn");
         lbApprovedValue.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 15));
         lbApprovedValue.setForeground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         pApproved.add(lbApprovedLabel, BorderLayout.WEST);

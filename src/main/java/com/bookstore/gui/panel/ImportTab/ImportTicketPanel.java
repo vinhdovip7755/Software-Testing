@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.ImportTab;
 
-import com.bookstore.bus.ImportBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.ImportApiClient;
 import com.bookstore.dto.ImportTicketDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
@@ -25,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ImportTicketPanel extends JPanel implements Refreshable {
-    private ImportBUS importBUS = new ImportBUS();
+    private final ImportApiClient importApiClient = new ImportApiClient();
     private JTable table;
     private DefaultTableModel tableModel;
     private List<ImportTicketDTO> currentList = new ArrayList<>();
@@ -362,24 +363,45 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         String msg = "Bạn đã chọn " + totalSelected + " phiếu, nhưng chỉ có " + validIds.size() + " phiếu hợp lệ (Đang chờ).\n\nBạn có chắc chắn muốn " + actionName + " " + validIds.size() + " phiếu này?";
 
         if (JOptionPane.showConfirmDialog(this, msg, "Xác nhận", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-            int approverId = SharedData.currentUser != null ? SharedData.currentUser.getEmployeeId() : 1;
             int successCount = 0;
+            String firstFailure = null;
 
             for (int id : validIds) {
-                if (isApproveAction) {
-                    if (importBUS.approveImport(id, approverId)) successCount++;
-                } else {
-                    if (importBUS.cancelImport(id, approverId)) successCount++;
+                try {
+                    if (isApproveAction) {
+                        importApiClient.approveImport(id);
+                    } else {
+                        importApiClient.cancelImport(id);
+                    }
+                    successCount++;
+                } catch (ApiException ex) {
+                    if (firstFailure == null) {
+                        firstFailure = ex.getMessage();
+                    }
+                    if (ex.getStatusCode() == 0) {
+                        break;
+                    }
                 }
             }
-            JOptionPane.showMessageDialog(this, "Đã " + actionName.toLowerCase() + " thành công " + successCount + "/" + validIds.size() + " phiếu hợp lệ.");
+            String resultMessage = "Đã " + actionName.toLowerCase() + " thành công "
+                    + successCount + "/" + validIds.size() + " phiếu hợp lệ.";
+            if (firstFailure != null) {
+                resultMessage += "\nLỗi đầu tiên: " + firstFailure;
+            }
+            JOptionPane.showMessageDialog(this, resultMessage);
             refresh();
         }
     }
 
     private void loadData() {
-        currentList = importBUS.getAllImports();
-        filterData();
+        try {
+            currentList = importApiClient.getAllImports();
+            filterData();
+        } catch (ApiException e) {
+            currentList = new ArrayList<>();
+            filterData();
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải phiếu nhập", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void filterData() {

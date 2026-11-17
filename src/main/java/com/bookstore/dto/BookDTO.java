@@ -90,6 +90,10 @@ public class BookDTO {
         return authorIdsList;
     }
 
+    public void setAuthorIdsList(List<Integer> authorIdsList) {
+        this.authorIdsList = authorIdsList == null ? new ArrayList<>() : new ArrayList<>(authorIdsList);
+    }
+
     public void setAuthorIdsFromString(String ids) {
         this.authorIdsList.clear();
         if (ids != null && !ids.isEmpty()) {

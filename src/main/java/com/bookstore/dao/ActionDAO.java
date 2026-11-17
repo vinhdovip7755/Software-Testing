@@ -20,7 +20,9 @@ public class ActionDAO {
                         rs.getString("action_name")
                 ));
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            throw new IllegalStateException("Không thể tải danh sách chức năng.", e);
+        }
         return list;
     }
 }

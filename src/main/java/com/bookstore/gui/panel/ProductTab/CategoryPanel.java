@@ -1,7 +1,8 @@
 package com.bookstore.gui.panel.ProductTab;
 
-import com.bookstore.bus.BookBUS;
-import com.bookstore.bus.CategoryBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.BookApiClient;
+import com.bookstore.api.client.CategoryApiClient;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.CategoryDTO;
 import com.bookstore.util.AppConstant;
@@ -22,8 +23,8 @@ public class CategoryPanel extends JPanel implements Refreshable {
     private static final Color BUTTON_COLOR = Color.decode(AppConstant.BUTTON_COLOR);
     private static final Color BORDER_COLOR = Color.decode("#E0E0E0");
 
-    private final CategoryBUS categoryBUS;
-    private final BookBUS bookBUS;
+    private final CategoryApiClient categoryBUS;
+    private final BookApiClient bookBUS;
 
     private JTable categoryTable;
     private DefaultTableModel tableModel;
@@ -37,8 +38,8 @@ public class CategoryPanel extends JPanel implements Refreshable {
     private Integer editingCategoryId;
 
     public CategoryPanel() {
-        categoryBUS = new CategoryBUS();
-        bookBUS = new BookBUS();
+        categoryBUS = new CategoryApiClient();
+        bookBUS = new BookApiClient();
 
         initUI();
         loadData();
@@ -189,8 +190,14 @@ public class CategoryPanel extends JPanel implements Refreshable {
     }
 
     private void loadData() {
-        categories = categoryBUS.selectAllCategories();
-        books = bookBUS.selectAllBooks();
+        try {
+            categories = categoryBUS.selectAllCategories();
+            books = bookBUS.selectAllBooks();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải dữ liệu", JOptionPane.ERROR_MESSAGE);
+            categories = List.of();
+            books = List.of();
+        }
         loadTableData();
     }
 
@@ -223,35 +230,40 @@ public class CategoryPanel extends JPanel implements Refreshable {
             return;
         }
 
-        if (editingCategoryId == null) {
-            CategoryDTO category = new CategoryDTO();
-            category.setCategoryName(newCategoryName);
-            String message = categoryBUS.addCategory(category);
-            JOptionPane.showMessageDialog(this, message);
-        } else {
-            CategoryDTO oldCategory = categoryBUS.getById(editingCategoryId);
-            if (oldCategory == null) {
-                JOptionPane.showMessageDialog(this, "Không tìm thấy thể loại cần sửa.", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                resetForm();
-                loadData();
-                return;
+        try {
+            if (editingCategoryId == null) {
+                CategoryDTO category = new CategoryDTO();
+                category.setCategoryName(newCategoryName);
+                String message = categoryBUS.addCategory(category);
+                JOptionPane.showMessageDialog(this, message);
+            } else {
+                CategoryDTO oldCategory = categoryBUS.getById(editingCategoryId);
+                if (oldCategory == null) {
+                    JOptionPane.showMessageDialog(this, "Không tìm thấy thể loại cần sửa.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    resetForm();
+                    loadData();
+                    return;
+                }
+
+                int confirm = JOptionPane.showConfirmDialog(
+                        this,
+                        "Mọi sách ở \"" + oldCategory.getCategoryName() + "\" sẽ đổi tên thành \"" + newCategoryName + "\".\nBạn có muốn tiếp tục không?",
+                        "Xác nhận sửa thể loại",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE
+                );
+
+                if (confirm != JOptionPane.YES_OPTION) {
+                    return;
+                }
+
+                CategoryDTO updatedCategory = new CategoryDTO(editingCategoryId, newCategoryName);
+                String message = categoryBUS.updateCategory(updatedCategory);
+                JOptionPane.showMessageDialog(this, message);
             }
-
-            int confirm = JOptionPane.showConfirmDialog(
-                    this,
-                    "Mọi sách ở \"" + oldCategory.getCategoryName() + "\" sẽ đổi tên thành \"" + newCategoryName + "\".\nBạn có muốn tiếp tục không?",
-                    "Xác nhận sửa thể loại",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE
-            );
-
-            if (confirm != JOptionPane.YES_OPTION) {
-                return;
-            }
-
-            CategoryDTO updatedCategory = new CategoryDTO(editingCategoryId, newCategoryName);
-            String message = categoryBUS.updateCategory(updatedCategory);
-            JOptionPane.showMessageDialog(this, message);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể lưu thể loại", JOptionPane.ERROR_MESSAGE);
+            return;
         }
 
         resetForm();

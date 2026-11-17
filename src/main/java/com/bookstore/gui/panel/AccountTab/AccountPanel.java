@@ -4,25 +4,23 @@ import javax.swing.*;
 import javax.swing.table.*;
 import java.util.List;
 
-import com.bookstore.dto.AccountDTO;
+import com.bookstore.api.client.AccountApiClient;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.contract.AccountViewDTO;
+import com.bookstore.api.contract.AdminAccountUpdateRequestDTO;
 import com.bookstore.dto.EmployeeDTO;
-import com.bookstore.bus.*;
-import com.bookstore.dao.AccountDAO;
-import com.bookstore.dao.EmployeeDAO;
 import com.bookstore.util.Refreshable;
 
 import java.awt.*;
 
 public class AccountPanel extends JPanel implements Refreshable {
-    private List<AccountDTO> listAccountGoc;
+    private List<AccountViewDTO> listAccountGoc;
     private DefaultTableModel model;
     private JTable table;
     private JTextField txtSearch;
-    private AccountDAO accountDAO = new AccountDAO();
-    private AccountBUS accountBUS = new AccountBUS();
-    private EmployeeDAO empDAO = new EmployeeDAO();
+    private final AccountApiClient accountApiClient = new AccountApiClient();
     private DefaultTableModel adminModel;
-    private String currentAdminPassword = "";
+    private String currentAdminUsername = "";
 
     public AccountPanel() {
         setLayout(new GridBagLayout());
@@ -355,10 +353,8 @@ public class AccountPanel extends JPanel implements Refreshable {
         JPanel form = new JPanel(new GridLayout(2, 2, 10, 10));
         form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        String currentUsername = adminModel.getValueAt(0, 0).toString();
-
-        JTextField txtUser = new JTextField(currentUsername);
-        JTextField txtPass = new JTextField(currentAdminPassword);
+        JTextField txtUser = new JTextField(currentAdminUsername);
+        JPasswordField txtPass = new JPasswordField();
 
         form.add(new JLabel("Username:"));
         form.add(txtUser);
@@ -374,23 +370,17 @@ public class AccountPanel extends JPanel implements Refreshable {
         btnPanel.add(btnSave);
 
         btnSave.addActionListener(e -> {
-            AccountDTO updatedAcc = new AccountDTO(
-                    txtUser.getText().trim(),
-                    txtPass.getText().trim(),
-                    0,
-                    1);
-
-            String newPassword = txtPass.getText().trim();
-            boolean isChangePassword = !newPassword.isEmpty();
-
-            String message = accountBUS.updateAccount(updatedAcc, isChangePassword);
-
-            if (message.equals("Cập nhật tài khoản thành công!")) {
+            try {
+                String message = accountApiClient.updateAdminAccount(new AdminAccountUpdateRequestDTO(
+                        currentAdminUsername,
+                        txtUser.getText().trim(),
+                        new String(txtPass.getPassword()).trim()
+                ));
                 JOptionPane.showMessageDialog(this, message);
                 dialog.dispose();
                 loadAdminData();
-            } else {
-                JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            } catch (ApiException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -405,64 +395,60 @@ public class AccountPanel extends JPanel implements Refreshable {
         try {
             adminModel.setRowCount(0);
             boolean foundAdmin = false;
-            for (AccountDTO acc : accountDAO.selectAllAccounts()) {
-                EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
-                if (emp != null && emp.getRoleId() == 1) {
-                    currentAdminPassword = acc.getPassword();
-                    adminModel.addRow(new Object[] { acc.getUsername(), "*****" });
+            for (AccountViewDTO account : accountApiClient.getAccounts()) {
+                if (account.roleId() == 1) {
+                    currentAdminUsername = account.username();
+                    adminModel.addRow(new Object[] { account.username(), "********" });
                     foundAdmin = true;
                     break;
                 }
             }
             if (!foundAdmin) {
+                currentAdminUsername = "";
                 adminModel.addRow(new Object[] { "Không tìm thấy", "N/A" });
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     public void loadAccountData() {
-        listAccountGoc = accountDAO.selectAllAccounts();
-        model.setRowCount(0);
+        try {
+            listAccountGoc = accountApiClient.getAccounts();
+            model.setRowCount(0);
+            String keyword = txtSearch.getText().toLowerCase().trim();
 
-        String keyword = txtSearch.getText().toLowerCase().trim();
-
-        for (AccountDTO acc : listAccountGoc) {
-            EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
-            if (emp != null && emp.getRoleId() == 1) {
-                continue;
-            }
-
-            String empName = (emp != null) ? emp.getEmployeeName() : "N/A";
-            String empRole = (emp != null) ? emp.getRoleName() : "N/A";
-            String statusStr = "N/A";
-            if (emp != null) {
-                statusStr = (acc.getStatus() == 1) ? "Được phép hoạt động" : "Ngưng hoạt động";
-            }
-
-            if (!keyword.isEmpty()) {
-                String kwClean = removeDiacritics(keyword);
-                boolean matches = empName.toLowerCase().contains(keyword) ||
-                                  removeDiacritics(empName).contains(kwClean) ||
-                                  acc.getUsername().toLowerCase().contains(keyword) ||
-                                  empRole.toLowerCase().contains(keyword) ||
-                                  removeDiacritics(empRole).contains(kwClean) ||
-                                  statusStr.toLowerCase().contains(keyword) ||
-                                  removeDiacritics(statusStr).contains(kwClean);
-                if (!matches) {
+            for (AccountViewDTO account : listAccountGoc) {
+                if (account.roleId() == 1) {
                     continue;
                 }
-            }
 
-            model.addRow(new Object[] {
-                    empName,
-                    acc.getUsername(),
-                    "******",
-                    empRole,
-                    statusStr,
-                    "Sửa"
-            });
+                String statusStr = account.status() == 1 ? "Được phép hoạt động" : "Ngưng hoạt động";
+                if (!keyword.isEmpty()) {
+                    String kwClean = removeDiacritics(keyword);
+                    boolean matches = account.employeeName().toLowerCase().contains(keyword)
+                            || removeDiacritics(account.employeeName()).contains(kwClean)
+                            || account.username().toLowerCase().contains(keyword)
+                            || account.roleName().toLowerCase().contains(keyword)
+                            || removeDiacritics(account.roleName()).contains(kwClean)
+                            || statusStr.toLowerCase().contains(keyword)
+                            || removeDiacritics(statusStr).contains(kwClean);
+                    if (!matches) {
+                        continue;
+                    }
+                }
+
+                model.addRow(new Object[] {
+                        account.employeeName(),
+                        account.username(),
+                        "********",
+                        account.roleName(),
+                        statusStr,
+                        "Sửa"
+                });
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -472,13 +458,23 @@ public class AccountPanel extends JPanel implements Refreshable {
         }
 
         String user = table.getValueAt(row, 1).toString();
-        AccountDTO acc = accountBUS.selectByUsername(user);
-        EmployeeDTO emp = empDAO.selectById(acc.getEmployeeId());
+        AccountViewDTO account = listAccountGoc.stream()
+                .filter(item -> item.username().equals(user))
+                .findFirst()
+                .orElse(null);
+        if (account == null) {
+            JOptionPane.showMessageDialog(this, "Không tìm thấy tài khoản đã chọn.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        EmployeeDTO employee = new EmployeeDTO();
+        employee.setEmployeeId(account.employeeId());
+        employee.setEmployeeName(account.employeeName());
+        employee.setRoleId(account.roleId());
+        employee.setRoleName(account.roleName());
 
-        AccountFormDialog dialog = new AccountFormDialog((Frame) SwingUtilities.getWindowAncestor(this), this, acc);
-        dialog.setDataToForm(acc, emp);
+        AccountFormDialog dialog = new AccountFormDialog((Frame) SwingUtilities.getWindowAncestor(this), this, account);
+        dialog.setDataToForm(account, employee);
         dialog.setVisible(true);
-
         loadAccountData();
     }
 

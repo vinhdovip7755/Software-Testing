@@ -2,7 +2,8 @@ package com.bookstore.gui.panel.BillTab;
 
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
-import com.bookstore.bus.BillBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.BillApiClient;
 import com.bookstore.dto.BillDTO;
 import com.bookstore.dto.BillDetailDTO;
 
@@ -31,7 +32,7 @@ public class BillDetailDialog extends JDialog{
     private JLabel lbDiscount;
     private JLabel lbGrandTotal;
 
-    private final BillBUS billBUS = new BillBUS();
+    private final BillApiClient billApiClient = new BillApiClient();
     public BillDetailDialog(int billId){
         setTitle("Chi tiết hóa đơn #" + billId);
         setSize(850, 550);
@@ -144,12 +145,13 @@ public class BillDetailDialog extends JDialog{
     private void loadData(int billId) {
         model.setRowCount(0);
 
-        BillDTO bill = billBUS.getBillById(billId);
-        List<BillDetailDTO> details = billBUS.getBillDetailsByBillId(billId);
-
-
-        if (bill == null) {
-            JOptionPane.showMessageDialog(this, "Không tìm thấy hóa đơn.");
+        BillDTO bill;
+        List<BillDetailDTO> details;
+        try {
+            bill = billApiClient.getBillById(billId);
+            details = billApiClient.getBillDetails(billId);
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải hóa đơn", JOptionPane.ERROR_MESSAGE);
             dispose();
             return;
         }

@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.EmployeeTab;
 
-import com.bookstore.bus.EmployeeBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.EmployeeApiClient;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
@@ -18,7 +19,7 @@ public class SalaryPanel extends JPanel implements Refreshable {
     private JTable table;
     private DefaultTableModel tableModel;
     private JLabel lblTotalSalary;
-    private EmployeeBUS employeeBUS = new EmployeeBUS();
+    private final EmployeeApiClient employeeApiClient = new EmployeeApiClient();
     private NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
 
     public SalaryPanel() {
@@ -93,7 +94,13 @@ public class SalaryPanel extends JPanel implements Refreshable {
 
     private void loadData() {
         tableModel.setRowCount(0);
-        List<EmployeeDTO> employees = employeeBUS.getAllEmployees();
+        List<EmployeeDTO> employees;
+        try {
+            employees = employeeApiClient.getEmployees();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         
         double totalPayroll = 0;
 

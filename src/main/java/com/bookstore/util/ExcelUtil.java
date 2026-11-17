@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,6 +53,17 @@ public class ExcelUtil {
                 workbook.write(outputStream);
             }
         }
+    }
+
+    public static boolean isFileInUse(IOException exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            String message = cause.getMessage();
+            if (message != null
+                    && message.toLowerCase(Locale.ROOT).contains("being used by another process")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static List<ExcelBookRow> importBooks(File file) throws IOException {

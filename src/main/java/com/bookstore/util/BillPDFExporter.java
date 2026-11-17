@@ -1,7 +1,5 @@
 package com.bookstore.util;
 
-import com.bookstore.bus.SystemParameterBUS;
-import com.bookstore.dao.SystemParameterDAO;
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 import java.io.FileOutputStream;
@@ -12,7 +10,14 @@ import java.util.List;
 public class BillPDFExporter {
     private static final String FONT_PATH = "C:\\Windows\\Fonts\\Arial.ttf";
 
-    public static boolean exportInvoice(String destPath, int billId, String customerName, List<Object[]> cartItems, double totalAmount) {
+    public static boolean exportInvoice(
+            String destPath,
+            int billId,
+            String customerName,
+            List<Object[]> cartItems,
+            double totalAmount,
+            double vatRate
+    ) {
         Document document = new Document(PageSize.A5);
         try {
             PdfWriter.getInstance(document, new FileOutputStream(destPath));
@@ -36,7 +41,10 @@ public class BillPDFExporter {
             String formattedBillId = String.format("HD%05d", billId);
             document.add(new Paragraph("Mã hóa đơn: " + formattedBillId, normalFont));
             document.add(new Paragraph("Ngày tạo: " + sdf.format(new Date()), normalFont));
-            document.add(new Paragraph("Khách hàng: " + (customerName.isEmpty() ? "Khách vãng lai" : customerName), normalFont));
+            document.add(new Paragraph(
+                    "Khách hàng: " + (customerName == null || customerName.isEmpty() ? "Khách vãng lai" : customerName),
+                    normalFont
+            ));
             document.add(new Paragraph(" "));
 
             PdfPTable table = new PdfPTable(6);
@@ -114,11 +122,6 @@ public class BillPDFExporter {
                 }
             }
 
-            SystemParameterDAO systemParameterDAO = new SystemParameterDAO();
-            String vatStr = systemParameterDAO.getValueByKey("VAT");
-            SystemParameterBUS systemParameterBUS = new SystemParameterBUS();
-            double vatRate = systemParameterBUS.getVAT();
-
             double subTotalAfterDiscount = totalAmount / (1 + vatRate);
             double vatAmount = totalAmount - subTotalAfterDiscount;
             double memberDiscount = totalCart - subTotalAfterDiscount;
@@ -133,7 +136,10 @@ public class BillPDFExporter {
             discountTxt.setAlignment(Element.ALIGN_RIGHT);
             document.add(discountTxt);
 
-            Paragraph vatLine = new Paragraph("Thuế VAT(+" + vatStr + "%): " + MoneyFormatter.toVND(vatAmount), normalFont);
+            Paragraph vatLine = new Paragraph(
+                    "Thuế VAT(+" + Math.round(vatRate * 100) + "%): " + MoneyFormatter.toVND(vatAmount),
+                    normalFont
+            );
             vatLine.setAlignment(Element.ALIGN_RIGHT);
             document.add(vatLine);
 

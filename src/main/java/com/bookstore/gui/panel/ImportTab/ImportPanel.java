@@ -1,6 +1,11 @@
 package com.bookstore.gui.panel.ImportTab;
 
-import com.bookstore.bus.*;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.AuthorApiClient;
+import com.bookstore.api.client.BookApiClient;
+import com.bookstore.api.client.CategoryApiClient;
+import com.bookstore.api.client.ImportApiClient;
+import com.bookstore.api.client.SupplierApiClient;
 import com.bookstore.dto.*;
 import com.bookstore.util.*;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -32,10 +37,11 @@ public class ImportPanel extends JPanel implements Refreshable {
     private JLabel lbFinalTotal;
     private JButton btnRefresh, btnDelete, btnEdit, btnComplete;
 
-    private CategoryBUS categoryBUS = new CategoryBUS();
-    private SupplierBUS supplierBUS = new SupplierBUS();
-    private BookBUS bookBUS = new BookBUS();
-    private ImportBUS importBUS = new ImportBUS();
+    private final CategoryApiClient categoryApiClient = new CategoryApiClient();
+    private final SupplierApiClient supplierApiClient = new SupplierApiClient();
+    private final BookApiClient bookApiClient = new BookApiClient();
+    private final AuthorApiClient authorApiClient = new AuthorApiClient();
+    private final ImportApiClient importApiClient = new ImportApiClient();
 
     private List<BookDTO> listBooks = new ArrayList<>();
     private double finalTotal = 0;
@@ -52,12 +58,16 @@ public class ImportPanel extends JPanel implements Refreshable {
         if (txtDate != null) {
             txtDate.setText(new java.text.SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date()));
         }
-        loadSuppliersToComboBox();
-        loadCategoriesToComBoBox();
-        if (cboCategory != null) {
-            cboCategory.setEnabled(false);
+        try {
+            loadSuppliersToComboBox();
+            loadCategoriesToComBoBox();
+            if (cboCategory != null) {
+                cboCategory.setEnabled(false);
+            }
+            loadBookTable();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi kết nối API", JOptionPane.ERROR_MESSAGE);
         }
-        loadBookTable();
     }
 
     private void initUI() {
@@ -275,7 +285,7 @@ public class ImportPanel extends JPanel implements Refreshable {
     private void loadCategoriesToComBoBox() {
         List<String> list = new ArrayList<>(); 
         list.add("0 - Tất cả thể loại");
-        for (CategoryDTO c : categoryBUS.selectAllCategories()) {
+        for (CategoryDTO c : categoryApiClient.selectAllCategories()) {
             list.add(c.getCategoryId() + " - " + c.getCategoryName());
         }
         cboCategory.updateData(list);
@@ -284,14 +294,14 @@ public class ImportPanel extends JPanel implements Refreshable {
     private void loadSuppliersToComboBox() {
         List<String> ticketList = new ArrayList<>();
         ticketList.add("0 - Chọn Nhà Cung Cấp...");
-        for (SupplierDTO s : supplierBUS.selectAll()) {
+        for (SupplierDTO s : supplierApiClient.selectAll()) {
             ticketList.add(s.getSupplierId() + " - " + s.getSupplierName());
         }
         cboTicketSupplier.updateData(ticketList);
     }
 
     private void loadBookTable() {
-        listBooks = bookBUS.selectAllBooks();
+        listBooks = bookApiClient.selectAllBooks();
         filterBooks();
     }
 
@@ -483,11 +493,10 @@ public class ImportPanel extends JPanel implements Refreshable {
 
         try {
             int supplierId = Integer.parseInt(cboTicketSupplier.getSelectedItem().toString().split(" - ")[0]);
-            int employeeId = SharedData.currentUser != null ? SharedData.currentUser.getEmployeeId() : 1;
 
             ImportTicketDTO ticket = new ImportTicketDTO();
-            ticket.setSupplierID(supplierId); ticket.setEmployeeID(employeeId);
-            ticket.setTotalPrice(finalTotal); ticket.setStatus(1);
+            ticket.setSupplierID(supplierId);
+            ticket.setStatus(1);
             ticket.setCreatedDate(new java.sql.Timestamp(System.currentTimeMillis()));
 
             ImportDetailDTO[] details = new ImportDetailDTO[cartModel.getRowCount()];
@@ -496,41 +505,45 @@ public class ImportPanel extends JPanel implements Refreshable {
                 int qty = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
                 double importPrice = MoneyFormatter.toDouble(cartModel.getValueAt(i, 3).toString());
                 
-                BookDTO book = bookBUS.selectById(bookId);
+                BookDTO book = bookApiClient.selectById(bookId);
                 double discount = Double.parseDouble(cartModel.getValueAt(i, 5).toString());
                 details[i] = new ImportDetailDTO(0, bookId, qty, importPrice, book.getCoverPrice(), discount);
             }
 
-            if (importBUS.importBooks(ticket, details)) {
-                JOptionPane.showMessageDialog(this, "Tạo phiếu nhập thành công! Phiếu đang ở trạng thái chờ duyệt.");
-                cartModel.setRowCount(0); calculateTotal();
-            } else JOptionPane.showMessageDialog(this, "Lỗi khi lưu phiếu!");
-        } catch (Exception e) { e.printStackTrace(); }
+            importApiClient.createImport(ticket, details);
+            JOptionPane.showMessageDialog(this, "Tạo phiếu nhập thành công! Phiếu đang ở trạng thái chờ duyệt.");
+            cartModel.setRowCount(0); calculateTotal();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tạo phiếu nhập", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void quickAddBook() {
-        AuthorBUS authorBUS = new AuthorBUS();
-        List<AuthorDTO> authors = authorBUS.selectAllAuthors();
-        List<CategoryDTO> categories = categoryBUS.selectAllCategories();
-        List<SupplierDTO> suppliers = supplierBUS.selectAll();
-        java.util.Set<String> allTags = new java.util.HashSet<>();
+        try {
+            List<AuthorDTO> authors = authorApiClient.selectAllAuthors();
+            List<CategoryDTO> categories = categoryApiClient.selectAllCategories();
+            List<SupplierDTO> suppliers = supplierApiClient.selectAll();
+            java.util.Set<String> allTags = new java.util.HashSet<>();
 
-        com.bookstore.gui.panel.ProductTab.BookFormDialog dialog = 
-            new com.bookstore.gui.panel.ProductTab.BookFormDialog(
-                (JFrame) SwingUtilities.getWindowAncestor(this),
-                "Thêm Sách Mới", null, authors, categories, suppliers, allTags
-            );
-        dialog.setVisible(true);
+            com.bookstore.gui.panel.ProductTab.BookFormDialog dialog =
+                    new com.bookstore.gui.panel.ProductTab.BookFormDialog(
+                            (JFrame) SwingUtilities.getWindowAncestor(this),
+                            "Thêm Sách Mới", null, authors, categories, suppliers, allTags
+                    );
+            dialog.setVisible(true);
 
-        if (dialog.isSaved() && dialog.getBook() != null) {
-            String result = bookBUS.addBook(dialog.getBook());
-            if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
-                JOptionPane.showMessageDialog(this, result, "Thành công", JOptionPane.INFORMATION_MESSAGE);
-            } else {
-                JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            if (dialog.isSaved() && dialog.getBook() != null) {
+                String result = bookApiClient.addBookForImport(dialog.getBook());
+                if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
+                    JOptionPane.showMessageDialog(this, result, "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
             }
+            refresh();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi kết nối API", JOptionPane.ERROR_MESSAGE);
         }
-        refresh(); // Refresh list after closed
     }
 
     private void addEvents() {

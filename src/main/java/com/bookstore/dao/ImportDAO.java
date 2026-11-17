@@ -34,52 +34,71 @@ public class ImportDAO {
 
     public List<ImportTicketDTO> getAll() {
         List<ImportTicketDTO> list = new ArrayList<>();
-        try {
-            Connection c = DatabaseConnection.getConnection();
-
-            String sql = "SELECT i.import_ticket_id, s.supplier_name, i.created_date, " +
-                    "e.employee_name AS creator_name, i.total_import_price, i.status, " +
-                    "a.employee_name AS approver_name " +
-                    "FROM import_ticket i " +
-                    "JOIN supplier s ON i.supplier_id = s.supplier_id " +
-                    "JOIN employee e ON i.employee_id = e.employee_id " +
-                    "LEFT JOIN employee a ON i.approver_id = a.employee_id " +
-                    "ORDER BY i.import_ticket_id DESC";
-
-            PreparedStatement ps = c.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                ImportTicketDTO dto = new ImportTicketDTO();
-                dto.setImportID(rs.getInt("import_ticket_id"));
-                dto.setSupplierName(rs.getString("supplier_name"));
-                dto.setCreatedDate(rs.getTimestamp("created_date"));
-
-                dto.setEmployeeName(rs.getString("creator_name"));
-
-                dto.setApproverName(rs.getString("approver_name"));
-
-                dto.setTotalPrice(rs.getDouble("total_import_price"));
-                dto.setStatus(rs.getInt("status"));
-                list.add(dto);
+        String sql = "SELECT i.import_ticket_id, s.supplier_name, i.created_date, " +
+                "i.employee_id AS creator_employee_id, e.employee_name AS creator_name, i.total_import_price, i.status, " +
+                "a.employee_name AS approver_name " +
+                "FROM import_ticket i " +
+                "JOIN supplier s ON i.supplier_id = s.supplier_id " +
+                "JOIN employee e ON i.employee_id = e.employee_id " +
+                "LEFT JOIN employee a ON i.approver_id = a.employee_id " +
+                "ORDER BY i.import_ticket_id DESC";
+        try (Connection c = DatabaseConnection.getConnection()) {
+            if (c == null) {
+                return list;
             }
-            DatabaseConnection.closeConnection(c);
-        } catch (Exception e) {
+            try (PreparedStatement ps = c.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ImportTicketDTO dto = new ImportTicketDTO();
+                    dto.setImportID(rs.getInt("import_ticket_id"));
+                    dto.setSupplierName(rs.getString("supplier_name"));
+                    dto.setCreatedDate(rs.getTimestamp("created_date"));
+                    dto.setEmployeeID(rs.getInt("creator_employee_id"));
+                    dto.setEmployeeName(rs.getString("creator_name"));
+                    dto.setApproverName(rs.getString("approver_name"));
+                    dto.setTotalPrice(rs.getDouble("total_import_price"));
+                    dto.setStatus(rs.getInt("status"));
+                    list.add(dto);
+                }
+            }
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return list;
+    }
+
+    public int getCreatorEmployeeId(int importId) {
+        String sql = "SELECT employee_id FROM import_ticket WHERE import_ticket_id = ?";
+        try (Connection c = DatabaseConnection.getConnection()) {
+            if (c == null) {
+                return 0;
+            }
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setInt(1, importId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next() ? rs.getInt("employee_id") : 0;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
     public boolean updateStatus(int importId, int newStatus, int approverId) {
         boolean result = false;
         try {
             Connection c = DatabaseConnection.getConnection();
-            String sql = "UPDATE import_ticket SET status = ?, approver_id = ?, approved_date = NOW() WHERE import_ticket_id = ? AND status = 1";
+            String sql = "UPDATE import_ticket SET status = ?, approver_id = ?, approved_date = NOW() " +
+                    "WHERE import_ticket_id = ? AND status = 1 AND employee_id <> ? " +
+                    "AND EXISTS (SELECT 1 FROM employee checker WHERE checker.employee_id = ? AND checker.role_id IN (1, 2))";
 
             PreparedStatement ps = c.prepareStatement(sql);
             ps.setInt(1, newStatus);
             ps.setInt(2, approverId);
             ps.setInt(3, importId);
+            ps.setInt(4, approverId);
+            ps.setInt(5, approverId);
 
             if (ps.executeUpdate() > 0) result = true;
             DatabaseConnection.closeConnection(c);
@@ -106,11 +125,15 @@ public class ImportDAO {
             c = DatabaseConnection.getConnection();
             c.setAutoCommit(false);
             
-            String sqlUpdateStatus = "UPDATE import_ticket SET status = 2, approver_id = ?, approved_date = NOW(), total_import_quantity = (SELECT COALESCE(SUM(import_quantity), 0) FROM import_ticket_detail WHERE import_ticket_id = ?) WHERE import_ticket_id = ? AND status = 1";
+            String sqlUpdateStatus = "UPDATE import_ticket SET status = 2, approver_id = ?, approved_date = NOW(), total_import_quantity = (SELECT COALESCE(SUM(import_quantity), 0) FROM import_ticket_detail WHERE import_ticket_id = ?) " +
+                    "WHERE import_ticket_id = ? AND status = 1 AND employee_id <> ? " +
+                    "AND EXISTS (SELECT 1 FROM employee checker WHERE checker.employee_id = ? AND checker.role_id IN (1, 2))";
             try (PreparedStatement ps = c.prepareStatement(sqlUpdateStatus)) {
                 ps.setInt(1, approverId);
                 ps.setInt(2, importId);
                 ps.setInt(3, importId);
+                ps.setInt(4, approverId);
+                ps.setInt(5, approverId);
                 if (ps.executeUpdate() == 0) {
                     c.rollback();
                     return false;

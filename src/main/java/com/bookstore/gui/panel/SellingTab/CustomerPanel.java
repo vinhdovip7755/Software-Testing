@@ -1,7 +1,8 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.CustomerBUS;
-import com.bookstore.bus.MembershipRankBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.CustomerApiClient;
+import com.bookstore.api.client.MembershipRankApiClient;
 import com.bookstore.dto.CustomerDTO;
 import com.bookstore.dto.MembershipRankDTO;
 import com.bookstore.util.AppConstant;
@@ -30,10 +31,10 @@ public class CustomerPanel extends JPanel implements Refreshable {
     private JTable tblCustomer;
     private DefaultTableModel customerModel;
 
-    private CustomerBUS customerBUS = new CustomerBUS();
-    private MembershipRankBUS rankBUS = new MembershipRankBUS();
+    private final CustomerApiClient customerApiClient = new CustomerApiClient();
+    private final MembershipRankApiClient rankApiClient = new MembershipRankApiClient();
 
-    private List<CustomerDTO> listCustomers;
+    private List<CustomerDTO> listCustomers = new ArrayList<>();
 
     public CustomerPanel() {
         initUI();
@@ -41,8 +42,12 @@ public class CustomerPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
-        loadCustomerTable();
-        loadRanksToComboBox();
+        try {
+            loadCustomerTable();
+            loadRanksToComboBox();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải dữ liệu khách hàng", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void initUI() {
@@ -207,7 +212,7 @@ public class CustomerPanel extends JPanel implements Refreshable {
     }
 
     private void loadCustomerTable() {
-        listCustomers = customerBUS.selectAllCustomers();
+        listCustomers = customerApiClient.selectAllCustomers();
         updateCustomerTable(listCustomers);
     }
 
@@ -268,7 +273,7 @@ public class CustomerPanel extends JPanel implements Refreshable {
 
         cboRank.removeAllItems();
         cboRank.addItem("Tất cả hạng");
-        List<MembershipRankDTO> allRanks = rankBUS.getAllRanks();
+        List<MembershipRankDTO> allRanks = rankApiClient.getAllRanks();
         for (MembershipRankDTO rank : allRanks){
             cboRank.addItem(rank.getRankName());
         }
@@ -351,8 +356,12 @@ public class CustomerPanel extends JPanel implements Refreshable {
 
         if (selectedCustomer != null) {
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            CustomerDetailDialog dialog = new CustomerDetailDialog(parentFrame, selectedCustomer);
-            dialog.setVisible(true);
+            try {
+                CustomerDetailDialog dialog = new CustomerDetailDialog(parentFrame, selectedCustomer);
+                dialog.setVisible(true);
+            } catch (ApiException e) {
+                JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải thông tin khách hàng", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 

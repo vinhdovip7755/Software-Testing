@@ -14,7 +14,10 @@ import java.io.IOException;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
 import com.bookstore.util.SearchableComboBox;
-import com.bookstore.bus.*;
+import com.bookstore.api.client.AuthorApiClient;
+import com.bookstore.api.client.BookApiClient;
+import com.bookstore.api.client.CategoryApiClient;
+import com.bookstore.api.client.SupplierApiClient;
 import com.bookstore.dto.*;
 import com.bookstore.util.ExcelUtil;
 import com.formdev.flatlaf.FlatClientProperties;
@@ -36,10 +39,10 @@ public class ProductPanel extends JPanel implements Refreshable {
     private JButton tagFilterButton;
     private JLabel noResultsLabel;
     private JScrollPane scrollPane;
-    private BookBUS bookBUS;
-    private AuthorBUS authorBUS;
-    private CategoryBUS categoryBUS;
-    private SupplierBUS supplierBUS;
+    private BookApiClient bookBUS;
+    private AuthorApiClient authorBUS;
+    private CategoryApiClient categoryBUS;
+    private SupplierApiClient supplierBUS;
 
     private List<BookDTO> allBooks;
     private List<AuthorDTO> authors;
@@ -48,10 +51,10 @@ public class ProductPanel extends JPanel implements Refreshable {
     private Set<String> allTags;
 
     public ProductPanel() {
-        bookBUS = new BookBUS();
-        authorBUS = new AuthorBUS();
-        categoryBUS = new CategoryBUS();
-        supplierBUS = new SupplierBUS();
+        bookBUS = new BookApiClient();
+        authorBUS = new AuthorApiClient();
+        categoryBUS = new CategoryApiClient();
+        supplierBUS = new SupplierApiClient();
 
         loadDataFromDatabase();
 
@@ -641,8 +644,11 @@ public class ProductPanel extends JPanel implements Refreshable {
                     "Thành công",
                     JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException e) {
+            String message = ExcelUtil.isFileInUse(e)
+                    ? "Tệp tin đang được mở bởi ứng dụng khác. Vui lòng đóng tệp tin và thử lại!"
+                    : "Không thể xuất file Excel: " + e.getMessage();
             JOptionPane.showMessageDialog(this,
-                    "Không thể export file Excel: " + e.getMessage(),
+                    message,
                     "Lỗi",
                     JOptionPane.ERROR_MESSAGE);
         }
@@ -673,6 +679,8 @@ public class ProductPanel extends JPanel implements Refreshable {
                     } else {
                         errors.add("Dòng " + row.getSourceRow() + ": " + result);
                     }
+                } catch (com.bookstore.api.client.ApiException ex) {
+                    errors.add("Dòng " + row.getSourceRow() + ": " + ex.getMessage());
                 } catch (IllegalArgumentException ex) {
                     errors.add("Dòng " + row.getSourceRow() + ": " + ex.getMessage());
                 }

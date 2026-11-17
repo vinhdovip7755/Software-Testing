@@ -12,6 +12,10 @@ public class CustomerBUS {
         return customerDAO.selectByPhone(phone);
     }
 
+    public CustomerDTO selectById(int customerId) {
+        return customerDAO.selectById(customerId);
+    }
+
     public List<CustomerDTO> selectAllCustomers() {
         return customerDAO.selectAllCustomers();
     }

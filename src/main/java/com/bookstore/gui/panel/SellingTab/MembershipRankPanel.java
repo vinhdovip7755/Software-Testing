@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.MembershipRankBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.MembershipRankApiClient;
 import com.bookstore.dto.MembershipRankDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
@@ -20,7 +21,7 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
     private JTable tblRank;
     private DefaultTableModel rankModel;
 
-    private MembershipRankBUS rankBUS = new MembershipRankBUS();
+    private final MembershipRankApiClient rankApiClient = new MembershipRankApiClient();
     private List<MembershipRankDTO> listRanks;
 
     public MembershipRankPanel() {
@@ -29,7 +30,11 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
-        loadRankTable();
+        try {
+            loadRankTable();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải hạng thành viên", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void initUI() {
@@ -40,7 +45,7 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
         add(createTopPanel(), BorderLayout.NORTH);
         add(createTablePanel(), BorderLayout.CENTER);
 
-        loadRankTable();
+        refresh();
         addEvents();
     }
 
@@ -135,7 +140,7 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
     }
 
     private void loadRankTable() {
-        listRanks = rankBUS.getAllRanks();
+        listRanks = rankApiClient.getAllRanks();
         rankModel.setRowCount(0);
         if (listRanks != null) {
             for (MembershipRankDTO rank : listRanks) {
@@ -172,7 +177,7 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
             MembershipRankDialog dialog = new MembershipRankDialog(parentFrame, selectedRank);
             dialog.setVisible(true);
-            loadRankTable();
+            refresh();
         } else {
             JOptionPane.showMessageDialog(this, "Lỗi: Không tìm thấy dữ liệu hạng thành viên này trong bộ nhớ!", "Lỗi Hệ Thống", JOptionPane.ERROR_MESSAGE);
         }
@@ -181,7 +186,7 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         MembershipRankDialog dialog = new MembershipRankDialog(parentFrame, null);
         dialog.setVisible(true);
-        loadRankTable();
+        refresh();
     }
 
     private void deleteSelectedRank() {
@@ -199,13 +204,12 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
                 "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            String message = rankBUS.deleteRank(rankId);
-
-            if (message.equals("Xóa hạng thành viên thành công!")) {
-                JOptionPane.showMessageDialog(this, message);
-                loadRankTable();
-            } else {
-                JOptionPane.showMessageDialog(this, message, "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            try {
+                rankApiClient.deleteRank(rankId);
+                JOptionPane.showMessageDialog(this, "Xóa hạng thành viên thành công!");
+                refresh();
+            } catch (ApiException e) {
+                JOptionPane.showMessageDialog(this, e.getMessage(), "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             }
         }
     }

@@ -15,6 +15,9 @@ public class BillDTO {
     private String paymentMethodName;
     private int earnedPoints;
 
+    public BillDTO() {
+    }
+
     public BillDTO(int billId, Timestamp createdDate, double totalBillPrice, double tax, int employeeId, int customerId, int paymentMethodId, int earnedPoints) {
         this.billId = billId;
         this.createdDate = createdDate;

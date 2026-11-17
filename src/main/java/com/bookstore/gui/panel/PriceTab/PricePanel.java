@@ -1,22 +1,24 @@
 package com.bookstore.gui.panel.PriceTab;
 
 import com.bookstore.util.AppConstant;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.PriceApiClient;
+import com.bookstore.dto.PriceDTO;
 import com.formdev.flatlaf.FlatClientProperties;
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.ArrayList;
 import java.util.List;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
-import com.bookstore.bus.*;
-import com.bookstore.dto.*;
 import com.bookstore.util.Refreshable;
 
 public class PricePanel extends JPanel implements Refreshable {
-    private List<PriceDTO> listPrices;
-    public List<PriceDTO> listHienThi;
-    public PriceBUS bus = new PriceBUS();
+    private List<PriceDTO> listPrices = new ArrayList<>();
+    public List<PriceDTO> listHienThi = new ArrayList<>();
+    private final PriceApiClient priceApiClient = new PriceApiClient();
 
     private JRadioButton rbPrice, rbName, rbAuthor, rbCategory;
     private JPanel searchCard, tableCard, inputCards;
@@ -38,9 +40,14 @@ public class PricePanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
-        this.listPrices = bus.getPriceDTOs();
-        this.listHienThi = this.listPrices;
-        capNhatBang(listHienThi);
+        try {
+            this.listPrices = priceApiClient.getPrices();
+            this.listHienThi = this.listPrices;
+            capNhatBang(listHienThi);
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải bảng giá",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void initSearchCard() {
@@ -283,14 +290,19 @@ public class PricePanel extends JPanel implements Refreshable {
             }
         }
 
-        this.listHienThi = bus.timKiemSach(listPrices, input, type);
-        hasSearched = true;
+        try {
+            this.listHienThi = priceApiClient.searchPrices(input, type);
+            hasSearched = true;
 
-        if (listHienThi.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Không tìm thấy kết quả phù hợp!", "Thông báo",
-                    JOptionPane.INFORMATION_MESSAGE);
+            if (listHienThi.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Không tìm thấy kết quả phù hợp!", "Thông báo",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+            capNhatBang(listHienThi);
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tìm giá sách",
+                    JOptionPane.ERROR_MESSAGE);
         }
-        capNhatBang(listHienThi);
     }
 
     private void initTableUI() {
@@ -466,13 +478,13 @@ if(true) return;
                     JOptionPane.YES_NO_OPTION);
 
             if (confirm == JOptionPane.YES_OPTION) {
-                boolean success = bus.createNewPrice(p.getBookId(), p.getBasePrice(), newProfitRate, predictedPrice);
-
-                if (success) {
+                try {
+                    priceApiClient.updateBookPrice(p.getBookId(), newProfitRate);
                     JOptionPane.showMessageDialog(this, "Đã Cập nhật giá bán thành công!");
                     refresh();
-                } else {
-                    JOptionPane.showMessageDialog(this, "Lỗi: Không thể lưu giá mới vào Database!");
+                } catch (ApiException ex) {
+                    JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể cập nhật giá",
+                            JOptionPane.ERROR_MESSAGE);
                 }
             }
         } catch (NumberFormatException e) {
@@ -497,13 +509,15 @@ if(true) return;
                 double newPercent = Double.parseDouble(res.trim());
                 double newProfitRate = newPercent / 100.0;
 
-                if (bus.updateBulkPrice(listHienThi, newProfitRate)) {
+                try {
+                    priceApiClient.updateBulkPrices(listHienThi, newProfitRate);
                     JOptionPane.showMessageDialog(this, "Đã chốt giá hàng loạt thành công!");
                     refresh();
-                } else {
-                    JOptionPane.showMessageDialog(this, "Có lỗi xảy ra khi Cập nhật giá hàng loạt!");
+                } catch (ApiException ex) {
+                    JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể cập nhật giá hàng loạt",
+                            JOptionPane.ERROR_MESSAGE);
                 }
-            } catch (Exception e) {
+            } catch (NumberFormatException e) {
                 JOptionPane.showMessageDialog(this, "Lỗi: Vui lòng nhập số hợp lệ!");
             }
         }

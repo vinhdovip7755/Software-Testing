@@ -1,7 +1,9 @@
 package com.bookstore.gui.panel.EmployeeTab;
 
-import com.bookstore.bus.EmployeeBUS;
-import com.bookstore.bus.RoleBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.EmployeeApiClient;
+import com.bookstore.api.client.RoleApiClient;
+import com.bookstore.api.contract.EmployeeActivityDTO;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.dto.RoleDTO;
 import com.bookstore.util.AppConstant;
@@ -33,8 +35,8 @@ public class EmployeePanel extends JPanel implements Refreshable {
     private JTable tblEmployee;
     private DefaultTableModel employeeModel;
 
-    private final EmployeeBUS employeeBUS = new EmployeeBUS();
-    private final RoleBUS roleBUS = new RoleBUS();
+    private final EmployeeApiClient employeeApiClient = new EmployeeApiClient();
+    private final RoleApiClient roleApiClient = new RoleApiClient();
     private List<EmployeeDTO> listEmployees;
 
     public EmployeePanel() {
@@ -51,8 +53,12 @@ public class EmployeePanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
-        loadEmployeeTable();
-        loadRolesToComboBox();
+        try {
+            loadEmployeeTable();
+            loadRolesToComboBox();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void initUI() {
@@ -213,7 +219,7 @@ public class EmployeePanel extends JPanel implements Refreshable {
     }
 
     private void loadEmployeeTable() {
-        listEmployees = employeeBUS.getAllEmployees();
+        listEmployees = employeeApiClient.getEmployees();
         updateEmployeeTable(listEmployees);
     }
 
@@ -273,7 +279,7 @@ public class EmployeePanel extends JPanel implements Refreshable {
     private void loadRolesToComboBox() {
         cboRole.removeAllItems();
         cboRole.addItem("Tất cả chức vụ");
-        List<RoleDTO> allRoles = roleBUS.getAllRoles();
+        List<RoleDTO> allRoles = roleApiClient.getRoles();
         for (RoleDTO role : allRoles) {
             if (role.getRoleId() == 1 || "Admin".equalsIgnoreCase(role.getRoleName())) {
                 continue;
@@ -364,8 +370,13 @@ public class EmployeePanel extends JPanel implements Refreshable {
 
         if (selectedEmployee != null) {
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            EmployeeDetailDialog dialog = new EmployeeDetailDialog(parentFrame, selectedEmployee);
-            dialog.setVisible(true);
+            try {
+                EmployeeActivityDTO activity = employeeApiClient.getActivity(employeeId);
+                EmployeeDetailDialog dialog = new EmployeeDetailDialog(parentFrame, selectedEmployee, activity);
+                dialog.setVisible(true);
+            } catch (ApiException e) {
+                JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 

@@ -15,23 +15,25 @@ public class BillDAO {
 
     private static void ensureBillDetailBookNameColumn() {
         try (Connection conn = DatabaseConnection.getConnection()) {
-            if (conn != null) {
-                DatabaseMetaData meta = conn.getMetaData();
-                boolean exists = false;
-                try (ResultSet rs = meta.getColumns(null, null, "bill_detail", "book_name")) {
-                    if (rs.next()) {
-                        exists = true;
-                    }
-                }
-                if (!exists) {
-                    try (Statement stmt = conn.createStatement()) {
-                        stmt.executeUpdate("ALTER TABLE bill_detail ADD COLUMN book_name VARCHAR(255) NULL AFTER book_id");
-                        stmt.executeUpdate("UPDATE bill_detail bd JOIN book b ON bd.book_id = b.book_id SET bd.book_name = b.book_name WHERE bd.book_name IS NULL");
-                    }
-                }
+            if (conn == null) {
+                throw new SQLException("Không thể kết nối cơ sở dữ liệu để kiểm tra chi tiết hóa đơn.");
             }
-        } catch (Exception e) {
-            // Ignored if table already altered or restricted
+
+            DatabaseMetaData meta = conn.getMetaData();
+            boolean exists = false;
+            try (ResultSet rs = meta.getColumns(null, null, "bill_detail", "book_name")) {
+                exists = rs.next();
+            }
+
+            try (Statement stmt = conn.createStatement()) {
+                if (!exists) {
+                    stmt.executeUpdate("ALTER TABLE bill_detail ADD COLUMN book_name VARCHAR(255) NULL AFTER book_id");
+                }
+                stmt.executeUpdate("UPDATE bill_detail bd JOIN book b ON bd.book_id = b.book_id "
+                        + "SET bd.book_name = b.book_name WHERE bd.book_name IS NULL");
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Không thể bảo đảm tên sách lịch sử trong chi tiết hóa đơn.", e);
         }
     }
 
@@ -317,11 +319,10 @@ public class BillDAO {
 
     public List<BillDetailDTO> getBillDetailsByBillId(int billId) {
         List<BillDetailDTO> list = new ArrayList<>();
-        String sql = "SELECT bd.bill_id, bd.book_id, COALESCE(bd.book_name, b.book_name) as book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
+        String sql = "SELECT bd.bill_id, bd.book_id, bd.book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
                 "FROM bill_detail bd " +
-                "JOIN book b ON bd.book_id = b.book_id " +
                 "WHERE bd.bill_id = ? " +
-                "GROUP BY bd.bill_id, bd.book_id, COALESCE(bd.book_name, b.book_name), bd.unit_price " +
+                "GROUP BY bd.bill_id, bd.book_id, bd.book_name, bd.unit_price " +
                 "ORDER BY bd.book_id";
 
         try (Connection conn = DatabaseConnection.getConnection();

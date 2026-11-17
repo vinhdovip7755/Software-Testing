@@ -1,7 +1,8 @@
 package com.bookstore.gui.panel.BillTab;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
-
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.BillApiClient;
 import javax.swing.*;
 import com.toedter.calendar.JDateChooser;
 import javax.swing.border.EmptyBorder;
@@ -14,7 +15,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import com.bookstore.bus.BillBUS;
 import com.bookstore.dto.BillDTO;
 import com.bookstore.util.Refreshable;
 import java.util.List;
@@ -26,6 +26,7 @@ public class BillPanel extends JPanel implements Refreshable {
     private DefaultTableModel model;
     private JDateChooser dchFrom;
     private JDateChooser dchTo;
+    private final BillApiClient billApiClient = new BillApiClient();
 
     private final Color MAIN_GREEN = Color.decode(AppConstant.GREEN_COLOR_CODE);
 
@@ -320,10 +321,15 @@ public class BillPanel extends JPanel implements Refreshable {
     private void loadBillTable(){
         if(model == null)
             return;
-        model.setRowCount(0);
 
-        BillBUS billBUS = new BillBUS();
-        List<BillDTO> list = billBUS.getAllBills();
+        List<BillDTO> list;
+        try {
+            list = billApiClient.getAllBills();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải hóa đơn", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        model.setRowCount(0);
         list.sort((b1, b2) -> {
             if (b1.getCreatedDate() != null && b2.getCreatedDate() != null) {
                 int cmp = b2.getCreatedDate().compareTo(b1.getCreatedDate());

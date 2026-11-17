@@ -1,12 +1,14 @@
 package com.bookstore.gui.panel.ImportTab;
 
-import com.bookstore.bus.ImportBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.ImportApiClient;
 import com.bookstore.dto.ImportDetailDTO;
 import com.bookstore.dto.ImportTicketDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
 import com.bookstore.util.SharedData;
 import com.bookstore.util.PermissionUtil;
+import com.bookstore.util.ImportApprovalPolicy;
 import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
@@ -20,7 +22,7 @@ import java.util.List;
 public class ImportDetailDialog extends JDialog {
     private JTable table;
     private DefaultTableModel tableModel;
-    private ImportBUS importBUS = new ImportBUS();
+    private final ImportApiClient importApiClient = new ImportApiClient();
     private ImportTicketDTO currentTicket;
     private int roleId;
 
@@ -110,8 +112,15 @@ public class ImportDetailDialog extends JDialog {
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
         actionPanel.setBackground(Color.WHITE);
 
+        boolean canReviewTicket = SharedData.currentUser != null
+                && roleId == SharedData.currentUser.getRoleId()
+                && PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")
+                && ImportApprovalPolicy.canAct(
+                        roleId,
+                        SharedData.currentUser.getEmployeeId(),
+                        currentTicket.getEmployeeID());
         if (currentTicket.getStatus() == 1) {
-            if (PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
+            if (canReviewTicket) {
                 JButton btnCancel = new JButton("Hủy Phiếu");
                 btnCancel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
                 btnCancel.setForeground(Color.WHITE);
@@ -128,26 +137,24 @@ public class ImportDetailDialog extends JDialog {
 
                 btnApprove.addActionListener(e -> {
                     if (JOptionPane.showConfirmDialog(this, "Xác nhận DUYỆT phiếu này?", "Xác nhận", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                        int approverId = 1;
-                        if (SharedData.currentUser != null) {
-                            approverId = SharedData.currentUser.getEmployeeId();
-                        }
-                        if (importBUS.approveImport(currentTicket.getImportID(), approverId)) {
+                        try {
+                            importApiClient.approveImport(currentTicket.getImportID());
                             JOptionPane.showMessageDialog(this, "Duyệt thành công!");
                             this.dispose();
+                        } catch (ApiException ex) {
+                            JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi duyệt phiếu", JOptionPane.ERROR_MESSAGE);
                         }
                     }
                 });
 
                 btnCancel.addActionListener(e -> {
                     if (JOptionPane.showConfirmDialog(this, "Bạn muốn HỦY phiếu nhập này?", "Cảnh báo", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
-                        int approverId = 1;
-                        if (SharedData.currentUser != null) {
-                            approverId = SharedData.currentUser.getEmployeeId();
-                        }
-                        if (importBUS.cancelImport(currentTicket.getImportID(), approverId)) {
+                        try {
+                            importApiClient.cancelImport(currentTicket.getImportID());
                             JOptionPane.showMessageDialog(this, "Đã hủy phiếu!");
                             this.dispose();
+                        } catch (ApiException ex) {
+                            JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi hủy phiếu", JOptionPane.ERROR_MESSAGE);
                         }
                     }
                 });
@@ -167,16 +174,20 @@ public class ImportDetailDialog extends JDialog {
     }
 
     private void loadDetails() {
-        List<ImportDetailDTO> details = importBUS.getDetailsByImportId(currentTicket.getImportID());
-        for (ImportDetailDTO d : details) {
-            double lineTotal = d.getQuantity() * d.getPrice();
-            tableModel.insertRow(0, new Object[]{
-                    d.getBookID(),
-                    d.getBookName(),
-                    MoneyFormatter.toVND(d.getPrice()),
-                    d.getQuantity(),
-                    MoneyFormatter.toVND(lineTotal)
-            });
+        try {
+            List<ImportDetailDTO> details = importApiClient.getDetailsByImportId(currentTicket.getImportID());
+            for (ImportDetailDTO d : details) {
+                double lineTotal = d.getQuantity() * d.getPrice();
+                tableModel.insertRow(0, new Object[]{
+                        d.getBookID(),
+                        d.getBookName(),
+                        MoneyFormatter.toVND(d.getPrice()),
+                        d.getQuantity(),
+                        MoneyFormatter.toVND(lineTotal)
+                });
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải chi tiết phiếu", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

@@ -1,7 +1,8 @@
 package com.bookstore.gui.panel.EmployeeTab;
 
-import com.bookstore.bus.EmployeeBUS;
-import com.bookstore.bus.RoleBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.EmployeeApiClient;
+import com.bookstore.api.client.RoleApiClient;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.dto.RoleDTO;
 import com.bookstore.util.AppConstant;
@@ -27,8 +28,8 @@ public class EmployeeEditDialog extends JDialog {
     private JButton btnSave, btnCancel;
 
     private EmployeeDTO employee;
-    private EmployeeBUS employeeBUS = new EmployeeBUS();
-    private RoleBUS roleBUS = new RoleBUS();
+    private final EmployeeApiClient employeeApiClient = new EmployeeApiClient();
+    private final RoleApiClient roleApiClient = new RoleApiClient();
     private EmployeePanel parentPanel;
     private List<RoleDTO> roleList;
 
@@ -112,6 +113,7 @@ public class EmployeeEditDialog extends JDialog {
         btnCancel.setBackground(Color.decode("#E0E0E0"));
         btnCancel.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         btnCancel.setPreferredSize(new Dimension(100, 40));
+        btnSave.setEnabled(roleList != null && !roleList.isEmpty());
 
         pButton.add(btnSave);
         pButton.add(btnCancel);
@@ -122,7 +124,12 @@ public class EmployeeEditDialog extends JDialog {
     }
 
     private void loadRoles() {
-        roleList = roleBUS.getAllRoles();
+        try {
+            roleList = roleApiClient.getRoles();
+        } catch (ApiException e) {
+            roleList = List.of();
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+        }
         for (RoleDTO role : roleList) {
             if (role.getRoleId() == 1 || "Admin".equalsIgnoreCase(role.getRoleName())) {
                 continue;
@@ -256,7 +263,13 @@ public class EmployeeEditDialog extends JDialog {
                 }
             }
 
-                        String result = employeeBUS.updateEmployee(temp);
+            String result;
+            try {
+                result = employeeApiClient.updateEmployee(temp);
+            } catch (ApiException e) {
+                JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                 if (com.bookstore.util.SharedData.currentUser != null && temp.getEmployeeId() == com.bookstore.util.SharedData.currentUser.getEmployeeId()) {
                     com.bookstore.util.SharedData.currentUser.setEmployeeName(temp.getEmployeeName());

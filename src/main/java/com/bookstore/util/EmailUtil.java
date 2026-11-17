@@ -1,7 +1,7 @@
 package com.bookstore.util;
 
 import java.util.Properties;
-import java.util.Random;
+import java.security.SecureRandom;
 
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -12,17 +12,15 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
 public class EmailUtil {
-    // Replace with the generated App Password from Google Account
-    private static final String SENDER_EMAIL = "hotro.adminhethong@gmail.com";
-    private static final String APP_PASSWORD = "yvvh qlcf pvuq vaeg";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     public static String generateOTP() {
-        Random rnd = new Random();
-        int number = rnd.nextInt(999999);
-        return String.format("%06d", number);
+        return String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
     }
 
     private static Session getSession() {
+        String senderEmail = setting("bookstore.smtp.username", "BOOKSTORE_SMTP_USERNAME");
+        String appPassword = setting("bookstore.smtp.password", "BOOKSTORE_SMTP_PASSWORD");
         Properties props = new Properties();
         props.put("mail.smtp.host", "smtp.gmail.com");
         props.put("mail.smtp.port", "587");
@@ -31,15 +29,26 @@ public class EmailUtil {
 
         return Session.getInstance(props, new javax.mail.Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(SENDER_EMAIL, APP_PASSWORD);
+                return new PasswordAuthentication(senderEmail, appPassword);
             }
         });
+    }
+
+    private static String setting(String property, String environmentVariable) {
+        String value = System.getProperty(property);
+        if (value == null || value.isBlank()) {
+            value = System.getenv(environmentVariable);
+        }
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Chưa cấu hình SMTP: " + environmentVariable);
+        }
+        return value;
     }
 
     public static boolean sendOTP(String recipientEmail, String otpCode) {
         try {
             MimeMessage message = new MimeMessage(getSession());
-            message.setFrom(new InternetAddress(SENDER_EMAIL));
+            message.setFrom(new InternetAddress(setting("bookstore.smtp.username", "BOOKSTORE_SMTP_USERNAME")));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipientEmail));
             message.setSubject("Mã xác thực cấp lại mật khẩu - Phần mềm Quản lý Cửa hàng bán sách", "UTF-8");
             message.setText("Xin chào,\n\nMã xác thực (OTP) của bạn là: " + otpCode + 
@@ -56,7 +65,7 @@ public class EmailUtil {
     public static boolean sendNewPassword(String recipientEmail, String newPassword) {
         try {
             MimeMessage message = new MimeMessage(getSession());
-            message.setFrom(new InternetAddress(SENDER_EMAIL));
+            message.setFrom(new InternetAddress(setting("bookstore.smtp.username", "BOOKSTORE_SMTP_USERNAME")));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipientEmail));
             message.setSubject("Cấp lại mật khẩu - Phần mềm Quản lý Cửa hàng bán sách", "UTF-8");
             message.setText("Xin chào,\n\nMật khẩu mới của bạn là: " + newPassword + 

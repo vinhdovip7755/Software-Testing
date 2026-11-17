@@ -1,0 +1,206 @@
+package com.bookstore.api;
+
+import com.bookstore.api.contract.ApiSessionDTO;
+import com.bookstore.api.contract.AccountViewDTO;
+import com.bookstore.api.contract.BillCreateRequestDTO;
+import com.bookstore.api.contract.BillCreateResponseDTO;
+import com.bookstore.api.contract.BillLineItemRequestDTO;
+import com.bookstore.api.contract.BillReceiptLineDTO;
+import com.bookstore.api.contract.BookPromotionDTO;
+import com.bookstore.api.contract.PromotionSaveRequestDTO;
+import com.bookstore.api.contract.CustomerPurchaseSummaryDTO;
+import com.bookstore.api.contract.ImportCreateRequestDTO;
+import com.bookstore.api.contract.PriceBulkUpdateRequestDTO;
+import com.bookstore.api.contract.PriceUpdateRequestDTO;
+import com.bookstore.dto.BookDTO;
+import com.bookstore.dto.EmployeeDTO;
+import com.bookstore.dto.FinancialQuarterSummaryDTO;
+import com.bookstore.dto.FinancialStatsDTO;
+import com.bookstore.dto.ImportDetailDTO;
+import com.bookstore.dto.ImportTicketDTO;
+import com.bookstore.dto.PermissionDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+
+import java.sql.Timestamp;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ApiContractTest {
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void roundTripsSessionPermissionsAndBookAuthorIds() throws Exception {
+        ApiSessionDTO session = new ApiSessionDTO(
+                "token",
+                new EmployeeDTO(),
+                Map.of("MANAGE_PRODUCT", new PermissionDTO("MANAGE_PRODUCT", true, true))
+        );
+        ApiSessionDTO decodedSession = objectMapper.readValue(
+                objectMapper.writeValueAsString(session),
+                ApiSessionDTO.class
+        );
+
+        assertEquals("token", decodedSession.getAccessToken());
+        assertTrue(decodedSession.getPermissions().get("MANAGE_PRODUCT").isAction());
+        assertTrue(decodedSession.getPermissions().get("MANAGE_PRODUCT").isView());
+
+        BookDTO book = new BookDTO();
+        book.setAuthorIdsList(List.of(3, 5));
+        BookDTO decodedBook = objectMapper.readValue(objectMapper.writeValueAsString(book), BookDTO.class);
+        assertEquals(List.of(3, 5), decodedBook.getAuthorIdsList());
+    }
+
+    @Test
+    void roundTripsImportCreateRequest() throws Exception {
+        ImportTicketDTO ticket = new ImportTicketDTO();
+        ticket.setSupplierID(7);
+        ticket.setCreatedDate(Timestamp.valueOf("2026-11-17 19:00:00"));
+        ImportDetailDTO detail = new ImportDetailDTO(0, 3, 4, 12000, 20000, 40);
+        ImportCreateRequestDTO request = new ImportCreateRequestDTO(ticket, List.of(detail));
+
+        ImportCreateRequestDTO decoded = objectMapper.readValue(
+                objectMapper.writeValueAsString(request),
+                ImportCreateRequestDTO.class
+        );
+
+        assertEquals(7, decoded.getTicket().getSupplierID());
+        assertEquals(ticket.getCreatedDate(), decoded.getTicket().getCreatedDate());
+        assertEquals(3, decoded.getDetails().get(0).getBookID());
+        assertEquals(4, decoded.getDetails().get(0).getQuantity());
+
+        CustomerPurchaseSummaryDTO summary = new CustomerPurchaseSummaryDTO(
+                12,
+                98765.5,
+                Timestamp.valueOf("2026-11-17 19:00:00")
+        );
+        CustomerPurchaseSummaryDTO decodedSummary = objectMapper.readValue(
+                objectMapper.writeValueAsString(summary),
+                CustomerPurchaseSummaryDTO.class
+        );
+        assertEquals(12, decodedSummary.getTotalBooks());
+        assertEquals(98765.5, decodedSummary.getTotalSpent());
+        assertEquals(summary.getLastPurchase(), decodedSummary.getLastPurchase());
+    }
+
+    @Test
+    void roundTripsBillCreateContracts() throws Exception {
+        BillCreateRequestDTO request = new BillCreateRequestDTO(
+                7,
+                2,
+                List.of(new BillLineItemRequestDTO(11, 3))
+        );
+        BillCreateRequestDTO decodedRequest = objectMapper.readValue(
+                objectMapper.writeValueAsString(request),
+                BillCreateRequestDTO.class
+        );
+        assertEquals(7, decodedRequest.customerId());
+        assertEquals(2, decodedRequest.paymentMethodId());
+        assertEquals(11, decodedRequest.details().get(0).bookId());
+        assertEquals(3, decodedRequest.details().get(0).quantity());
+
+        BillCreateResponseDTO response = new BillCreateResponseDTO(
+                101,
+                125000,
+                0.08,
+                12,
+                "Nguyễn An",
+                List.of(new BillReceiptLineDTO(11, "Sách", 3, 50000, 10, 135000))
+        );
+        BillCreateResponseDTO decodedResponse = objectMapper.readValue(
+                objectMapper.writeValueAsString(response),
+                BillCreateResponseDTO.class
+        );
+        assertEquals(101, decodedResponse.billId());
+        assertEquals(125000, decodedResponse.totalBillPrice());
+        assertEquals(0.08, decodedResponse.tax());
+        assertEquals(12, decodedResponse.earnedPoints());
+        assertEquals("Nguyễn An", decodedResponse.customerName());
+        assertEquals("Sách", decodedResponse.details().get(0).bookName());
+        assertEquals(135000, decodedResponse.details().get(0).totalPrice());
+
+        BookPromotionDTO promotion = new BookPromotionDTO(11, "Khuyến mãi sách", 10);
+        BookPromotionDTO decodedPromotion = objectMapper.readValue(
+                objectMapper.writeValueAsString(promotion),
+                BookPromotionDTO.class
+        );
+        assertEquals(promotion, decodedPromotion);
+    }
+
+    @Test
+    void roundTripsPromotionSaveRequest() throws Exception {
+        Timestamp start = Timestamp.valueOf("2026-11-17 10:00:00");
+        Timestamp end = Timestamp.valueOf("2026-12-17 10:00:00");
+        PromotionSaveRequestDTO request = new PromotionSaveRequestDTO(
+                "Ưu đãi tháng 11",
+                15,
+                start,
+                end,
+                1,
+                List.of(3, 5)
+        );
+
+        PromotionSaveRequestDTO decoded = objectMapper.readValue(
+                objectMapper.writeValueAsString(request),
+                PromotionSaveRequestDTO.class
+        );
+
+        assertEquals(request, decoded);
+    }
+
+    @Test
+    void roundTripsFinancialStatisticsResponses() throws Exception {
+        FinancialStatsDTO stats = new FinancialStatsDTO("17/11/2026", 100, 40, 25);
+        FinancialStatsDTO decodedStats = objectMapper.readValue(
+                objectMapper.writeValueAsString(stats),
+                FinancialStatsDTO.class
+        );
+        assertEquals(stats.getThoiGian(), decodedStats.getThoiGian());
+        assertEquals(stats.getDoanhThu(), decodedStats.getDoanhThu());
+        assertEquals(stats.getChiPhi(), decodedStats.getChiPhi());
+        assertEquals(stats.getVonNhapHang(), decodedStats.getVonNhapHang());
+        assertEquals(stats.getLoiNhuan(), decodedStats.getLoiNhuan());
+
+        FinancialQuarterSummaryDTO summary = new FinancialQuarterSummaryDTO(2026, 2, 500, 1, 200);
+        FinancialQuarterSummaryDTO decodedSummary = objectMapper.readValue(
+                objectMapper.writeValueAsString(summary),
+                FinancialQuarterSummaryDTO.class
+        );
+        assertTrue(decodedSummary.isHasData());
+        assertEquals(summary.getYear(), decodedSummary.getYear());
+        assertEquals(summary.getHighestRevenueQuarter(), decodedSummary.getHighestRevenueQuarter());
+        assertEquals(summary.getHighestQuarterRevenue(), decodedSummary.getHighestQuarterRevenue());
+        assertEquals(summary.getLowestRevenueQuarter(), decodedSummary.getLowestRevenueQuarter());
+        assertEquals(summary.getLowestQuarterRevenue(), decodedSummary.getLowestQuarterRevenue());
+    }
+
+    @Test
+    void roundTripsPriceUpdateRequests() throws Exception {
+        PriceUpdateRequestDTO singleRequest = new PriceUpdateRequestDTO(0.25);
+        PriceUpdateRequestDTO decodedSingleRequest = objectMapper.readValue(
+                objectMapper.writeValueAsString(singleRequest),
+                PriceUpdateRequestDTO.class
+        );
+        assertEquals(singleRequest, decodedSingleRequest);
+
+        PriceBulkUpdateRequestDTO bulkRequest = new PriceBulkUpdateRequestDTO(0.3, List.of(3, 5));
+        PriceBulkUpdateRequestDTO decodedBulkRequest = objectMapper.readValue(
+                objectMapper.writeValueAsString(bulkRequest),
+                PriceBulkUpdateRequestDTO.class
+        );
+        assertEquals(bulkRequest, decodedBulkRequest);
+    }
+
+    @Test
+    void accountResponseContractDoesNotExposePassword() throws Exception {
+        AccountViewDTO account = new AccountViewDTO(7, "staff@example.com", 1, "Nguyễn An", 3, "Nhân viên");
+        var json = objectMapper.readTree(objectMapper.writeValueAsString(account));
+
+        assertFalse(json.has("password"));
+        assertEquals("staff@example.com", json.get("username").asText());
+    }
+}

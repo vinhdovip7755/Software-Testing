@@ -1,7 +1,7 @@
 package com.bookstore.gui.panel.StatisticTab;
 
-import com.bookstore.bus.CustomerBUS;
-import com.bookstore.bus.CustomerStatsBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.StatisticsApiClient;
 import com.bookstore.dto.CustomerHistoryDTO;
 import com.bookstore.dto.CustomerStatsDTO;
 import com.bookstore.util.AppConstant;
@@ -15,10 +15,12 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 public class CustomerStatsPanel extends JPanel implements Refreshable {
     private JDateChooser dcFrom, dcTo;
@@ -28,7 +30,7 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
     private JTable tblHistory;
     private DefaultTableModel modelHistory;
 
-    private CustomerStatsBUS customerStatsBUS = new CustomerStatsBUS();
+    private final StatisticsApiClient statisticsApiClient = new StatisticsApiClient();
 
     private final String DARK_GREEN = AppConstant.GREEN_COLOR_CODE;
     private final String RED_PINK = "#ff3131";
@@ -263,21 +265,18 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
                 return;
             }
 
-            java.util.Calendar calFrom = java.util.Calendar.getInstance();
-            calFrom.setTime(dFrom);
-            calFrom.set(Calendar.HOUR_OF_DAY, 0);
-            calFrom.set(Calendar.MINUTE, 0);
-            calFrom.set(Calendar.SECOND, 0);
-            Timestamp tsFrom = new java.sql.Timestamp(calFrom.getTimeInMillis());
-
-            Calendar calTo = Calendar.getInstance();
-            calTo.setTime(dTo);
-            calTo.set(Calendar.HOUR_OF_DAY, 23);
-            calTo.set(Calendar.MINUTE, 59);
-            calTo.set(Calendar.SECOND, 59);
-            Timestamp tsTo = new Timestamp(calTo.getTimeInMillis());
-
-            java.util.List<CustomerHistoryDTO> historyList = customerStatsBUS.getCustomerHistory(selectedCustomer.getCustomerId(), tsFrom, tsTo);
+            List<CustomerHistoryDTO> historyList;
+            try {
+                historyList = statisticsApiClient.getCustomerHistory(
+                        selectedCustomer.getCustomerId(),
+                        toLocalDate(dFrom),
+                        toLocalDate(dTo)
+                );
+            } catch (ApiException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải lịch sử mua hàng",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
             modelHistory.setRowCount(0);
             java.text.SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
@@ -322,22 +321,18 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
             return;
         }
 
-        Calendar calFrom = Calendar.getInstance();
-        calFrom.setTime(dFrom);
-        calFrom.set(Calendar.HOUR_OF_DAY, 0);
-        calFrom.set(Calendar.MINUTE, 0);
-        calFrom.set(Calendar.SECOND, 0);
-        Timestamp tsFrom = new Timestamp(calFrom.getTimeInMillis());
-
-        Calendar calTo = Calendar.getInstance();
-        calTo.setTime(dTo);
-        calTo.set(Calendar.HOUR_OF_DAY, 23);
-        calTo.set(Calendar.MINUTE, 59);
-        calTo.set(Calendar.SECOND, 59);
-        Timestamp tsTo = new Timestamp(calTo.getTimeInMillis());
-
-        java.util.List<CustomerStatsDTO> topQtyList = customerStatsBUS.getTopCustomersByQuantity(tsFrom, tsTo);
-        java.util.List<CustomerStatsDTO> topSpentList = customerStatsBUS.getTopCustomersBySpending(tsFrom, tsTo);
+        List<CustomerStatsDTO> topQtyList;
+        List<CustomerStatsDTO> topSpentList;
+        try {
+            LocalDate from = toLocalDate(dFrom);
+            LocalDate to = toLocalDate(dTo);
+            topQtyList = statisticsApiClient.getTopCustomersByQuantity(from, to);
+            topSpentList = statisticsApiClient.getTopCustomersBySpending(from, to);
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải thống kê khách hàng",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
         modelTopQuantity.clear();
         for (CustomerStatsDTO dto : topQtyList) {
@@ -354,5 +349,9 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
         if (showMessage && topQtyList.isEmpty() && topSpentList.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Không có giao dịch nào trong khoảng thời gian này.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
         }
+    }
+
+    private LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 }

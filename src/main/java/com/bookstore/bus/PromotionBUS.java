@@ -130,4 +130,14 @@ public class PromotionBUS {
             return bookDAO.selectAllBooks();
         return bookDAO.searchByName(keyword);
     }
+
+    public List<BookDTO> suggestBooksForManagement(String keyword, int categoryId) {
+        if (keyword != null && !keyword.isBlank()) {
+            return bookDAO.searchByName(keyword);
+        }
+        if (categoryId > 0) {
+            return bookDAO.getByCategoryId(categoryId);
+        }
+        return bookDAO.selectAllBooks();
+    }
 }

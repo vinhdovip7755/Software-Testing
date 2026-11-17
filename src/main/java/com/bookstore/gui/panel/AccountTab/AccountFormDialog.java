@@ -2,28 +2,32 @@ package com.bookstore.gui.panel.AccountTab;
 
 import javax.swing.*;
 
-import com.bookstore.bus.AccountBUS;
-import com.bookstore.bus.EmployeeBUS;
-import com.bookstore.dto.AccountDTO;
+import com.bookstore.api.client.AccountApiClient;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.EmployeeApiClient;
+import com.bookstore.api.contract.AccountCreateRequestDTO;
+import com.bookstore.api.contract.AccountUpdateRequestDTO;
+import com.bookstore.api.contract.AccountViewDTO;
 import com.bookstore.dto.EmployeeDTO;
 
 import java.awt.*;
 import java.util.List;
 
 public class AccountFormDialog extends JDialog {
-    private AccountBUS accountBUS = new AccountBUS();
-    private EmployeeBUS employeeBUS = new EmployeeBUS();
+    private final AccountApiClient accountApiClient = new AccountApiClient();
+    private final EmployeeApiClient employeeApiClient = new EmployeeApiClient();
 
     private AccountPanel parentPanel;
     private JComboBox<EmployeeDTO> cboEmployee;
-    private JTextField txtUsername, txtPassword, txtRole;
+    private JTextField txtUsername, txtRole;
+    private JPasswordField txtPassword;
     private JRadioButton radActive, radInactive;
     private JButton btnCreate, btnSave;
     private JPanel statusPanel, bottomPanel;
 
-    private AccountDTO account;
+    private AccountViewDTO account;
 
-    public AccountFormDialog(Frame parent, AccountPanel panel, AccountDTO account) {
+    public AccountFormDialog(Frame parent, AccountPanel panel, AccountViewDTO account) {
         super(parent, account == null ? "Thêm Tài Khoản Mới" : "Chỉnh Sửa Tài Khoản", true);
         this.parentPanel = panel;
         this.account = account;
@@ -66,7 +70,7 @@ public class AccountFormDialog extends JDialog {
                 }
             }
         });
-        txtPassword = new JTextField();
+        txtPassword = new JPasswordField();
         txtRole = new JTextField();
         txtRole.setEditable(false);
         txtRole.setBackground(Color.decode("#EEEEEE"));
@@ -153,45 +157,44 @@ public class AccountFormDialog extends JDialog {
                     btnReset.setEnabled(false);
                     btnReset.setText("Đang gửi...");
 
-                    SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
-                        String newPass = com.bookstore.util.EmailUtil.generateOTP();
+                    SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
                         @Override
-                        protected Boolean doInBackground() {
-                            return com.bookstore.util.EmailUtil.sendNewPassword(account.getUsername(), newPass);
+                        protected Void doInBackground() {
+                            accountApiClient.sendNewPassword(account.employeeId());
+                            return null;
                         }
 
                         @Override
                         protected void done() {
                             try {
-                                boolean success = get();
-                                if (success) {
-                                    account.setPassword(newPass);
-                                    accountBUS.updateAccount(account, true);
-                                    JOptionPane.showMessageDialog(AccountFormDialog.this, "Đã khôi phục mật khẩu và gửi email thành công!");
-                                    
-                                    javax.swing.Timer timer = new javax.swing.Timer(1000, null);
-                                    timer.addActionListener(new java.awt.event.ActionListener() {
-                                        int countdown = 120;
-                                        @Override
-                                        public void actionPerformed(java.awt.event.ActionEvent evt) {
-                                            countdown--;
-                                            if (countdown <= 0) {
-                                                btnReset.setText("Khôi phục mật khẩu (Gửi lại)");
-                                                btnReset.setEnabled(true);
-                                                timer.stop();
-                                            } else {
-                                                btnReset.setText("Gửi lại sau " + countdown + "s");
-                                            }
+                                get();
+                                JOptionPane.showMessageDialog(AccountFormDialog.this, "Đã khôi phục mật khẩu và gửi email thành công!");
+
+                                javax.swing.Timer timer = new javax.swing.Timer(1000, null);
+                                timer.addActionListener(new java.awt.event.ActionListener() {
+                                    int countdown = 120;
+                                    @Override
+                                    public void actionPerformed(java.awt.event.ActionEvent evt) {
+                                        countdown--;
+                                        if (countdown <= 0) {
+                                            btnReset.setText("Khôi phục mật khẩu (Gửi lại)");
+                                            btnReset.setEnabled(true);
+                                            timer.stop();
+                                        } else {
+                                            btnReset.setText("Gửi lại sau " + countdown + "s");
                                         }
-                                    });
-                                    timer.start();
-                                } else {
-                                    JOptionPane.showMessageDialog(AccountFormDialog.this, "Gửi email thất bại, vui lòng kiểm tra SMTP!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                                    btnReset.setEnabled(true);
-                                    btnReset.setText("Khôi phục mật khẩu (Gửi Email)");
-                                }
-                            } catch (Exception ex) {
-                                ex.printStackTrace();
+                                    }
+                                });
+                                timer.start();
+                            } catch (InterruptedException ex) {
+                                Thread.currentThread().interrupt();
+                                JOptionPane.showMessageDialog(AccountFormDialog.this, "Yêu cầu bị gián đoạn.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                                btnReset.setEnabled(true);
+                                btnReset.setText("Khôi phục mật khẩu (Gửi Email)");
+                            } catch (java.util.concurrent.ExecutionException ex) {
+                                Throwable cause = ex.getCause();
+                                String message = cause instanceof ApiException ? cause.getMessage() : "Không thể gửi mật khẩu mới.";
+                                JOptionPane.showMessageDialog(AccountFormDialog.this, message, "Lỗi API", JOptionPane.ERROR_MESSAGE);
                                 btnReset.setEnabled(true);
                                 btnReset.setText("Khôi phục mật khẩu (Gửi Email)");
                             }
@@ -213,33 +216,30 @@ public class AccountFormDialog extends JDialog {
         add(bottomPanel, BorderLayout.SOUTH);
 
         btnCreate.addActionListener(e -> {
-            AccountDTO newAcc = getDataFromForm();
+            AccountCreateRequestDTO newAcc = getDataFromForm();
             if (newAcc == null)
                 return;
 
-            String message = accountBUS.addAccount(newAcc);
-            if (message.equals("Thêm tài khoản thành công!")) {
+            try {
+                String message = accountApiClient.createAccount(newAcc);
                 JOptionPane.showMessageDialog(this, message);
                 this.dispose();
-            } else {
-                JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            } catch (ApiException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
             }
         });
 
         btnSave.addActionListener(e -> {
-            AccountDTO updatedAcc = getDataFromForm();
-            if (updatedAcc == null)
+            AccountCreateRequestDTO formData = getDataFromForm();
+            if (formData == null)
                 return;
-
-            String newPassword = txtPassword.getText().trim();
-            boolean isChangePassword = !newPassword.isEmpty();
-
-            String message = accountBUS.updateAccount(updatedAcc, isChangePassword);
-            if (message.equals("Cập nhật tài khoản thành công!")) {
+            try {
+                String message = accountApiClient.updateAccount(account.employeeId(),
+                        new AccountUpdateRequestDTO(new String(txtPassword.getPassword()).trim(), formData.status()));
                 JOptionPane.showMessageDialog(this, message);
                 this.dispose();
-            } else {
-                JOptionPane.showMessageDialog(this, message, "Lỗi", JOptionPane.ERROR_MESSAGE);
+            } catch (ApiException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -248,8 +248,14 @@ public class AccountFormDialog extends JDialog {
         setLocationRelativeTo(parent);
     }
 
-    public void setDataToForm(AccountDTO acc, EmployeeDTO currentEmp) {
-        List<EmployeeDTO> availableEmps = employeeBUS.getEmployeesWithoutAccount();
+    public void setDataToForm(AccountViewDTO acc, EmployeeDTO currentEmp) {
+        List<EmployeeDTO> availableEmps;
+        try {
+            availableEmps = employeeApiClient.getEmployeesWithoutAccount();
+        } catch (ApiException e) {
+            availableEmps = List.of();
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+        }
         cboEmployee.removeAllItems();
 
         if (currentEmp != null) {
@@ -281,9 +287,9 @@ public class AccountFormDialog extends JDialog {
         }
 
         if (acc != null) {
-            txtUsername.setText(acc.getUsername());
+            txtUsername.setText(acc.username());
             txtPassword.setText("");
-            if (acc.getStatus() == 1) {
+            if (acc.status() == 1) {
                 radActive.setSelected(true);
             } else {
                 radInactive.setSelected(true);
@@ -302,7 +308,7 @@ public class AccountFormDialog extends JDialog {
         }
     }
 
-    public AccountDTO getDataFromForm() {
+    public AccountCreateRequestDTO getDataFromForm() {
         EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
         if (selectedEmp == null || selectedEmp.getEmployeeId() == -1) {
             JOptionPane.showMessageDialog(this, "Không có nhân viên hợp lệ để cấp tài khoản!", "Cảnh báo",
@@ -321,7 +327,7 @@ public class AccountFormDialog extends JDialog {
             txtUsername.requestFocus();
             return null;
         }
-        String password = txtPassword.getText().trim();
+        String password = new String(txtPassword.getPassword()).trim();
         if (this.account == null && password.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Mật khẩu không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtPassword.requestFocus();
@@ -334,12 +340,12 @@ public class AccountFormDialog extends JDialog {
         }
 
 
-        AccountDTO acc = new AccountDTO();
-        acc.setEmployeeId(selectedEmp.getEmployeeId());
-        acc.setUsername(txtUsername.getText().trim());
-        acc.setPassword(txtPassword.getText().trim());
-        acc.setStatus(radActive.isSelected() ? 1 : 0);
-        return acc;
+        return new AccountCreateRequestDTO(
+                txtUsername.getText().trim(),
+                password,
+                selectedEmp.getEmployeeId(),
+                radActive.isSelected() ? 1 : 0
+        );
     }
 
     private void autoAdd(JPanel p, Component c, int x, int y, double weightx, GridBagConstraints gbc) {

@@ -28,17 +28,20 @@ public class BookLotDAO {
     public List<BookLotDTO> getByBookId(int bookId) {
         List<BookLotDTO> list = new ArrayList<>();
         String sql = "SELECT * FROM book_lot WHERE book_id = ?";
-        try (Connection c = DatabaseConnection.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-
-            ps.setInt(1, bookId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(mapResultSet(rs));
+        try (Connection c = DatabaseConnection.getConnection()) {
+            if (c == null) {
+                throw new IllegalStateException("Không thể kết nối cơ sở dữ liệu để tải lô sách.");
+            }
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                ps.setInt(1, bookId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        list.add(mapResultSet(rs));
+                    }
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Không thể tải lô sách từ cơ sở dữ liệu.", e);
         }
         return list;
     }

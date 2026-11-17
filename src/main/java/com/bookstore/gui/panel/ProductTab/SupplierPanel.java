@@ -1,7 +1,8 @@
 package com.bookstore.gui.panel.ProductTab;
 
-import com.bookstore.bus.BookBUS;
-import com.bookstore.bus.SupplierBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.BookApiClient;
+import com.bookstore.api.client.SupplierApiClient;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.SupplierDTO;
 import com.bookstore.util.AppConstant;
@@ -27,8 +28,8 @@ public class SupplierPanel extends JPanel implements Refreshable {
     private static final Color BUTTON_COLOR = Color.decode(AppConstant.BUTTON_COLOR);
     private static final Color BORDER_COLOR = Color.decode("#E0E0E0");
 
-    private final SupplierBUS supplierBUS;
-    private final BookBUS bookBUS;
+    private final SupplierApiClient supplierBUS;
+    private final BookApiClient bookBUS;
 
     private JTextField searchField;
     private JTable supplierTable;
@@ -46,8 +47,8 @@ public class SupplierPanel extends JPanel implements Refreshable {
     private int selectedSupplierId = -1;
 
     public SupplierPanel() {
-        supplierBUS = new SupplierBUS();
-        bookBUS = new BookBUS();
+        supplierBUS = new SupplierApiClient();
+        bookBUS = new BookApiClient();
         allSuppliers = new ArrayList<>();
         filteredSuppliers = new ArrayList<>();
         allBooks = new ArrayList<>();
@@ -239,8 +240,14 @@ public class SupplierPanel extends JPanel implements Refreshable {
     }
 
     private void loadData() {
-        allSuppliers = supplierBUS.selectAll();
-        allBooks = bookBUS.selectAllBooks();
+        try {
+            allSuppliers = supplierBUS.selectAll();
+            allBooks = bookBUS.selectAllBooks();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải dữ liệu", JOptionPane.ERROR_MESSAGE);
+            allSuppliers = new ArrayList<>();
+            allBooks = new ArrayList<>();
+        }
     }
 
     private void applyFilter() {
@@ -303,39 +310,44 @@ public class SupplierPanel extends JPanel implements Refreshable {
         supplierDTO.setSupplierPhone(phone);
 
         String message;
-        if (selectedSupplierId == -1) {
-            message = supplierBUS.addSupplier(supplierDTO);
-        } else {
-            SupplierDTO oldSupplier = getSelectedSupplier();
-            if (oldSupplier != null) {
-                int affectedBooks = countBooksBySupplierId(oldSupplier.getSupplierId());
-                String confirmMessage = "Mọi sách đang dùng thông tin nhà cung cấp cũ sẽ đổi thành thông tin mới.\n\n"
-                        + "Thông tin cũ:\n"
-                        + "- Tên: " + oldSupplier.getSupplierName() + "\n"
-                        + "- Địa chỉ: " + oldSupplier.getSupplierAddress() + "\n"
-                        + "- SĐT: " + oldSupplier.getSupplierPhone() + "\n\n"
-                        + "Thông tin mới:\n"
-                        + "- Tên: " + supplierDTO.getSupplierName() + "\n"
-                        + "- Địa chỉ: " + supplierDTO.getSupplierAddress() + "\n"
-                        + "- SĐT: " + supplierDTO.getSupplierPhone() + "\n\n"
-                        + "Số sách bị ảnh hưởng: " + affectedBooks + "\n"
-                        + "Bạn có muốn tiếp tục Cập nhật không?";
+        try {
+            if (selectedSupplierId == -1) {
+                message = supplierBUS.addSupplier(supplierDTO);
+            } else {
+                SupplierDTO oldSupplier = getSelectedSupplier();
+                if (oldSupplier != null) {
+                    int affectedBooks = countBooksBySupplierId(oldSupplier.getSupplierId());
+                    String confirmMessage = "Mọi sách đang dùng thông tin nhà cung cấp cũ sẽ đổi thành thông tin mới.\n\n"
+                            + "Thông tin cũ:\n"
+                            + "- Tên: " + oldSupplier.getSupplierName() + "\n"
+                            + "- Địa chỉ: " + oldSupplier.getSupplierAddress() + "\n"
+                            + "- SĐT: " + oldSupplier.getSupplierPhone() + "\n\n"
+                            + "Thông tin mới:\n"
+                            + "- Tên: " + supplierDTO.getSupplierName() + "\n"
+                            + "- Địa chỉ: " + supplierDTO.getSupplierAddress() + "\n"
+                            + "- SĐT: " + supplierDTO.getSupplierPhone() + "\n\n"
+                            + "Số sách bị ảnh hưởng: " + affectedBooks + "\n"
+                            + "Bạn có muốn tiếp tục Cập nhật không?";
 
-                int choice = JOptionPane.showConfirmDialog(
-                        this,
-                        confirmMessage,
-                        "Xác nhận Cập nhật nhà cung cấp",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE
-                );
+                    int choice = JOptionPane.showConfirmDialog(
+                            this,
+                            confirmMessage,
+                            "Xác nhận Cập nhật nhà cung cấp",
+                            JOptionPane.YES_NO_OPTION,
+                            JOptionPane.WARNING_MESSAGE
+                    );
 
-                if (choice != JOptionPane.YES_OPTION) {
-                    return;
+                    if (choice != JOptionPane.YES_OPTION) {
+                        return;
+                    }
                 }
-            }
 
-            supplierDTO.setSupplierId(selectedSupplierId);
-            message = supplierBUS.updateSupplier(supplierDTO);
+                supplierDTO.setSupplierId(selectedSupplierId);
+                message = supplierBUS.updateSupplier(supplierDTO);
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể lưu nhà cung cấp", JOptionPane.ERROR_MESSAGE);
+            return;
         }
 
         JOptionPane.showMessageDialog(this, message);

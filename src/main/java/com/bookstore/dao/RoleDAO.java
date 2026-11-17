@@ -28,7 +28,7 @@ public class RoleDAO {
                 list.add(role);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể tải danh sách chức vụ.", e);
         }
         return list;
     }

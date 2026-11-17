@@ -1,8 +1,9 @@
 package com.bookstore.gui.panel.ProductTab;
 
-import com.bookstore.bus.AuthorBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.AuthorApiClient;
 import com.bookstore.dto.AuthorDTO;
-import com.bookstore.bus.BookBUS;
+import com.bookstore.api.client.BookApiClient;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
@@ -27,8 +28,8 @@ public class AuthorPanel extends JPanel implements Refreshable{
     private static final Color BUTTON_COLOR = Color.decode(AppConstant.BUTTON_COLOR);
     private static final Color BORDER_COLOR = Color.decode("#E0E0E0");
 
-    private final AuthorBUS authorBUS;
-    private final BookBUS bookBUS;
+    private final AuthorApiClient authorBUS;
+    private final BookApiClient bookBUS;
 
     private JTextField searchField;
     private JComboBox<String> nationalityCombo;
@@ -47,8 +48,8 @@ public class AuthorPanel extends JPanel implements Refreshable{
     private int selectedAuthorId = -1;
 
     public AuthorPanel() {
-        authorBUS = new AuthorBUS();
-        bookBUS = new BookBUS();
+        authorBUS = new AuthorApiClient();
+        bookBUS = new BookApiClient();
         allAuthors = new ArrayList<>();
         filteredAuthors = new ArrayList<>();
         allBooks = new ArrayList<>();
@@ -237,8 +238,14 @@ public class AuthorPanel extends JPanel implements Refreshable{
     }
 
     private void loadAuthorData() {
-        allAuthors = authorBUS.selectAllAuthors();
-        allBooks = bookBUS.selectAllBooks();
+        try {
+            allAuthors = authorBUS.selectAllAuthors();
+            allBooks = bookBUS.selectAllBooks();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải dữ liệu", JOptionPane.ERROR_MESSAGE);
+            allAuthors = new ArrayList<>();
+            allBooks = new ArrayList<>();
+        }
     }
 
     private void loadCountriesToCombo() {
@@ -340,11 +347,16 @@ public class AuthorPanel extends JPanel implements Refreshable{
         authorDTO.setNationality(country);
 
         String message;
-        if (selectedAuthorId == -1) {
-            message = authorBUS.addAuthor(authorDTO);
-        } else {
-            authorDTO.setAuthorId(selectedAuthorId);
-            message = authorBUS.updateAuthor(authorDTO);
+        try {
+            if (selectedAuthorId == -1) {
+                message = authorBUS.addAuthor(authorDTO);
+            } else {
+                authorDTO.setAuthorId(selectedAuthorId);
+                message = authorBUS.updateAuthor(authorDTO);
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể lưu tác giả", JOptionPane.ERROR_MESSAGE);
+            return;
         }
 
         JOptionPane.showMessageDialog(this, message);

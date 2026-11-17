@@ -1,7 +1,7 @@
 package com.bookstore.gui.panel.InventoryTab;
 
-import com.bookstore.bus.BookBUS;
-import com.bookstore.dao.BookLotDAO;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.InventoryApiClient;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.BookLotDTO;
 import com.bookstore.util.AppConstant;
@@ -27,8 +27,7 @@ public class InventoryPanel extends JPanel implements Refreshable {
     private DefaultTableModel tableModel;
     private JTable lotTable;
     private DefaultTableModel lotTableModel;
-    private BookBUS bookBUS = new BookBUS();
-    private BookLotDAO bookLotDAO = new BookLotDAO();
+    private final InventoryApiClient inventoryApiClient = new InventoryApiClient();
     private List<BookDTO> currentList = new ArrayList<>();
 
     private JLabel lbTotalBooks, lbCategories, lbLowStock;
@@ -289,7 +288,14 @@ public class InventoryPanel extends JPanel implements Refreshable {
 
     private void loadLotData(int bookId) {
         lotTableModel.setRowCount(0);
-        List<BookLotDTO> lots = bookLotDAO.getByBookId(bookId);
+        List<BookLotDTO> lots;
+        try {
+            lots = inventoryApiClient.getBookLots(bookId);
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải chi tiết lô",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         for (BookLotDTO lot : lots) {
             String status = lot.getQuantityRemain() > 0 ? (lot.getQuantityRemain() < 10 ? "SẮP HẾT" : "ĐỦ HÀNG") : "HẾT HÀNG";
             lotTableModel.insertRow(0, new Object[]{
@@ -305,8 +311,13 @@ public class InventoryPanel extends JPanel implements Refreshable {
     }
 
     private void loadData() {
-        currentList = bookBUS.selectAllBooks();
-        filterData();
+        try {
+            currentList = inventoryApiClient.getBooks();
+            filterData();
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải dữ liệu tồn kho",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void filterData() {

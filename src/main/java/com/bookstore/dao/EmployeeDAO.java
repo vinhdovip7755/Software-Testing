@@ -37,7 +37,7 @@ public class EmployeeDAO {
             }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể truy vấn nhân viên.", e);
         }
         return employee;
     }
@@ -67,7 +67,7 @@ public class EmployeeDAO {
                 list.add(emp);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể tải danh sách nhân viên.", e);
         }
         return list;
     }
@@ -132,7 +132,9 @@ public class EmployeeDAO {
             try (java.sql.ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt(1) > 0;
             }
-        } catch (Exception ex) { ex.printStackTrace(); }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Không thể kiểm tra số điện thoại nhân viên.", ex);
+        }
         return false;
     }
 
@@ -160,9 +162,9 @@ public class EmployeeDAO {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể đếm hóa đơn của nhân viên.", e);
         }
-        return 0;
+        throw new IllegalStateException("Không thể đếm hóa đơn của nhân viên.");
     }
 
     public int countCreatedImportByEmployee(int employeeId) {
@@ -176,9 +178,9 @@ public class EmployeeDAO {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể đếm phiếu nhập do nhân viên lập.", e);
         }
-        return 0;
+        throw new IllegalStateException("Không thể đếm phiếu nhập do nhân viên lập.");
     }
 
     public int countApprovedImportByEmployee(int employeeId) {
@@ -192,9 +194,9 @@ public class EmployeeDAO {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể đếm phiếu nhập do nhân viên duyệt.", e);
         }
-        return 0;
+        throw new IllegalStateException("Không thể đếm phiếu nhập do nhân viên duyệt.");
     }
 
     public int insertEmployee(EmployeeDTO e) {
@@ -257,7 +259,7 @@ public class EmployeeDAO {
                 list.add(emp);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể tải danh sách nhân viên chưa có tài khoản.", e);
         }
         return list;
     }

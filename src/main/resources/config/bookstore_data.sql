@@ -66,6 +66,7 @@ INSERT INTO action (action_id, action_code, action_name) VALUES
 INSERT INTO permission (role_id, action_id, is_view, is_action) VALUES
 (1, 15, 1, 1),
 (1, 16, 1, 1),
+(1, 9, 1, 1),
 (2, 1, 1, 1),
 (2, 2, 1, 1),
 (2, 3, 1, 1),
@@ -84,7 +85,7 @@ INSERT INTO permission (role_id, action_id, is_view, is_action) VALUES
 (3, 12, 1, 1),
 (3, 2, 1, 1),
 (3, 3, 1, 0),
-(4, 9, 1, 1),
+(4, 9, 1, 0),
 (4, 10, 1, 1),
 (4, 11, 1, 1),
 (4, 3, 1, 1),

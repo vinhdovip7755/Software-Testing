@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.StatisticTab;
 
-import com.bookstore.bus.ProductStatsBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.StatisticsApiClient;
 import com.bookstore.dto.ProductStatsDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
@@ -11,7 +12,9 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +32,7 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
     private final JLabel lblTopBanChay = new JLabel("Top 3 bán chạy: --");
     private final JLabel lblTopBanIt = new JLabel("Top 3 bán ít: --");
 
-    private final ProductStatsBUS bus= new ProductStatsBUS();
+    private final StatisticsApiClient statisticsApiClient = new StatisticsApiClient();
 
     private List<ProductStatsDTO> currentData = new ArrayList<>();
 
@@ -197,23 +200,37 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
             return;
         }
 
-        int year = Integer.parseInt(new SimpleDateFormat("yyyy").format(denNgay));
+        Calendar endCalendar = Calendar.getInstance();
+        endCalendar.setTime(denNgay);
+        int year = endCalendar.get(Calendar.YEAR);
+        List<ProductStatsDTO> data;
+        try {
+            String type = (String) cboThongKeTheo.getSelectedItem();
+            if ("Tháng".equals(type)) {
+                data = statisticsApiClient.getProductStatsByMonth(year);
+            } else if ("Quý".equals(type)) {
+                data = statisticsApiClient.getProductStatsByQuarter(year);
+            } else if ("Năm".equals(type)) {
+                data = statisticsApiClient.getProductStatsByYear();
+            } else {
+                data = statisticsApiClient.getProductStatsByDay(toLocalDate(tuNgay), toLocalDate(denNgay));
+            }
 
-        String type = (String) cboThongKeTheo.getSelectedItem();
+            Calendar startCalendar = Calendar.getInstance();
+            startCalendar.setTime(tuNgay);
+            int month = startCalendar.get(Calendar.MONTH) + 1;
+            int quarter = (month - 1) / 3 + 1;
+            int selectedYear = startCalendar.get(Calendar.YEAR);
+            List<ProductStatsDTO> topSelling = statisticsApiClient.getTopSellingProducts(selectedYear, quarter);
+            List<ProductStatsDTO> topSlow = statisticsApiClient.getTopSlowProducts(selectedYear, quarter);
 
-        if("Tháng".equals(type)){
-            currentData = bus.getThongKeTheoThang(year);
-        }else if("Quý".equals(type)){
-            currentData = bus.getThongKeTheoQuy(year);
-        }else if("Năm".equals(type)){
-            currentData = bus.getThongKeTheoNam();
-        }else{
-            currentData = bus.getThongKeTheoNgay(new java.sql.Date(tuNgay.getTime()), new java.sql.Date(denNgay.getTime())
-            );
+            currentData = data;
+            updateTable();
+            updateTopProducts(topSelling, topSlow, selectedYear, quarter);
+        } catch (ApiException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải thống kê sản phẩm",
+                    JOptionPane.ERROR_MESSAGE);
         }
-
-        updateTable();
-        updateTopProducts(year);
     }
 
 
@@ -236,18 +253,14 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
         }
     }
 
-    private void updateTopProducts(int year){
-        Date date = dchTuNgay.getDate();
-        if (date == null) date = new Date();
-        int month = Integer.parseInt(new SimpleDateFormat("MM").format(date));
-        int quarter = (month - 1) / 3 + 1;
-        int tuYear = Integer.parseInt(new SimpleDateFormat("yyyy").format(date));
-
-        List<ProductStatsDTO> topBanChay = bus.getTop3BanChayTheoQuy(tuYear, quarter);
-        List<ProductStatsDTO> topBanIt = bus.getTop3BanItTheoQuy(tuYear, quarter);
-
-        StringBuilder banChay = new StringBuilder("<html><b>Top 3 bán chạy (Q" + quarter + "/" + tuYear + "):</b><br>");
-        StringBuilder banIt = new StringBuilder("<html><b>Top 3 bán ít (Q" + quarter + "/" + tuYear + "):</b><br>");
+    private void updateTopProducts(
+            List<ProductStatsDTO> topBanChay,
+            List<ProductStatsDTO> topBanIt,
+            int year,
+            int quarter
+    ) {
+        StringBuilder banChay = new StringBuilder("<html><b>Top 3 bán chạy (Q" + quarter + "/" + year + "):</b><br>");
+        StringBuilder banIt = new StringBuilder("<html><b>Top 3 bán ít (Q" + quarter + "/" + year + "):</b><br>");
 
         for(ProductStatsDTO p : topBanChay){
             banChay.append("- ")
@@ -272,5 +285,9 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
 
         lblTopBanChay.setText(banChay.toString());
         lblTopBanIt.setText(banIt.toString());
+    }
+
+    private LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 }

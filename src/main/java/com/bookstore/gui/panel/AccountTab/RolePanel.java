@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.AccountTab;
 
-import com.bookstore.bus.RoleBUS;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.RoleApiClient;
 import com.bookstore.dto.RoleDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.Refreshable;
@@ -22,7 +23,7 @@ public class RolePanel extends JPanel implements Refreshable {
     private JTable tblRole;
     private DefaultTableModel roleModel;
 
-    private RoleBUS roleBUS = new RoleBUS();
+    private final RoleApiClient roleApiClient = new RoleApiClient();
 
     public RolePanel() {
         initUI();
@@ -140,13 +141,17 @@ public class RolePanel extends JPanel implements Refreshable {
     }
 
     private void loadRoleTable() {
-        roleModel.setRowCount(0);
-        List<RoleDTO> listRoles = roleBUS.getAllRoles();
-        for (RoleDTO role : listRoles) {
-            roleModel.addRow(new Object[]{
-                    role.getRoleId(),
-                    role.getRoleName()
-            });
+        try {
+            roleModel.setRowCount(0);
+            List<RoleDTO> listRoles = roleApiClient.getRoles();
+            for (RoleDTO role : listRoles) {
+                roleModel.addRow(new Object[]{
+                        role.getRoleId(),
+                        role.getRoleName()
+                });
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 

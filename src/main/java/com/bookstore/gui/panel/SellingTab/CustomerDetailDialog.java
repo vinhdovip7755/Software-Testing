@@ -1,6 +1,7 @@
 package com.bookstore.gui.panel.SellingTab;
 
-import com.bookstore.bus.CustomerBUS;
+import com.bookstore.api.client.CustomerApiClient;
+import com.bookstore.api.contract.CustomerPurchaseSummaryDTO;
 import com.bookstore.dto.CustomerDTO;
 import com.bookstore.util.AppConstant;
 import com.bookstore.util.MoneyFormatter;
@@ -13,15 +14,15 @@ import java.sql.Timestamp;
 
 public class CustomerDetailDialog extends JDialog {
     private CustomerDTO customer;
-    private final CustomerBUS customerBUS = new CustomerBUS();
+    private final CustomerApiClient customerApiClient = new CustomerApiClient();
 
     public CustomerDetailDialog(JFrame owner, CustomerDTO customer) {
         super(owner, "Chi Tiết Khách Hàng", true);
         this.customer = customer;
-        initUI();
+        initUI(customerApiClient.getCustomerStatistics(customer.getCustomerId()));
     }
 
-    private void initUI() {
+    private void initUI(CustomerPurchaseSummaryDTO statistics) {
         setLayout(new BorderLayout());
         setSize(450, 450);
         setLocationRelativeTo(getParent());
@@ -34,10 +35,9 @@ public class CustomerDetailDialog extends JDialog {
         lbHeader.setBorder(new EmptyBorder(20, 0, 15, 0));
         add(lbHeader, BorderLayout.NORTH);
 
-        Object[] stats = customerBUS.getCustomerStatistics(customer.getCustomerId());
-        int totalBooks = stats[0] != null ? (int) stats[0] : 0;
-        double totalSpent = stats[1] != null ? (double) stats[1] : 0.0;
-        Timestamp lastPurchase = (Timestamp) stats[2];
+        int totalBooks = statistics.getTotalBooks();
+        double totalSpent = statistics.getTotalSpent();
+        Timestamp lastPurchase = statistics.getLastPurchase();
 
         String lastPurchaseStr = "Chưa từng mua hàng";
         if (lastPurchase != null) {

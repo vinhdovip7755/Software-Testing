@@ -1,9 +1,8 @@
 package com.bookstore.gui.panel.AccountTab;
 
-import com.bookstore.bus.ActionBUS;
-import com.bookstore.bus.PermissionBUS;
-import com.bookstore.dto.ActionDTO;
-import com.bookstore.dto.PermissionDTO;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.RoleApiClient;
+import com.bookstore.api.contract.RoleActionPermissionDTO;
 import com.bookstore.dto.RoleDTO;
 import com.bookstore.util.AppConstant;
 
@@ -12,20 +11,15 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
-import java.util.Map;
 
 public class RoleDetailDialog extends JDialog {
     private RoleDTO role;
-    private ActionBUS actionBUS;
-    private PermissionBUS permissionBUS;
+    private final RoleApiClient roleApiClient = new RoleApiClient();
     private DefaultTableModel tableModel;
 
     public RoleDetailDialog(Frame owner, RoleDTO role) {
         super(owner, "Chi tiết phân quyền", true);
         this.role = role;
-        this.actionBUS = new ActionBUS();
-        this.permissionBUS = new PermissionBUS();
-
         initUI();
         loadPermissionData();
     }
@@ -90,22 +84,18 @@ public class RoleDetailDialog extends JDialog {
     }
 
     private void loadPermissionData() {
-        List<ActionDTO> actions = actionBUS.selectAllActions();
-        Map<String, PermissionDTO> currentPerms = permissionBUS.getPermissionsByRoleId(role.getRoleId());
-
-        tableModel.setRowCount(0);
-
-        for (ActionDTO action : actions) {
-            PermissionDTO perm = currentPerms.get(action.getActionCode());
-
-            boolean canView = (perm != null && perm.isView());
-            boolean canAction = (perm != null && perm.isAction());
-
-            tableModel.addRow(new Object[]{
-                    action.getActionName(),
-                    canView,
-                    canAction
-            });
+        try {
+            List<RoleActionPermissionDTO> permissions = roleApiClient.getPermissions(role.getRoleId());
+            tableModel.setRowCount(0);
+            for (RoleActionPermissionDTO permission : permissions) {
+                tableModel.addRow(new Object[]{
+                        permission.getActionName(),
+                        permission.isCanView(),
+                        permission.isCanAction()
+                });
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

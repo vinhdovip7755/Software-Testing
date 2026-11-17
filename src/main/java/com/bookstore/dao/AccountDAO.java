@@ -30,7 +30,7 @@ public class AccountDAO {
             }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể truy vấn tài khoản.", e);
         }
         return acc;
     }
@@ -88,7 +88,7 @@ public class AccountDAO {
                         rs.getInt("employee_id"), rs.getInt("status")));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Không thể tải danh sách tài khoản.", e);
         }
         return list;
     }

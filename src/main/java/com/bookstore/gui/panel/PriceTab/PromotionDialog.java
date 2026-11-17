@@ -1,7 +1,9 @@
 package com.bookstore.gui.panel.PriceTab;
 
-import com.bookstore.bus.*;
-import com.bookstore.dao.*;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.CategoryApiClient;
+import com.bookstore.api.client.PromotionApiClient;
+import com.bookstore.api.contract.PromotionSaveRequestDTO;
 import com.bookstore.dto.*;
 import javax.swing.*;
 import com.toedter.calendar.JDateChooser;
@@ -16,14 +18,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PromotionDialog extends JDialog {
-    private JComboBox<String> cbCategory;
-    private CategoryBUS categoryBUS = new CategoryBUS();
+    private JComboBox<CategoryDTO> cbCategory;
+    private final CategoryApiClient categoryApiClient = new CategoryApiClient();
+    private final PromotionApiClient promotionApiClient = new PromotionApiClient();
     private JTextField txtID, txtTen, txtPercent, txtSearchBook;
     private JDateChooser dchStart, dchEnd;
     private JTable bookTable;
     private DefaultTableModel bookModel;
-    private PromotionBUS bus = new PromotionBUS();
-    private BookDAO bookDAO = new BookDAO();
     private PromotionDTO data;
     private boolean isEdit;
     private List<Integer> currentlySelectedIds = new ArrayList<>();
@@ -38,30 +39,15 @@ public class PromotionDialog extends JDialog {
         txtSearchBook.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
-                saveCurrentSelection();
-                String keyword = txtSearchBook.getText().trim();
-
-                cbCategory.setSelectedIndex(0);
-
-                loadBookList(bus.suggestBooksByName(keyword));
-                restoreSelection();
+                if (cbCategory.getSelectedIndex() != 0) {
+                    cbCategory.setSelectedIndex(0);
+                } else {
+                    refreshBookList();
+                }
             }
         });
 
-        cbCategory.addActionListener(e -> {
-            saveCurrentSelection();
-            String categoryName = (String) cbCategory.getSelectedItem();
-
-            if (cbCategory.getSelectedIndex() == 0) {
-
-                loadBookList(bus.suggestBooksByPromotionName(""));
-            } else {
-
-                loadBookList(bookDAO.getByCategoryName(categoryName));
-            }
-
-            restoreSelection();
-        });
+        cbCategory.addActionListener(e -> refreshBookList());
 
         if (isEdit) {
             fillData();
@@ -98,9 +84,14 @@ public class PromotionDialog extends JDialog {
         dchEnd.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         cbStatus = new JComboBox<>(new String[] { "Ngừng hoạt động", "Đang chạy" });
         cbCategory = new JComboBox<>();
-        cbCategory.addItem("Tất cả thể loại");
-        for (CategoryDTO cat : categoryBUS.selectAllCategories())
-            cbCategory.addItem(cat.getCategoryName());
+        cbCategory.addItem(new CategoryDTO(0, "Tất cả thể loại"));
+        try {
+            for (CategoryDTO category : categoryApiClient.selectAllCategories()) {
+                cbCategory.addItem(category);
+            }
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải thể loại", JOptionPane.ERROR_MESSAGE);
+        }
 
         addComponent(infoPanel, new JLabel("Mã KM:"), 0, 0, 0, 0);
         addComponent(infoPanel, txtID, 1, 0, 1.0, 0);
@@ -149,7 +140,7 @@ public class PromotionDialog extends JDialog {
         bookTable.setGridColor(new Color(200, 200, 200));
         bookTable.setIntercellSpacing(new Dimension(1, 1));
 
-        loadBookList(bus.suggestBooksByPromotionName(""));
+        refreshBookList();
 
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
         JButton btnSave = new JButton("Lưu dữ liệu");
@@ -195,6 +186,18 @@ public class PromotionDialog extends JDialog {
         bookModel.fireTableDataChanged();
     }
 
+    private void refreshBookList() {
+        saveCurrentSelection();
+        CategoryDTO selectedCategory = (CategoryDTO) cbCategory.getSelectedItem();
+        int categoryId = selectedCategory == null ? 0 : selectedCategory.getCategoryId();
+        try {
+            loadBookList(promotionApiClient.suggestBooks(txtSearchBook.getText().trim(), categoryId));
+            restoreSelection();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải danh sách sách", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void addComponent(JPanel panel, Component comp, int x, int y, double weightx, int gridwidth) {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridx = x;
@@ -213,7 +216,13 @@ public class PromotionDialog extends JDialog {
         dchEnd.setDate(data.getEndDate());
         cbStatus.setSelectedIndex(data.getStatus());
 
-        List<Integer> selectedIds = bus.getSelectedBookIds(data.getPromotionId());
+        List<Integer> selectedIds;
+        try {
+            selectedIds = promotionApiClient.getSelectedBookIds(data.getPromotionId());
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải sách khuyến mãi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         for (int i = 0; i < bookModel.getRowCount(); i++) {
             int bookId = (Integer) bookModel.getValueAt(i, 1);
             if (selectedIds.contains(bookId))
@@ -279,18 +288,26 @@ public class PromotionDialog extends JDialog {
                 return;
             }
 
-            if (bus.savePromotion(isEdit, data, name, percent, start, end, status, selectedBookIds)) {
-                JOptionPane.showMessageDialog(this, "Lưu thành công!");
-                dispose();
+            PromotionSaveRequestDTO request = new PromotionSaveRequestDTO(
+                    name,
+                    percent,
+                    start,
+                    end,
+                    status,
+                    selectedBookIds
+            );
+            if (isEdit) {
+                promotionApiClient.updatePromotion(data.getPromotionId(), request);
             } else {
-                JOptionPane.showMessageDialog(this, "Lưu thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                promotionApiClient.createPromotion(request);
             }
+            JOptionPane.showMessageDialog(this, "Lưu thành công!");
+            dispose();
 
         } catch (NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Phần trăm phải là số!");
-        } catch (Exception ex) {
+        } catch (ApiException ex) {
             JOptionPane.showMessageDialog(this, "Lỗi: " + ex.getMessage());
-            ex.printStackTrace();
         }
     }
 

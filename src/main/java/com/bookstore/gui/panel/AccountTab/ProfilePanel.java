@@ -1,9 +1,9 @@
 package com.bookstore.gui.panel.AccountTab;
 
-import com.bookstore.bus.AccountBUS;
-import com.bookstore.bus.EmployeeBUS;
-import com.bookstore.dao.AccountDAO;
-import com.bookstore.dto.AccountDTO;
+import com.bookstore.api.client.ApiException;
+import com.bookstore.api.client.ProfileApiClient;
+import com.bookstore.api.contract.ProfileDTO;
+import com.bookstore.api.contract.ProfileUpdateRequestDTO;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.util.SharedData;
 import com.bookstore.util.AppConstant;
@@ -26,6 +26,7 @@ public class ProfilePanel extends JPanel implements Refreshable {
     private JTextField txtName, txtPhone, txtSalary, txtRole, txtDayIn;
     private JDateChooser dchBirthday;
     private JButton btnUpdate;
+    private final ProfileApiClient profileApiClient = new ProfileApiClient();
 
     public ProfilePanel() {
         initUI();
@@ -171,8 +172,10 @@ public class ProfilePanel extends JPanel implements Refreshable {
     }
 
     private void loadData() {
-        if (SharedData.currentUser != null) {
-            EmployeeDTO emp = SharedData.currentUser;
+        try {
+            ProfileDTO profile = profileApiClient.getProfile();
+            EmployeeDTO emp = profile.employee();
+            SharedData.currentUser = emp;
             txtName.setText(emp.getEmployeeName());
             txtPhone.setText(emp.getEmployeePhone());
             if (emp.getBirthday() != null) {
@@ -186,26 +189,15 @@ public class ProfilePanel extends JPanel implements Refreshable {
                 txtDayIn.setText(new java.text.SimpleDateFormat("dd/MM/yyyy").format(emp.getDayIn()));
             }
             
-            String roleName = "";
-            if (emp.getRoleId() == 1) roleName = "Admin";
-            else if (emp.getRoleId() == 2) roleName = "Quản lý";
-            else if (emp.getRoleId() == 3) roleName = "Nhân viên Bán hàng";
-            else if (emp.getRoleId() == 4) roleName = "Nhân viên Kho";
-            txtRole.setText(roleName);
-
-            AccountDAO accDAO = new AccountDAO();
-            for (AccountDTO a : accDAO.selectAllAccounts()) {
-                if (a.getEmployeeId() == emp.getEmployeeId()) {
-                    txtUsername.setText(a.getUsername());
-                    break;
-                }
-            }
+            txtRole.setText(emp.getRoleName());
+            txtUsername.setText(profile.username());
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void handleUpdate(ActionEvent e) {
         if (SharedData.currentUser != null) {
-            EmployeeBUS empBus = new EmployeeBUS();
             EmployeeDTO emp = SharedData.currentUser;
             
             String newName = txtName.getText().trim();
@@ -240,93 +232,29 @@ public class ProfilePanel extends JPanel implements Refreshable {
             }
 
             String newPass = new String(txtPassword.getPassword()).trim();
-            if (!newPass.isEmpty()) {
-                if (newPass.length() < 4) {
-                    JOptionPane.showMessageDialog(this, "Mật khẩu mới phải có ít nhất 4 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                    txtPassword.requestFocus();
-                    return;
-                }
-                AccountDAO checkAccDAO = new AccountDAO();
-                for (AccountDTO a : checkAccDAO.selectAllAccounts()) {
-                    if (a.getEmployeeId() == emp.getEmployeeId()) {
-                        if (newPass.equals(a.getPassword())) {
-                            JOptionPane.showMessageDialog(this, "Mật khẩu mới không được trùng với mật khẩu cũ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                            txtPassword.requestFocus();
-                            return;
-                        }
-                        break;
-                    }
-                }
-            }
-
-            EmployeeDTO tempEmp = new EmployeeDTO();
-            tempEmp.setEmployeeId(emp.getEmployeeId());
-            tempEmp.setEmployeeName(newName);
-            tempEmp.setEmployeePhone(newPhone);
-            tempEmp.setBaseSalary(emp.getBaseSalary());
-            tempEmp.setSalaryFactor(emp.getSalaryFactor());
-            tempEmp.setDayIn(emp.getDayIn());
-            tempEmp.setRoleId(emp.getRoleId());
-            tempEmp.setStatus(emp.getStatus());
-            tempEmp.setRoleName(emp.getRoleName());
             if (dchBirthday.getDate() != null) {
-                tempEmp.setBirthday(new java.sql.Date(dchBirthday.getDate().getTime()));
+                java.sql.Date birthday = new java.sql.Date(dchBirthday.getDate().getTime());
+                updateProfile(newName, newPhone, birthday, newUsername, newPass);
             } else {
-                tempEmp.setBirthday(emp.getBirthday());
+                updateProfile(newName, newPhone, null, newUsername, newPass);
             }
-            if (!newUsername.isEmpty()) {
-                tempEmp.setEmail(newUsername);
-            } else {
-                tempEmp.setEmail(emp.getEmail());
-            }
+        }
+    }
 
-            String result = empBus.updateEmployee(tempEmp);
-            if (result != null && !result.toLowerCase().contains("thành công") && !result.equals("OK")) {
-                JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            emp.setEmployeeName(newName);
-            emp.setEmployeePhone(newPhone);
-            emp.setBirthday(tempEmp.getBirthday());
-            emp.setEmail(tempEmp.getEmail());
-
-            AccountDAO accDAO = new AccountDAO();
-            AccountDTO currentAcc = null;
-            for (AccountDTO a : accDAO.selectAllAccounts()) {
-                if (a.getEmployeeId() == emp.getEmployeeId()) {
-                    currentAcc = a;
-                    break;
-                }
-            }
-            if (currentAcc != null) {
-                String oldUsername = currentAcc.getUsername();
-                
-                if (!oldUsername.equals(newUsername) && !newUsername.isEmpty()) {
-                    AccountBUS accBus = new AccountBUS();
-                    accBus.updateUsername(oldUsername, newUsername);
-                    currentAcc.setUsername(newUsername);
-                }
-                
-                boolean isChangePass = !newPass.isEmpty();
-                if (isChangePass) {
-                    currentAcc.setPassword(newPass);
-                }
-                AccountBUS accBus = new AccountBUS();
-                accBus.updateAccount(currentAcc, isChangePass);
-            }
-
+    private void updateProfile(String name, String phone, java.sql.Date birthday, String username, String password) {
+        try {
+            ProfileDTO updated = profileApiClient.updateProfile(
+                    new ProfileUpdateRequestDTO(name, phone, birthday, username, password)
+            );
+            SharedData.currentUser = updated.employee();
             if (MainFrame.getInstance() != null) {
                 MainFrame.getInstance().updateUserInfo();
-            } else {
-                Window window = SwingUtilities.getWindowAncestor(this);
-                if (window instanceof MainFrame mainFrame) {
-                    mainFrame.updateUserInfo();
-                }
             }
-
             JOptionPane.showMessageDialog(this, "Cập nhật thông tin thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
             txtPassword.setText("");
+            txtUsername.setText(updated.username());
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

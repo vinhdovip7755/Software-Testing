@@ -7,25 +7,29 @@ import java.util.List;
 public class InventoryLogDAO {
     public List<InventoryLogDTO> getAll() {
         List<InventoryLogDTO> list = new ArrayList<>();
-        try {
-            Connection c = com.bookstore.util.DatabaseConnection.getConnection();
-            String sql = "SELECT l.*, b.book_name FROM inventory_log l JOIN book b ON l.book_id = b.book_id ORDER BY l.created_date DESC";
-            PreparedStatement ps = c.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                InventoryLogDTO dto = new InventoryLogDTO();
-                dto.setLogId(rs.getInt("log_id"));
-                dto.setAction(rs.getString("action"));
-                dto.setChangeQuantity(rs.getInt("change_quantity"));
-                dto.setRemainQuantity(rs.getInt("remain_quantity"));
-                dto.setReferenceId(rs.getInt("reference_id"));
-                dto.setCreatedDate(rs.getTimestamp("created_date"));
-                dto.setBookId(rs.getInt("book_id"));
-                dto.setBookName(rs.getString("book_name"));
-                list.add(dto);
+        try (Connection c = com.bookstore.util.DatabaseConnection.getConnection()) {
+            if (c == null) {
+                throw new IllegalStateException("Không thể kết nối cơ sở dữ liệu để tải lịch sử tồn kho.");
             }
-            com.bookstore.util.DatabaseConnection.closeConnection(c);
-        } catch (Exception e) { e.printStackTrace(); }
+            String sql = "SELECT l.*, b.book_name FROM inventory_log l JOIN book b ON l.book_id = b.book_id ORDER BY l.created_date DESC";
+            try (PreparedStatement ps = c.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    InventoryLogDTO dto = new InventoryLogDTO();
+                    dto.setLogId(rs.getInt("log_id"));
+                    dto.setAction(rs.getString("action"));
+                    dto.setChangeQuantity(rs.getInt("change_quantity"));
+                    dto.setRemainQuantity(rs.getInt("remain_quantity"));
+                    dto.setReferenceId(rs.getInt("reference_id"));
+                    dto.setCreatedDate(rs.getTimestamp("created_date"));
+                    dto.setBookId(rs.getInt("book_id"));
+                    dto.setBookName(rs.getString("book_name"));
+                    list.add(dto);
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Không thể tải lịch sử tồn kho từ cơ sở dữ liệu.", e);
+        }
         return list;
     }
 
