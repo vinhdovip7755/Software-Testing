@@ -17,7 +17,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,9 +34,11 @@ public class CustomerPanel extends JPanel implements Refreshable {
     private final MembershipRankApiClient rankApiClient = new MembershipRankApiClient();
 
     private List<CustomerDTO> listCustomers = new ArrayList<>();
+    private boolean isUpdatingRankCombo = false;
 
     public CustomerPanel() {
         initUI();
+        refresh();
     }
 
     @Override
@@ -45,6 +46,7 @@ public class CustomerPanel extends JPanel implements Refreshable {
         try {
             loadCustomerTable();
             loadRanksToComboBox();
+            filterCustomers();
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải dữ liệu khách hàng", JOptionPane.ERROR_MESSAGE);
         }
@@ -212,12 +214,16 @@ public class CustomerPanel extends JPanel implements Refreshable {
     }
 
     private void loadCustomerTable() {
-        listCustomers = customerApiClient.selectAllCustomers();
+        List<CustomerDTO> customers = customerApiClient.selectAllCustomers();
+        listCustomers = customers != null ? customers : new ArrayList<>();
         updateCustomerTable(listCustomers);
     }
 
     private void updateCustomerTable(List<CustomerDTO> list) {
         customerModel.setRowCount(0);
+        if (list == null) {
+            return;
+        }
         for (CustomerDTO customer : list) {
             customerModel.addRow(new Object[]{
                     customer.getCustomerId(),
@@ -230,6 +236,9 @@ public class CustomerPanel extends JPanel implements Refreshable {
     }
 
     private void filterCustomers() {
+        if (listCustomers == null) {
+            return;
+        }
         String keyword = txtSearch.getText().trim().toLowerCase();
         String selectedRank = cboRank.getSelectedItem() != null ? cboRank.getSelectedItem().toString() : "Tất cả hạng";
 
@@ -250,8 +259,8 @@ public class CustomerPanel extends JPanel implements Refreshable {
         List<CustomerDTO> filteredList = new ArrayList<>();
 
         for (CustomerDTO customer : listCustomers) {
-            String name = customer.getCustomerName().toLowerCase();
-            String phone = customer.getCustomerPhone().toLowerCase();
+            String name = customer.getCustomerName() != null ? customer.getCustomerName().toLowerCase() : "";
+            String phone = customer.getCustomerPhone() != null ? customer.getCustomerPhone().toLowerCase() : "";
 
             boolean matchKeyword = keyword.isEmpty() || name.contains(keyword) || phone.contains(keyword);
             boolean matchRank = selectedRank.equals("Tất cả hạng") ||
@@ -266,31 +275,38 @@ public class CustomerPanel extends JPanel implements Refreshable {
         updateCustomerTable(filteredList);
     }
 
-    private void loadRanksToComboBox () {
-        for (ActionListener al : cboRank.getActionListeners()) {
-            cboRank.removeActionListener(al);
-        }
-
-        cboRank.removeAllItems();
-        cboRank.addItem("Tất cả hạng");
+    private void loadRanksToComboBox() {
         List<MembershipRankDTO> allRanks = rankApiClient.getAllRanks();
-        for (MembershipRankDTO rank : allRanks){
-            cboRank.addItem(rank.getRankName());
+        isUpdatingRankCombo = true;
+        try {
+            cboRank.removeAllItems();
+            cboRank.addItem("Tất cả hạng");
+            if (allRanks != null) {
+                for (MembershipRankDTO rank : allRanks) {
+                    cboRank.addItem(rank.getRankName());
+                }
+            }
+        } finally {
+            isUpdatingRankCombo = false;
         }
-
-        cboRank.addActionListener(e -> checkAndFilterRank());
     }
 
 
-    private void checkAndFilterRank () {
+    private void checkAndFilterRank() {
+        if (isUpdatingRankCombo) {
+            return;
+        }
+
         String selectedRank = cboRank.getSelectedItem() != null ? cboRank.getSelectedItem().toString() : "Tất cả hạng";
 
         if (!selectedRank.equals("Tất cả hạng")) {
             boolean hasCustomer = false;
-            for (CustomerDTO customer : listCustomers) {
-                if (customer.getRankName() != null && customer.getRankName().equals(selectedRank)) {
-                    hasCustomer = true;
-                    break;
+            if (listCustomers != null) {
+                for (CustomerDTO customer : listCustomers) {
+                    if (customer.getRankName() != null && customer.getRankName().equals(selectedRank)) {
+                        hasCustomer = true;
+                        break;
+                    }
                 }
             }
 
@@ -299,7 +315,10 @@ public class CustomerPanel extends JPanel implements Refreshable {
                         "Hiện tại chưa có khách hàng nào đạt được hạng: " + selectedRank,
                         "Thông báo", JOptionPane.INFORMATION_MESSAGE);
 
-                cboRank.setSelectedIndex(0);
+                if (cboRank.getItemCount() > 0) {
+                    cboRank.setSelectedIndex(0);
+                    return;
+                }
             }
         }
 
@@ -308,7 +327,9 @@ public class CustomerPanel extends JPanel implements Refreshable {
 
     private void resetFilter() {
         txtSearch.setText("");
-        cboRank.setSelectedIndex(0);
+        if (cboRank.getItemCount() > 0) {
+            cboRank.setSelectedIndex(0);
+        }
         txtMinPoint.setText("");
         txtMaxPoint.setText("");
     }
@@ -385,6 +406,7 @@ public class CustomerPanel extends JPanel implements Refreshable {
         txtMinPoint.getDocument().addDocumentListener(docListener);
         txtMaxPoint.getDocument().addDocumentListener(docListener);
 
+        cboRank.addActionListener(e -> checkAndFilterRank());
         btnResetFilter.addActionListener(e -> resetFilter());
         btnEditCustomer.addActionListener(e -> openCustomerEditDialog());
         btnViewCustomer.addActionListener(e -> openCustomerDetailDialog());
