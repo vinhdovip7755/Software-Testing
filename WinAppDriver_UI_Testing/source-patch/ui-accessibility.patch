@@ -1,0 +1,19 @@
+--- a/src/main/java/com/bookstore/gui/main/LoginFrame.java
++++ b/src/main/java/com/bookstore/gui/main/LoginFrame.java
+@@ -44,1 +44,2 @@
+         txtUsername = new JTextField();
++        txtUsername.getAccessibleContext().setAccessibleName("login.email");
+@@ -61,1 +62,2 @@
+         txtPassword = new JPasswordField();
++        txtPassword.getAccessibleContext().setAccessibleName("login.password");
+@@ -87,1 +89,2 @@
+         btnLogin = new JButton("Đăng Nhập Ngay");
++        btnLogin.getAccessibleContext().setAccessibleName("login.submit");
+--- a/src/main/java/com/bookstore/gui/panel/SellingTab/SellingPanel.java
++++ b/src/main/java/com/bookstore/gui/panel/SellingTab/SellingPanel.java
+@@ -112,1 +112,2 @@
+         txtSearch = new JTextField();
++        txtSearch.getAccessibleContext().setAccessibleName("selling.book-search");
+@@ -135,1 +136,2 @@
+         tblProduct = new JTable(productModel);
++        tblProduct.getAccessibleContext().setAccessibleName("selling.book-results");
