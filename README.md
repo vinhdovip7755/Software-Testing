@@ -1,15 +1,15 @@
 ** Thứ tự thực hiện (trên xuống)
 
-- Hoàn thiện code Chắc là xong...
-- Kiểm tra lại tính năng Chắc là xong rồi...
-- Ưu tiên viết TRD trước BRD (full tất cả tính năng), số lượng T>50 Done
+- Hoàn thiện code Done
+- Kiểm tra lại tính năng & rà soát khắc phục toàn bộ lỗi (`DF01` – `DF15`) Done
+- Ưu tiên viết TRD trước BRD (full tất cả tính năng), số lượng T>50 (`524 TR` trên `34 phân hệ`) Done
 - Sửa lại BRD Done
-- Viết Test Scenario (đợi nhóm Tài gửi code và BRD và TRD)
-- Viết Test Case theo Test Scenario
-- Tạo bảng ma trận BR | TR | Test Case
+- Viết Test Scenario (đợi nhóm Tài gửi code và BRD và TRD) Done
+- Viết Test Case theo Test Scenario Done
+- Tạo bảng ma trận BR | TR | Test Case Done
 - Kiểm thử nhóm Tài theo kịch bản (sửa code nhóm còn lại được cộng điểm !!!)
-- Tự sửa code nhóm mình (không sửa được trừ điểm !!!)
-- Viết báo cáo theo mẫu
+- Tự sửa code nhóm mình (không sửa được trừ điểm !!!) Done
+- Viết báo cáo theo mẫu Done
 
 **Yêu cầu bài (chưa đầy đủ, các ý ở dưới là 1 vài ý của cô):
 
@@ -34,6 +34,25 @@
 - Chú ý từ ngữ ngày tháng chọn từ định dạng Done
 - Đánh dấu * vào trường thông tin bắt buộc Done
 - Điền thông tin vào trường đánh dấu * Done
+
+## Kiến trúc Multi-module & Kiểm thử Tự động
+
+Dự án được tổ chức theo cấu trúc Maven multi-module (`bookstore-parent`):
+
+- `desktop-client` (`BookStoreManager`): Ứng dụng giao diện Java Swing kết hợp các tầng `BUS`, `DAO`, `DTO`, `Util` và `ApiClient`.
+- `api-server` (`bookstore-api`): Dịch vụ Spring Boot REST API cung cấp xác thực Bearer Token, khôi phục mật khẩu OTP, phân quyền RBAC và toàn bộ nghiệp vụ nhà sách.
+
+Để chạy toàn bộ bộ kiểm thử tự động (**220 test cases**: `180` test tại `BookStoreManager` + `40` test tại `bookstore-api`, tỷ lệ đạt **100% Pass**):
+
+```powershell
+mvn test
+```
+
+Các tài liệu kiểm thử chính trong thư mục `docs/` (đồng bộ cả `.md` và `.docx`):
+
+- `docs/YEU_CAU_KY_THUAT_TECHNICAL_REQUIREMENTS.md` / `.docx`: Đặc tả **524 Yêu cầu Kỹ thuật (`T1 – T524`)** trên **34 phân hệ**.
+- `docs/BANG_BAO_CAO_LOI_DEFECT_REPORT.md` / `.docx` / `_V2.docx`: Báo cáo chi tiết **15 lỗi (`DF01 – DF15`)** đã khắc phục hoàn toàn (`Closed`).
+- `docs/Test_Execution_Report.md` / `.docx` & `docs/BAO_CAO_THUC_THI_KIEM_THU_TEST_EXECUTION_REPORT.docx`: Báo cáo kết quả thực thi kiểm thử tự động (**220/220 Passed**).
 
 ## Chạy API (đợt chuyển đổi Swing sang API)
 

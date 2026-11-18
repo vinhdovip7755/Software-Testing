@@ -67,4 +67,28 @@ class BillControllerTest {
 
         assertEquals(403, exception.getStatusCode().value());
     }
+
+    @Test
+    void rejectsDuplicateBookIdsInBillDetails() {
+        AuthSessionStore sessionStore = new AuthSessionStore();
+        String token = sessionStore.createToken(
+                new EmployeeDTO(),
+                Map.of("MANAGE_SELLING", new PermissionDTO("MANAGE_SELLING", true, true))
+        );
+        BillController controller = new BillController(sessionStore);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.createBill(
+                        "Bearer " + token,
+                        new BillCreateRequestDTO(
+                                0,
+                                1,
+                                List.of(new BillLineItemRequestDTO(5, 1), new BillLineItemRequestDTO(5, 2))
+                        )
+                )
+        );
+
+        assertEquals(400, exception.getStatusCode().value());
+    }
 }

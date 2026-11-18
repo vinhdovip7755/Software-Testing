@@ -13,6 +13,9 @@ public class CategoryBUS {
     }
 
     public String addCategory(CategoryDTO category) {
+        if (category == null) {
+            return "Dữ liệu thể loại không hợp lệ!";
+        }
         if (category.getCategoryName() == null || category.getCategoryName().trim().isEmpty()) {
             return "Tên thể loại không được để trống!";
         }
@@ -34,6 +37,12 @@ public class CategoryBUS {
     }
 
     public String updateCategory(CategoryDTO category) {
+        if (category == null) {
+            return "Dữ liệu thể loại không hợp lệ!";
+        }
+        if (category.getCategoryId() <= 0) {
+            return "ID thể loại không hợp lệ!";
+        }
         if (category.getCategoryName() == null || category.getCategoryName().trim().isEmpty()) {
             return "Tên thể loại không được để trống!";
         }

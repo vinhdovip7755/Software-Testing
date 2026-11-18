@@ -206,6 +206,6 @@ public class StatisticsController {
     }
 
     private Timestamp endOfDay(LocalDate date) {
-        return Timestamp.valueOf(date.atTime(23, 59, 59));
+        return Timestamp.valueOf(date.atTime(23, 59, 59, 999_000_000));
     }
 }

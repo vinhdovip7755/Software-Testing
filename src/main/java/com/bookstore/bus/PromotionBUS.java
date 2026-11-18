@@ -55,7 +55,8 @@ public class PromotionBUS {
                         long startLimit = (dates[0].isEmpty()) ? 0 : sdf.parse(dates[0]).getTime();
                         long endLimit = (dates.length < 2 || dates[1].isEmpty()) ? Long.MAX_VALUE
                                 : sdf.parse(dates[1]).getTime();
-                        match = (p.getStartDate().getTime() >= startLimit && p.getEndDate().getTime() <= endLimit);
+                        match = p.getStartDate() != null && p.getEndDate() != null
+                                && (p.getStartDate().getTime() >= startLimit && p.getEndDate().getTime() <= endLimit);
                     } catch (Exception e) {
                         match = false;
                     }
@@ -76,6 +77,9 @@ public class PromotionBUS {
         List<PromotionDTO> all = promotionDAO.selectAllPromotions();
         Timestamp now = new Timestamp(System.currentTimeMillis());
         for (PromotionDTO p : all) {
+            if (p.getStartDate() == null || p.getEndDate() == null) {
+                continue;
+            }
             int newStatus = p.getStatus();
             if (now.after(p.getEndDate())) {
                 newStatus = 0;

@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ApiClientTest {
     @Test
@@ -28,6 +29,10 @@ class ApiClientTest {
             exchange.getResponseBody().write(body);
             exchange.close();
         });
+        server.createContext("/empty-error", exchange -> {
+            exchange.sendResponseHeaders(500, -1);
+            exchange.close();
+        });
         server.start();
 
         String oldBaseUrl = System.getProperty("bookstore.api.base-url");
@@ -40,6 +45,14 @@ class ApiClientTest {
             });
             assertEquals("OK", response);
             assertNull(new CustomerApiClient().selectByPhone("0123456789"));
+
+            ApiException emptyError = assertThrows(
+                    ApiException.class,
+                    () -> ApiClient.get("/empty-error", new TypeReference<String>() {
+                    })
+            );
+            assertEquals(500, emptyError.getStatusCode());
+            assertEquals("API trả về lỗi không có nội dung.", emptyError.getMessage());
         } finally {
             server.stop(0);
             ApiClient.clearAccessToken();

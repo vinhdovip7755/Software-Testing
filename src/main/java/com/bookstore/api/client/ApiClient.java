@@ -111,18 +111,23 @@ public final class ApiClient {
     }
 
     private static String errorMessage(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "API trả về lỗi không có nội dung.";
+        }
         try {
             JsonNode json = OBJECT_MAPPER.readTree(responseBody);
             if (json != null && json.isTextual()) {
                 return json.asText();
             }
-            JsonNode message = json.get("message");
-            if (message != null && message.isTextual()) {
-                return message.asText();
+            if (json != null) {
+                JsonNode message = json.get("message");
+                if (message != null && message.isTextual()) {
+                    return message.asText();
+                }
             }
         } catch (JsonProcessingException ignored) {
-            return responseBody.isBlank() ? "API trả về lỗi không có nội dung." : responseBody;
+            return responseBody;
         }
-        return responseBody.isBlank() ? "API trả về lỗi không có nội dung." : responseBody;
+        return responseBody;
     }
 }

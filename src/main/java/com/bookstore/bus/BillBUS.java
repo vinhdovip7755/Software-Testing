@@ -7,9 +7,12 @@ import com.bookstore.dto.BillDetailDTO;
 import java.util.List;
 
 public class BillBUS {
-    private BillDAO billDAO = new BillDAO();
+    private final BillDAO billDAO = new BillDAO();
 
     public int createBill(BillDTO bill, List<BillDetailDTO> details) {
+        if (bill == null || details == null || details.isEmpty()) {
+            return -1;
+        }
         return billDAO.createBillTransaction(bill, details);
     }
 

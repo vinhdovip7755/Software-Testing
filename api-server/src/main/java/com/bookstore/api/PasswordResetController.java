@@ -17,14 +17,18 @@ public class PasswordResetController {
     }
 
     @PostMapping("/request")
-    public ResponseEntity<Void> requestOtp(@RequestBody PasswordResetRequestDTO request) {
-        passwordResetService.requestOtp(request.email());
+    public ResponseEntity<Void> requestOtp(@RequestBody(required = false) PasswordResetRequestDTO request) {
+        passwordResetService.requestOtp(request == null ? null : request.email());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/confirm")
-    public ResponseEntity<Void> confirmReset(@RequestBody PasswordResetRequestDTO request) {
-        passwordResetService.confirmReset(request.email(), request.otp(), request.newPassword());
+    public ResponseEntity<Void> confirmReset(@RequestBody(required = false) PasswordResetRequestDTO request) {
+        passwordResetService.confirmReset(
+                request == null ? null : request.email(),
+                request == null ? null : request.otp(),
+                request == null ? null : request.newPassword()
+        );
         return ResponseEntity.noContent().build();
     }
 }

@@ -82,10 +82,14 @@ public class AuthSessionStore {
     }
 
     public String createToken(EmployeeDTO employee, Map<String, PermissionDTO> permissions) {
+        if (employee == null) {
+            throw new IllegalArgumentException("employee must not be null");
+        }
         byte[] tokenBytes = new byte[32];
         secureRandom.nextBytes(tokenBytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
-        sessions.put(token, new Session(employee, Map.copyOf(permissions), Instant.now().plus(SESSION_LIFETIME)));
+        Map<String, PermissionDTO> safePermissions = permissions != null ? Map.copyOf(permissions) : Map.of();
+        sessions.put(token, new Session(employee, safePermissions, Instant.now().plus(SESSION_LIFETIME)));
         return token;
     }
 

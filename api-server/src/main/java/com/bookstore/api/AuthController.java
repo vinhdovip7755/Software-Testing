@@ -46,8 +46,10 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestHeader("Authorization") String authorization) {
-        sessionStore.remove(authorization.substring("Bearer ".length()));
+    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            sessionStore.remove(authorization.substring("Bearer ".length()));
+        }
         return ResponseEntity.noContent().build();
     }
 

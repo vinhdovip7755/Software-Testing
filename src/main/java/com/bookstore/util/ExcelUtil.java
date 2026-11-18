@@ -71,7 +71,14 @@ public class ExcelUtil {
 
         try (FileInputStream inputStream = new FileInputStream(file);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
-            Sheet sheet = workbook.getSheetAt(0);
+            if (workbook.getNumberOfSheets() == 0) {
+                return rows;
+            }
+            // Try to find the expected sheet by name, fall back to first sheet
+            Sheet sheet = workbook.getSheet(SHEET_NAME);
+            if (sheet == null) {
+                sheet = workbook.getSheetAt(0);
+            }
             Row headerRow = sheet.getRow(0);
             if (headerRow == null) {
                 return rows;
@@ -193,13 +200,35 @@ public class ExcelUtil {
         }
     }
 
+    private static String normalizeNumericText(String raw) {
+        String cleaned = raw.trim()
+                .replace("VNĐ", "")
+                .replace("VND", "")
+                .replace("đ", "")
+                .replace(" ", "")
+                .trim();
+        if (cleaned.matches("^-?\\d{1,3}(\\.\\d{3})+$")) {
+            return cleaned.replace(".", "");
+        }
+        if (cleaned.matches("^-?\\d{1,3}(\\.\\d{3})+,\\d+$")) {
+            return cleaned.replace(".", "").replace(",", ".");
+        }
+        if (cleaned.matches("^-?\\d{1,3}(,\\d{3})+(\\.\\d+)?$")) {
+            return cleaned.replace(",", "");
+        }
+        if (cleaned.matches("^-?\\d+,\\d+$")) {
+            return cleaned.replace(",", ".");
+        }
+        return cleaned;
+    }
+
     private static double parseSellingPrice(String text, int rowNum) {
         if (text == null || text.trim().isEmpty()) {
             return 0.0;
         }
         try {
-            double price = Double.parseDouble(text.trim().replace(",", ""));
-            if (price < 0) {
+            double price = Double.parseDouble(normalizeNumericText(text));
+            if (!Double.isFinite(price) || price < 0) {
                 throw new IllegalArgumentException("Dòng " + rowNum + ": Giá bán không được là số âm.");
             }
             return price;
@@ -213,7 +242,11 @@ public class ExcelUtil {
             return 0;
         }
         try {
-            int qty = (int) Math.round(Double.parseDouble(text.trim().replace(",", "")));
+            double parsed = Double.parseDouble(normalizeNumericText(text));
+            if (!Double.isFinite(parsed) || parsed != Math.rint(parsed)) {
+                throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng không hợp lệ: '" + text + "'.");
+            }
+            int qty = (int) parsed;
             if (qty < 0) {
                 throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng không được là số âm.");
             }

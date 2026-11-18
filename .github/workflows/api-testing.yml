@@ -1,0 +1,78 @@
+name: BookStore API Automated Testing CI/CD
+
+on:
+  push:
+    branches: [ "main", "api-migration" ]
+  pull_request:
+    branches: [ "main", "api-migration" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: bookstore_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Initialize MySQL Database
+        run: |
+          mysql -h 127.0.0.1 -u root -proot bookstore_db < bookstore_schema.sql
+          mysql -h 127.0.0.1 -u root -proot bookstore_db < bookstore_data.sql
+
+      - name: Build Project & Run Unit Tests
+        run: |
+          mvn -B clean test
+
+      - name: Package Spring Boot API Server
+        run: |
+          mvn -f api-server/pom.xml package -DskipTests
+
+      - name: Start Spring Boot API Server in Background
+        run: |
+          java -jar api-server/target/bookstore-api-1.0-SNAPSHOT.jar &
+          sleep 8
+
+      - name: Health Check API Server
+        run: |
+          curl --fail --retry 5 --retry-delay 2 http://127.0.0.1:8080/api/health
+
+      - name: Install Newman & Newman HTML Extra Reporter
+        run: |
+          npm install -g newman newman-reporter-htmlextra
+
+      - name: Execute Postman Test Suite (107 Requests / 377 Assertions)
+        run: |
+          newman run postman/BookStore_API.postman_collection.json \
+            -e postman/BookStore_API_Local.postman_environment.json \
+            -r cli,htmlextra \
+            --reporter-htmlextra-export postman/reports/newman_report.html
+
+      - name: Upload Test Report Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-report
+          path: postman/reports/

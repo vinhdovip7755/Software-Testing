@@ -203,9 +203,13 @@ public class BillController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Hóa đơn cần phương thức thanh toán hợp lệ và ít nhất một sách.");
         }
+        java.util.Set<Integer> seenBookIds = new java.util.HashSet<>();
         for (BillLineItemRequestDTO line : request.details()) {
             if (line == null || line.bookId() <= 0 || line.quantity() <= 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin sách trong hóa đơn không hợp lệ.");
+            }
+            if (!seenBookIds.add(line.bookId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hóa đơn chứa sách trùng lặp.");
             }
         }
     }

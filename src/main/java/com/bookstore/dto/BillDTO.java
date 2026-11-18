@@ -16,6 +16,9 @@ public class BillDTO {
     private int earnedPoints;
 
     public BillDTO() {
+        this.employeeName = "";
+        this.customerName = "";
+        this.paymentMethodName = "";
     }
 
     public BillDTO(int billId, Timestamp createdDate, double totalBillPrice, double tax, int employeeId, int customerId, int paymentMethodId, int earnedPoints) {
@@ -27,6 +30,9 @@ public class BillDTO {
         this.customerId = customerId;
         this.paymentMethodId = paymentMethodId;
         this.earnedPoints = earnedPoints;
+        this.employeeName = "";
+        this.customerName = "";
+        this.paymentMethodName = "";
     }
 
     public BillDTO(int billId, Timestamp createdDate, double totalBillPrice, double tax, int employeeId, String employeeName, int customerId, String customerName, int paymentMethodId, String paymentMethodName, int earnedPoints) {
@@ -52,7 +58,7 @@ public class BillDTO {
     }
 
     public Timestamp getCreatedDate() {
-        return createdDate;
+        return createdDate == null ? null : new Timestamp(createdDate.getTime());
     }
 
     public void setCreatedDate(Timestamp createdDate) {

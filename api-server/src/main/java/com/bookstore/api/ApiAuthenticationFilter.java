@@ -26,7 +26,10 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return "/api/auth/login".equals(path) || "/api/health".equals(path);
+        return "/api/auth/login".equals(path)
+                || "/api/auth/password-reset/request".equals(path)
+                || "/api/auth/password-reset/confirm".equals(path)
+                || "/api/health".equals(path);
     }
 
     @Override

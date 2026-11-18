@@ -5,19 +5,17 @@ import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
 public class MoneyFormatter {
-    private static final DecimalFormat formatter;
-
-    static {
-        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.getDefault());
+    // DecimalFormat is NOT thread-safe; use ThreadLocal to avoid concurrent corruption
+    private static final ThreadLocal<DecimalFormat> FORMATTER = ThreadLocal.withInitial(() -> {
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.ROOT);
         symbols.setGroupingSeparator('.');
         symbols.setDecimalSeparator(',');
-
-        formatter = new DecimalFormat("###,###,###", symbols);
-    }
+        return new DecimalFormat("###,###,###", symbols);
+    });
 
     public static String toVND(double price) {
         if (price == 0) return "0đ";
-        return formatter.format(price) + "đ";
+        return FORMATTER.get().format(price) + "đ";
     }
 
     public static double toDouble(String priceString) {
