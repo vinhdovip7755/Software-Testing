@@ -1,0 +1,974 @@
+{
+    "info":  {
+                 "name":  "BookStore POS | 14 test case Bills",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+                 "description":  "Chạy với DB test. Đặt URL và dữ liệu trong Variables hoặc environment đang chọn. Biến environment có thể ghi đè biến collection cùng tên. Mặc định đăng nhập bằng salesUsername/salesPassword từ BookStore API Local. Nếu dùng environment cũ, đặt baseUrl thành http://127.0.0.1:8081 khi chạy API trên cổng 8081. Chọn sách đang bán còn ít nhất 5 cuốn, khách có hạng chiết khấu, và điền inactiveBookId của sách có status=0. Xác nhận ID thiếu thực sự chưa tồn tại và ngưỡng tồn/điểm đủ lớn. Chạy toàn bộ một lượt, bắt đầu từ đăng nhập. TC12 có thể tạo thêm hóa đơn và được kỳ vọng phát hiện khoảng trống triển khai. Các ca thành công làm thay đổi dữ liệu. Đối chiếu tồn kho và số dư điểm trước/sau nếu cần bằng các request tương ứng trong collection gốc.",
+                 "_postman_id":  "95ea3904-edcf-44a7-a285-1fba1f174e7e"
+             },
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://127.0.0.1:8081",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "billsUsername",
+                         "value":  "{{salesUsername}}",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "billsPassword",
+                         "value":  "{{salesPassword}}",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "bookId",
+                         "value":  "1",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "customerId",
+                         "value":  "1",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "inactiveBookId",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "missingCustomerId",
+                         "value":  "999999",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "missingBillId",
+                         "value":  "999999",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "outOfStockQuantity",
+                         "value":  "999999",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "pointsUsed",
+                         "value":  "999999",
+                         "type":  "string"
+                     }
+                 ],
+    "item":  [
+                 {
+                     "name":  "00 - Đăng nhập thu ngân",
+                     "request":  {
+                                     "method":  "POST",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/auth/login",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "auth",
+                                                              "login"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"username\": \"{{billsUsername}}\",\n  \"password\": \"{{billsPassword}}\"\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "Dùng tài khoản có quyền thao tác MANAGE_SELLING và xem MANAGE_BILL."
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.collectionVariables.unset(\"billsRunToken\");",
+                                                                   "pm.collectionVariables.unset(\"billsReceiptId\");",
+                                                                   "pm.test(\"HTTP 200\", () =\u003e pm.response.to.have.status(200));",
+                                                                   "if (pm.response.code === 200) {",
+                                                                   "    const token = pm.response.json().accessToken;",
+                                                                   "    pm.test(\"Có accessToken\", () =\u003e pm.expect(token).to.be.a(\"string\").and.not.empty);",
+                                                                   "    if (token) pm.collectionVariables.set(\"billsRunToken\", token);",
+                                                                   "    else pm.execution.setNextRequest(null);",
+                                                                   "} else {",
+                                                                   "    pm.execution.setNextRequest(null);",
+                                                                   "}"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_01 - Khách lẻ, tiền mặt",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "API có thể trả earnedPoints dương trên hóa đơn khách lẻ. Đối chiếu tồn kho giảm 1 và điểm khách hàng không đổi.",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 201\", () =\u003e pm.response.to.have.status(201));",
+                                                                   "if (pm.response.code === 201) {",
+                                                                   "    const receipt = pm.response.json();",
+                                                                   "    pm.test(\"Hóa đơn và dòng sách hợp lệ\", () =\u003e {",
+                                                                   "        pm.expect(receipt.billId).to.be.above(0);",
+                                                                   "        pm.expect(receipt.totalBillPrice).to.be.above(0);",
+                                                                   "        pm.expect(receipt.tax).to.be.a(\"number\").within(0, 1);",
+                                                                   "        pm.expect(receipt.earnedPoints).to.be.a(\"number\").at.least(0);",
+                                                                   "        pm.expect(receipt.details).to.have.lengthOf(1);",
+                                                                   "        const sent = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+                                                                   "        pm.expect(receipt.details[0].bookId).to.eql(sent.details[0].bookId);",
+                                                                   "        pm.expect(receipt.details[0].quantity).to.eql(sent.details[0].quantity);",
+                                                                   "    });",
+                                                                   "    pm.test(\"Hóa đơn ghi khách lẻ\", () =\u003e pm.expect(receipt.customerName).to.eql(\"Khách lẻ\"));",
+                                                                   "    pm.collectionVariables.set(\"billsReceiptId\", receipt.billId);",
+                                                                   "}"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_02 - Thành viên có chiết khấu",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": {{customerId}},\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 2\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "Ghi mức chiết khấu và số điểm của khách trước khi mua. Đối chiếu tổng tiền sau khuyến mãi, chiết khấu hạng và VAT. Tồn giảm 2 và số dư điểm tăng đúng earnedPoints.",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 201\", () =\u003e pm.response.to.have.status(201));",
+                                                                   "if (pm.response.code === 201) {",
+                                                                   "    const receipt = pm.response.json();",
+                                                                   "    pm.test(\"Hóa đơn và dòng sách hợp lệ\", () =\u003e {",
+                                                                   "        pm.expect(receipt.billId).to.be.above(0);",
+                                                                   "        pm.expect(receipt.totalBillPrice).to.be.above(0);",
+                                                                   "        pm.expect(receipt.tax).to.be.a(\"number\").within(0, 1);",
+                                                                   "        pm.expect(receipt.earnedPoints).to.be.a(\"number\").at.least(0);",
+                                                                   "        pm.expect(receipt.details).to.have.lengthOf(1);",
+                                                                   "        const sent = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+                                                                   "        pm.expect(receipt.details[0].bookId).to.eql(sent.details[0].bookId);",
+                                                                   "        pm.expect(receipt.details[0].quantity).to.eql(sent.details[0].quantity);",
+                                                                   "    });",
+                                                                   "    pm.test(\"Hóa đơn ghi tên thành viên\", () =\u003e {",
+                                                                   "        pm.expect(receipt.customerName).to.be.a(\"string\").and.not.empty;",
+                                                                   "        pm.expect(receipt.customerName).not.to.eql(\"Khách lẻ\");",
+                                                                   "    });",
+                                                                   "}"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_03 - Thanh toán chuyển khoản",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": {{customerId}},\n  \"paymentMethodId\": 2,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 201\", () =\u003e pm.response.to.have.status(201));",
+                                                                   "if (pm.response.code === 201) {",
+                                                                   "    const receipt = pm.response.json();",
+                                                                   "    pm.test(\"Hóa đơn và dòng sách hợp lệ\", () =\u003e {",
+                                                                   "        pm.expect(receipt.billId).to.be.above(0);",
+                                                                   "        pm.expect(receipt.totalBillPrice).to.be.above(0);",
+                                                                   "        pm.expect(receipt.tax).to.be.a(\"number\").within(0, 1);",
+                                                                   "        pm.expect(receipt.earnedPoints).to.be.a(\"number\").at.least(0);",
+                                                                   "        pm.expect(receipt.details).to.have.lengthOf(1);",
+                                                                   "        const sent = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+                                                                   "        pm.expect(receipt.details[0].bookId).to.eql(sent.details[0].bookId);",
+                                                                   "        pm.expect(receipt.details[0].quantity).to.eql(sent.details[0].quantity);",
+                                                                   "    });",
+                                                                   "    pm.sendRequest({",
+                                                                   "        url: pm.variables.replaceIn(\"{{baseUrl}}/api/bills/\") + receipt.billId,",
+                                                                   "        method: \"GET\",",
+                                                                   "        header: { Authorization: \"Bearer \" + pm.collectionVariables.get(\"billsRunToken\") }",
+                                                                   "    }, (error, response) =\u003e {",
+                                                                   "        pm.test(\"Hóa đơn đã lưu paymentMethodId = 2\", () =\u003e {",
+                                                                   "            pm.expect(error).to.not.exist;",
+                                                                   "            pm.expect(response.code).to.eql(200);",
+                                                                   "            pm.expect(response.json().paymentMethodId).to.eql(2);",
+                                                                   "        });",
+                                                                   "    });",
+                                                                   "}"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_04 - Đọc chi tiết hóa đơn vừa tạo",
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills/{{billsReceiptId}}/details",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills",
+                                                              "{{billsReceiptId}}",
+                                                              "details"
+                                                          ]
+                                             },
+                                     "description":  "Chạy sau TC_BILL_01.",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 200\", () =\u003e pm.response.to.have.status(200));",
+                                                                   "pm.test(\"Chi tiết khớp hóa đơn khách lẻ TC_BILL_01\", () =\u003e {",
+                                                                   "    const lines = pm.response.json();",
+                                                                   "    pm.expect(lines).to.have.lengthOf(1);",
+                                                                   "    pm.expect(lines[0].billId).to.eql(Number(pm.collectionVariables.get(\"billsReceiptId\")));",
+                                                                   "    pm.expect(lines[0].bookId).to.eql(Number(pm.variables.get(\"bookId\")));",
+                                                                   "    pm.expect(lines[0].quantity).to.eql(1);",
+                                                                   "    pm.expect(lines[0].unitPrice).to.be.a(\"number\");",
+                                                                   "});"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_05 - Giỏ hàng rỗng",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": []\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Hóa đơn cần phương thức thanh toán hợp lệ và ít nhất một sách.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_06 - Hai dòng trùng mã sách",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    },\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 2\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Hóa đơn chứa sách trùng lặp.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_07 - Vượt tồn kho",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": {{outOfStockQuantity}}\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "Đặt outOfStockQuantity lớn hơn tồn thực tế. Kiểm tra tồn và số hóa đơn không đổi.",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 409\", () =\u003e pm.response.to.have.status(409));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Không thể hoàn tất hóa đơn; vui lòng kiểm tra tồn kho và thử lại.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_08 - Sách ngừng bán",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{inactiveBookId}},\n      \"quantity\": 1\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "Điền ID dương của sách có thật với status=0.",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Sách không tồn tại hoặc đã ngừng bán.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_09 - Số lượng bằng 0",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 0\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Thông tin sách trong hóa đơn không hợp lệ.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_09 - Số lượng âm",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": -2\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Thông tin sách trong hóa đơn không hợp lệ.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_10 - Phương thức thanh toán bằng 0",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 0,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Hóa đơn cần phương thức thanh toán hợp lệ và ít nhất một sách.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_11 - Khách hàng không tồn tại",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": {{missingCustomerId}},\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    }\n  ]\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 404\", () =\u003e pm.response.to.have.status(404));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Không tìm thấy khách hàng.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_12 - Tiêu điểm vượt số dư",
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills"
+                                                          ]
+                                             },
+                                     "body":  {
+                                                  "mode":  "raw",
+                                                  "raw":  "{\n  \"customerId\": {{customerId}},\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    }\n  ],\n  \"pointsUsed\": {{pointsUsed}}\n}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              }
+                                              },
+                                     "description":  "Assertion theo đặc tả nghiệp vụ. DTO hiện chưa hỗ trợ pointsUsed, vì vậy ca có thể FAIL và tạo hóa đơn. Chạy trên DB test, giữ ít nhất một cuốn còn tồn sau TC01–03 để quan sát hành vi.",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Số điểm thưởng vượt giới hạn.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_13 - Mã hóa đơn bằng 0",
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills/0/details",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills",
+                                                              "0",
+                                                              "details"
+                                                          ]
+                                             },
+                                     "description":  "",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 400\", () =\u003e pm.response.to.have.status(400));",
+                                                                   "pm.test(\"Thông báo nghiệp vụ\", () =\u003e pm.expect(pm.response.json().message).to.eql(\"Mã hóa đơn không hợp lệ.\"));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 },
+                 {
+                     "name":  "TC_BILL_14 - Chi tiết hóa đơn không tồn tại",
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Authorization",
+                                                        "value":  "Bearer {{billsRunToken}}",
+                                                        "type":  "text"
+                                                    }
+                                                ],
+                                     "url":  {
+                                                 "raw":  "{{baseUrl}}/api/bills/{{missingBillId}}/details",
+                                                 "host":  [
+                                                              "{{baseUrl}}"
+                                                          ],
+                                                 "path":  [
+                                                              "api",
+                                                              "bills",
+                                                              "{{missingBillId}}",
+                                                              "details"
+                                                          ]
+                                             },
+                                     "description":  "Dùng ID dương chưa tồn tại. Endpoint /details hiện trả 200 và [].",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "event":  [
+                                   {
+                                       "listen":  "test",
+                                       "script":  {
+                                                      "type":  "text/javascript",
+                                                      "exec":  [
+                                                                   "pm.test(\"HTTP 200\", () =\u003e pm.response.to.have.status(200));",
+                                                                   "pm.test(\"Chi tiết là mảng rỗng\", () =\u003e pm.expect(pm.response.json()).to.eql([]));"
+                                                               ]
+                                                  }
+                                   }
+                               ],
+                     "response":  [
+
+                                  ]
+                 }
+             ]
+}
