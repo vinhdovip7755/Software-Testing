@@ -1,5 +1,7 @@
 package com.bookstore.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 
@@ -70,7 +72,11 @@ public class PromotionDTO {
         this.status = status;
     }
 
+    @JsonIgnore
     public String getFormattedDateRange() {
+        if (startDate == null || endDate == null) {
+            return "";
+        }
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
         return sdf.format(startDate) + " - " + sdf.format(endDate);
     }

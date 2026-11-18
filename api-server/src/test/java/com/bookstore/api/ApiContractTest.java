@@ -19,7 +19,10 @@ import com.bookstore.dto.FinancialStatsDTO;
 import com.bookstore.dto.ImportDetailDTO;
 import com.bookstore.dto.ImportTicketDTO;
 import com.bookstore.dto.PermissionDTO;
+import com.bookstore.dto.PromotionDTO;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Timestamp;
@@ -28,6 +31,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApiContractTest {
@@ -202,5 +206,47 @@ class ApiContractTest {
 
         assertFalse(json.has("password"));
         assertEquals("staff@example.com", json.get("username").asText());
+    }
+
+    @Test
+    void roundTripsPromotionDtoAndExcludesFormattedDateRange() throws Exception {
+        ObjectMapper springBootMapper = new ObjectMapper()
+                .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+        ObjectMapper clientMapper = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        Timestamp start = Timestamp.valueOf("2026-11-17 10:00:00");
+        Timestamp end = Timestamp.valueOf("2026-12-17 10:00:00");
+        PromotionDTO promotion = new PromotionDTO(5, "Black Friday", 20.0, start, end, 1);
+
+        String json = springBootMapper.writeValueAsString(promotion);
+        var jsonTree = springBootMapper.readTree(json);
+        assertFalse(jsonTree.has("formattedDateRange"));
+        assertTrue(jsonTree.get("startDate").isTextual());
+        assertTrue(jsonTree.get("endDate").isTextual());
+
+        PromotionDTO decoded = clientMapper.readValue(json, PromotionDTO.class);
+        assertEquals(5, decoded.getPromotionId());
+        assertEquals("Black Friday", decoded.getPromotionName());
+        assertEquals(20.0, decoded.getPercent());
+        assertEquals(start, decoded.getStartDate());
+        assertEquals(end, decoded.getEndDate());
+        assertEquals(1, decoded.getStatus());
+        assertEquals("17/11/2026 - 17/12/2026", decoded.getFormattedDateRange());
+
+        PromotionDTO nullStart = new PromotionDTO(6, "No Start", 10.0, null, end, 1);
+        PromotionDTO nullEnd = new PromotionDTO(7, "No End", 10.0, start, null, 1);
+        PromotionDTO bothNull = new PromotionDTO(8, "No Dates", 10.0, null, null, 0);
+
+        assertEquals("", nullStart.getFormattedDateRange());
+        assertEquals("", nullEnd.getFormattedDateRange());
+        assertEquals("", bothNull.getFormattedDateRange());
+
+        String bothNullJson = springBootMapper.writeValueAsString(bothNull);
+        assertFalse(springBootMapper.readTree(bothNullJson).has("formattedDateRange"));
+        PromotionDTO decodedNullDates = clientMapper.readValue(bothNullJson, PromotionDTO.class);
+        assertNull(decodedNullDates.getStartDate());
+        assertNull(decodedNullDates.getEndDate());
+        assertEquals("", decodedNullDates.getFormattedDateRange());
     }
 }
