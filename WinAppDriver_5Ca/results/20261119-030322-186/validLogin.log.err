@@ -1,0 +1,10 @@
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by com.formdev.flatlaf.util.NativeLibrary in an unnamed module (file:/E:/Software-Testing/desktop-client/target/BookStoreApp-jar-with-dependencies.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+java.lang.IllegalStateException: Thi?u BOOKSTORE_TEST_PASSWORD
+	at BookstoreUiTest.env(BookstoreUiTest.java:113)
+	at BookstoreUiTest.loginSuccessfully(BookstoreUiTest.java:131)
+	at BookstoreUiTest.run(BookstoreUiTest.java:79)
+	at BookstoreUiTest.main(BookstoreUiTest.java:92)

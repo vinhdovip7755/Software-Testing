@@ -1,0 +1,5 @@
+﻿"Test","Result","Seconds"
+"emptyEmail","FAIL","2.4"
+"wrongPassword","FAIL","4.8"
+"validLogin","FAIL","5.1"
+"bookSearch","FAIL","9"
