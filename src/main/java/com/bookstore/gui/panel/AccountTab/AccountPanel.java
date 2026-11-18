@@ -52,13 +52,12 @@ public class AccountPanel extends JPanel implements Refreshable {
         gbc.insets = new Insets(0, 0, 0, 0);
         add(box2, gbc);
 
-        loadAdminData();
+        reloadAccounts();
     }
 
     @Override
     public void refresh() {
-        loadAdminData();
-        loadAccountData();
+        reloadAccounts();
     }
 
     private void initAdminSection(WhiteBoxPanel box) {
@@ -158,7 +157,7 @@ public class AccountPanel extends JPanel implements Refreshable {
                     (Frame) SwingUtilities.getWindowAncestor(this), this, null);
             dialog.setDataToForm(null, null);
             dialog.setVisible(true);
-            loadAccountData();
+            reloadAccounts();
         });
 
         gbc.gridx = 2;
@@ -218,19 +217,19 @@ public class AccountPanel extends JPanel implements Refreshable {
             }
         });
 
-        txtSearch.addActionListener(e -> loadAccountData());
+        txtSearch.addActionListener(e -> filterAccountTable());
         txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
             public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                loadAccountData();
+                filterAccountTable();
             }
             @Override
             public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                loadAccountData();
+                filterAccountTable();
             }
             @Override
             public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                loadAccountData();
+                filterAccountTable();
             }
         });
 
@@ -246,7 +245,6 @@ public class AccountPanel extends JPanel implements Refreshable {
         tablePanel.add(scroll, BorderLayout.CENTER);
 
         box.add(tablePanel, BorderLayout.CENTER);
-        loadAccountData();
 
         box.revalidate();
         box.repaint();
@@ -378,7 +376,7 @@ public class AccountPanel extends JPanel implements Refreshable {
                 ));
                 JOptionPane.showMessageDialog(this, message);
                 dialog.dispose();
-                loadAdminData();
+                reloadAccounts();
             } catch (ApiException ex) {
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
             }
@@ -391,11 +389,21 @@ public class AccountPanel extends JPanel implements Refreshable {
         dialog.setVisible(true);
     }
 
-    private void loadAdminData() {
+    private void reloadAccounts() {
         try {
-            adminModel.setRowCount(0);
-            boolean foundAdmin = false;
-            for (AccountViewDTO account : accountApiClient.getAccounts()) {
+            listAccountGoc = accountApiClient.getAccounts();
+            updateAdminTable(listAccountGoc);
+            filterAccountTable();
+        } catch (ApiException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void updateAdminTable(List<AccountViewDTO> accounts) {
+        adminModel.setRowCount(0);
+        boolean foundAdmin = false;
+        if (accounts != null) {
+            for (AccountViewDTO account : accounts) {
                 if (account.roleId() == 1) {
                     currentAdminUsername = account.username();
                     adminModel.addRow(new Object[] { account.username(), "********" });
@@ -403,58 +411,63 @@ public class AccountPanel extends JPanel implements Refreshable {
                     break;
                 }
             }
-            if (!foundAdmin) {
-                currentAdminUsername = "";
-                adminModel.addRow(new Object[] { "Không tìm thấy", "N/A" });
-            }
-        } catch (ApiException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+        }
+        if (!foundAdmin) {
+            currentAdminUsername = "";
+            adminModel.addRow(new Object[] { "Không tìm thấy", "N/A" });
         }
     }
 
     public void loadAccountData() {
-        try {
-            listAccountGoc = accountApiClient.getAccounts();
-            model.setRowCount(0);
-            String keyword = txtSearch.getText().toLowerCase().trim();
+        reloadAccounts();
+    }
 
-            for (AccountViewDTO account : listAccountGoc) {
-                if (account.roleId() == 1) {
+    private void filterAccountTable() {
+        model.setRowCount(0);
+        if (listAccountGoc == null) {
+            return;
+        }
+        String keyword = txtSearch.getText().toLowerCase().trim();
+
+        for (AccountViewDTO account : listAccountGoc) {
+            if (account.roleId() == 1) {
+                continue;
+            }
+
+            String statusStr = account.status() == 1 ? "Được phép hoạt động" : "Ngưng hoạt động";
+            if (!keyword.isEmpty()) {
+                String kwClean = removeDiacritics(keyword);
+                boolean matches = (account.employeeName() != null
+                        && (account.employeeName().toLowerCase().contains(keyword)
+                        || removeDiacritics(account.employeeName()).contains(kwClean)))
+                        || (account.username() != null && account.username().toLowerCase().contains(keyword))
+                        || (account.roleName() != null
+                        && (account.roleName().toLowerCase().contains(keyword)
+                        || removeDiacritics(account.roleName()).contains(kwClean)))
+                        || statusStr.toLowerCase().contains(keyword)
+                        || removeDiacritics(statusStr).contains(kwClean);
+                if (!matches) {
                     continue;
                 }
-
-                String statusStr = account.status() == 1 ? "Được phép hoạt động" : "Ngưng hoạt động";
-                if (!keyword.isEmpty()) {
-                    String kwClean = removeDiacritics(keyword);
-                    boolean matches = account.employeeName().toLowerCase().contains(keyword)
-                            || removeDiacritics(account.employeeName()).contains(kwClean)
-                            || account.username().toLowerCase().contains(keyword)
-                            || account.roleName().toLowerCase().contains(keyword)
-                            || removeDiacritics(account.roleName()).contains(kwClean)
-                            || statusStr.toLowerCase().contains(keyword)
-                            || removeDiacritics(statusStr).contains(kwClean);
-                    if (!matches) {
-                        continue;
-                    }
-                }
-
-                model.addRow(new Object[] {
-                        account.employeeName(),
-                        account.username(),
-                        "********",
-                        account.roleName(),
-                        statusStr,
-                        "Sửa"
-                });
             }
-        } catch (ApiException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+
+            model.addRow(new Object[] {
+                    account.employeeName(),
+                    account.username(),
+                    "********",
+                    account.roleName(),
+                    statusStr,
+                    "Sửa"
+            });
         }
     }
 
     private void openEditDialog(int row) {
         if (table.isEditing()) {
             table.getCellEditor().stopCellEditing();
+        }
+        if (listAccountGoc == null) {
+            return;
         }
 
         String user = table.getValueAt(row, 1).toString();
@@ -475,7 +488,7 @@ public class AccountPanel extends JPanel implements Refreshable {
         AccountFormDialog dialog = new AccountFormDialog((Frame) SwingUtilities.getWindowAncestor(this), this, account);
         dialog.setDataToForm(account, employee);
         dialog.setVisible(true);
-        loadAccountData();
+        reloadAccounts();
     }
 
     private String removeDiacritics(String str) {

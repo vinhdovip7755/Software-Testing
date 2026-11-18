@@ -38,6 +38,7 @@ public class EmployeePanel extends JPanel implements Refreshable {
     private final EmployeeApiClient employeeApiClient = new EmployeeApiClient();
     private final RoleApiClient roleApiClient = new RoleApiClient();
     private List<EmployeeDTO> listEmployees;
+    private boolean isUpdatingRoleCombo = false;
 
     public EmployeePanel() {
         initUI();
@@ -56,6 +57,7 @@ public class EmployeePanel extends JPanel implements Refreshable {
         try {
             loadEmployeeTable();
             loadRolesToComboBox();
+            filterEmployees();
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
@@ -252,8 +254,8 @@ public class EmployeePanel extends JPanel implements Refreshable {
         List<EmployeeDTO> filteredList = new ArrayList<>();
 
         for (EmployeeDTO emp : listEmployees) {
-            String name = emp.getEmployeeName().toLowerCase();
-            String phone = emp.getEmployeePhone().toLowerCase();
+            String name = emp.getEmployeeName() != null ? emp.getEmployeeName().toLowerCase() : "";
+            String phone = emp.getEmployeePhone() != null ? emp.getEmployeePhone().toLowerCase() : "";
 
             boolean matchKeyword = keyword.isEmpty() || name.contains(keyword) || phone.contains(keyword);
             boolean matchRole = selectedRole.equals("Tất cả chức vụ") ||
@@ -277,20 +279,27 @@ public class EmployeePanel extends JPanel implements Refreshable {
     }
 
     private void loadRolesToComboBox() {
-        cboRole.removeAllItems();
-        cboRole.addItem("Tất cả chức vụ");
         List<RoleDTO> allRoles = roleApiClient.getRoles();
-        for (RoleDTO role : allRoles) {
-            if (role.getRoleId() == 1 || "Admin".equalsIgnoreCase(role.getRoleName())) {
-                continue;
+        isUpdatingRoleCombo = true;
+        try {
+            cboRole.removeAllItems();
+            cboRole.addItem("Tất cả chức vụ");
+            for (RoleDTO role : allRoles) {
+                if (role.getRoleId() == 1 || "Admin".equalsIgnoreCase(role.getRoleName())) {
+                    continue;
+                }
+                cboRole.addItem(role.getRoleName());
             }
-            cboRole.addItem(role.getRoleName());
+        } finally {
+            isUpdatingRoleCombo = false;
         }
-
-        cboRole.addActionListener(e -> checkAndFilterRole());
     }
 
     private void checkAndFilterRole() {
+        if (isUpdatingRoleCombo) {
+            return;
+        }
+
         String selectedRole = cboRole.getSelectedItem() != null ? cboRole.getSelectedItem().toString() : "Tất cả chức vụ";
 
         if (!selectedRole.equals("Tất cả chức vụ")) {
@@ -309,7 +318,10 @@ public class EmployeePanel extends JPanel implements Refreshable {
                 JOptionPane.showMessageDialog(this,
                         "Hiện tại chưa có nhân viên nào đảm nhận chức vụ: " + selectedRole,
                         "Thông báo", JOptionPane.INFORMATION_MESSAGE);
-                cboRole.setSelectedIndex(0);
+                if (cboRole.getItemCount() > 0) {
+                    cboRole.setSelectedIndex(0);
+                    return;
+                }
             }
         }
 
@@ -318,7 +330,9 @@ public class EmployeePanel extends JPanel implements Refreshable {
 
     private void resetFilter() {
         txtSearch.setText("");
-        cboRole.setSelectedIndex(0);
+        if (cboRole.getItemCount() > 0) {
+            cboRole.setSelectedIndex(0);
+        }
         cboStatus.setSelectedIndex(0);
     }
 
@@ -396,6 +410,7 @@ public class EmployeePanel extends JPanel implements Refreshable {
             public void changedUpdate(DocumentEvent e) { filterEmployees(); }
         });
 
+        cboRole.addActionListener(e -> checkAndFilterRole());
         cboStatus.addActionListener(e -> filterEmployees());
         btnResetFilter.addActionListener(e -> resetFilter());
         btnEditEmployee.addActionListener(e -> openEditDialog());

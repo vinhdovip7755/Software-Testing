@@ -73,10 +73,7 @@ public class SellingPanel extends JPanel implements Refreshable {
         if (SharedData.currentUser != null && txtEmployee != null) {
             txtEmployee.setText(SharedData.currentUser.getEmployeeName());
         }
-        loadSellingSettings();
-        loadCategoriesToComBoBox();
-        loadAuthorsToComboBox();
-        loadBookTable();
+        loadSellingData();
     }
 
     private void initUI() {
@@ -90,11 +87,8 @@ public class SellingPanel extends JPanel implements Refreshable {
         JPanel rightPanel = createRightPanel();
         add(rightPanel);
 
-        loadCategoriesToComBoBox();
-        loadAuthorsToComboBox();
-        loadBookTable();
+        loadSellingData();
         addEvents();
-        loadSellingSettings();
     }
 
     private JPanel createLeftPanel() {
@@ -412,43 +406,80 @@ public class SellingPanel extends JPanel implements Refreshable {
         table.getColumnModel().getColumn(columnIndex).setPreferredWidth(width);
     }
 
-    private void loadCategoriesToComBoBox() {
-        List<CategoryDTO> list;
-        try {
-            list = categoryApiClient.selectAllCategories();
-        } catch (ApiException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải thể loại", JOptionPane.ERROR_MESSAGE);
-            return;
+    @FunctionalInterface
+    private interface SellingLoadStep {
+        void run() throws ApiException;
+    }
+
+    private void loadSellingData() {
+        List<String> errors = new ArrayList<>();
+        boolean aborted = !runSellingLoadStep("Thể loại", this::loadCategoriesInternal, errors)
+                || !runSellingLoadStep("Tác giả", this::loadAuthorsInternal, errors)
+                || !runSellingLoadStep("Danh mục sách", this::loadBookTableInternal, errors)
+                || !runSellingLoadStep("Cấu hình bán hàng", this::loadSellingSettingsInternal, errors);
+
+        if (aborted) {
+            vatRate = Double.NaN;
+            btnPay.setEnabled(false);
+            calculateTotal();
         }
+
+        if (!errors.isEmpty()) {
+            String message = errors.size() == 1 ? errors.get(0) : String.join("\n", errors);
+            JOptionPane.showMessageDialog(this, message, "Không thể tải dữ liệu bán hàng", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private boolean runSellingLoadStep(String sectionName, SellingLoadStep step, List<String> errors) {
+        try {
+            step.run();
+            return true;
+        } catch (ApiException e) {
+            if (e.getStatusCode() == 0 || e.getStatusCode() == 401 || e.getStatusCode() == 403) {
+                errors.clear();
+                errors.add(e.getMessage());
+                return false;
+            }
+            errors.add(sectionName + ": " + e.getMessage());
+            return true;
+        }
+    }
+
+    private void loadCategoriesInternal() throws ApiException {
+        List<CategoryDTO> raw = categoryApiClient.selectAllCategories();
+        List<CategoryDTO> list = raw != null ? new ArrayList<>(raw) : new ArrayList<>();
         list.add(0, new CategoryDTO(0, "Tất cả thể loại"));
         CategoryDTO[] categoryArray = list.toArray(new CategoryDTO[0]);
         cboCategory.setModel(new DefaultComboBoxModel<>(categoryArray));
     }
 
-    private void loadAuthorsToComboBox() {
-        List<AuthorDTO> list;
-        try {
-            list = authorApiClient.selectAllAuthors();
-        } catch (ApiException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải tác giả", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+    private void loadAuthorsInternal() throws ApiException {
+        List<AuthorDTO> raw = authorApiClient.selectAllAuthors();
+        List<AuthorDTO> list = raw != null ? new ArrayList<>(raw) : new ArrayList<>();
         list.add(0, new AuthorDTO(0, "Tất cả tác giả", "Tất cả tác giả"));
         cboAuthor.updateData(list);
     }
 
-    private void loadBookTable() {
+    private void loadBookTableInternal() throws ApiException {
         try {
             listBooks = bookApiClient.selectActiveBooks();
             updateProductTable(listBooks);
         } catch (ApiException e) {
             listBooks = new ArrayList<>();
             updateProductTable(listBooks);
+            throw e;
+        }
+    }
+
+    private void loadBookTable() {
+        try {
+            loadBookTableInternal();
+        } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải danh mục sách", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void loadSellingSettings() {
+    private void loadSellingSettingsInternal() throws ApiException {
         try {
             vatRate = systemParameterApiClient.getVatRate();
             if (!Double.isFinite(vatRate) || vatRate < 0 || vatRate > 1) {
@@ -460,7 +491,7 @@ public class SellingPanel extends JPanel implements Refreshable {
             vatRate = Double.NaN;
             btnPay.setEnabled(false);
             calculateTotal();
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải cấu hình bán hàng", JOptionPane.ERROR_MESSAGE);
+            throw e;
         }
     }
 
@@ -1017,8 +1048,12 @@ public class SellingPanel extends JPanel implements Refreshable {
         txtSearch.setText("");
         txtPriceFrom.setText("");
         txtPriceTo.setText("");
-        cboCategory.setSelectedIndex(0);
-        cboAuthor.setSelectedIndex(0);
+        if (cboCategory.getItemCount() > 0) {
+            cboCategory.setSelectedIndex(0);
+        }
+        if (cboAuthor.getItemCount() > 0) {
+            cboAuthor.setSelectedIndex(0);
+        }
         filterBooks();
     }
 

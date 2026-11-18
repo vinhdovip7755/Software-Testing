@@ -29,6 +29,7 @@ public class PromotionPanel extends JPanel implements Refreshable {
     private JScrollPane scroll;
     private boolean hasSearched = false;
     private CardLayout searchCard = new CardLayout();
+    private final Timer statusTimer;
 
     public PromotionPanel() {
 
@@ -39,10 +40,36 @@ public class PromotionPanel extends JPanel implements Refreshable {
         initHeader();
         loadData();
 
-        Timer statusTimer = new Timer(60000, e -> {
-            loadData();
+        statusTimer = new Timer(60000, e -> {
+            if (isShowing() && !hasVisibleModalDialog()) {
+                loadData();
+            }
         });
-        statusTimer.start();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        if (statusTimer != null && !statusTimer.isRunning()) {
+            statusTimer.start();
+        }
+    }
+
+    @Override
+    public void removeNotify() {
+        if (statusTimer != null && statusTimer.isRunning()) {
+            statusTimer.stop();
+        }
+        super.removeNotify();
+    }
+
+    private boolean hasVisibleModalDialog() {
+        for (Window w : Window.getWindows()) {
+            if (w instanceof Dialog d && d.isModal() && d.isVisible()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     class WhiteBoxPanel extends JPanel {
@@ -284,10 +311,12 @@ public class PromotionPanel extends JPanel implements Refreshable {
                     int id = Integer.parseInt(idStr);
 
                     PromotionDTO p = null;
-                    for (PromotionDTO item : listPromotions) {
-                        if (item.getPromotionId() == id) {
-                            p = item;
-                            break;
+                    if (listPromotions != null) {
+                        for (PromotionDTO item : listPromotions) {
+                            if (item.getPromotionId() == id) {
+                                p = item;
+                                break;
+                            }
                         }
                     }
 
@@ -444,18 +473,23 @@ public class PromotionPanel extends JPanel implements Refreshable {
 
     public void capNhatBang(List<PromotionDTO> list) {
         model.setRowCount(0);
+        if (list == null) {
+            return;
+        }
 
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
         for (PromotionDTO p : list) {
             String trangThaiStr = (p.getStatus() == 1) ? "Đang chạy" : "Ngừng hoạt động";
+            String startStr = p.getStartDate() != null ? sdf.format(p.getStartDate()) : "";
+            String endStr = p.getEndDate() != null ? sdf.format(p.getEndDate()) : "";
 
             model.addRow(new Object[] {
                     "KM" + p.getPromotionId(),
                     p.getPromotionName(),
                     p.getPercent() + "%",
-                    sdf.format(p.getStartDate()),
-                    sdf.format(p.getEndDate()),
+                    startStr,
+                    endStr,
                     trangThaiStr,
                     ""
             });
