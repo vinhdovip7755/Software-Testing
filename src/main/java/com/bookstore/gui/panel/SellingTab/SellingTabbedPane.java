@@ -3,14 +3,16 @@ package com.bookstore.gui.panel.SellingTab;
 import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 import com.formdev.flatlaf.FlatClientProperties;
+
 import javax.swing.*;
 import java.awt.*;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.function.Supplier;
 
-public class SellingTabbedPane extends JPanel implements Refreshable{
-    private JTabbedPane tabbedPane = new JTabbedPane();
-    private SellingPanel sellingPanel;
-    private CustomerPanel customerPanel;
-    private MembershipRankPanel membershipRankPanel;
+public class SellingTabbedPane extends JPanel implements Refreshable {
+    private final JTabbedPane tabbedPane = new JTabbedPane();
+    private final Map<Component, Supplier<JComponent>> pendingTabs = new IdentityHashMap<>();
 
     public SellingTabbedPane() {
         initUI();
@@ -18,10 +20,7 @@ public class SellingTabbedPane extends JPanel implements Refreshable{
 
     @Override
     public void refresh() {
-        Component selectedTab = tabbedPane.getSelectedComponent();
-        if (selectedTab instanceof Refreshable r) {
-            r.refresh();
-        }
+        activateSelectedTab(true);
     }
 
     private void initUI() {
@@ -29,24 +28,40 @@ public class SellingTabbedPane extends JPanel implements Refreshable{
         tabbedPane.putClientProperty(FlatClientProperties.TABBED_PANE_TAB_AREA_ALIGNMENT, FlatClientProperties.TABBED_PANE_ALIGN_CENTER);
 
         if (PermissionUtil.hasViewPermission("MANAGE_SELLING")) {
-            sellingPanel = new SellingPanel();
-            tabbedPane.addTab("Bán Hàng", sellingPanel);
+            addLazyTab("Bán Hàng", SellingPanel::new);
         }
 
         if (PermissionUtil.hasViewPermission("MANAGE_CUSTOMER")) {
-            customerPanel = new CustomerPanel();
-            membershipRankPanel = new MembershipRankPanel();
-            tabbedPane.addTab("Khách Hàng", customerPanel);
-            tabbedPane.addTab("Hạng Thành Viên", membershipRankPanel);
+            addLazyTab("Khách Hàng", CustomerPanel::new);
+            addLazyTab("Hạng Thành Viên", MembershipRankPanel::new);
         }
 
+        activateSelectedTab(false);
         add(tabbedPane, BorderLayout.CENTER);
+        tabbedPane.addChangeListener(e -> activateSelectedTab(true));
+    }
 
-        tabbedPane.addChangeListener(e -> {
-            Component selectedTab = tabbedPane.getSelectedComponent();
-            if (selectedTab instanceof Refreshable r) {
-                r.refresh();
+    private void addLazyTab(String title, Supplier<JComponent> factory) {
+        JPanel placeholder = new JPanel();
+        pendingTabs.put(placeholder, factory);
+        tabbedPane.addTab(title, placeholder);
+    }
+
+    private void activateSelectedTab(boolean refreshIfLoaded) {
+        int index = tabbedPane.getSelectedIndex();
+        if (index < 0) {
+            return;
+        }
+        Component selectedTab = tabbedPane.getComponentAt(index);
+        Supplier<JComponent> factory = pendingTabs.get(selectedTab);
+        if (factory != null) {
+            JComponent realComponent = factory.get();
+            if (realComponent != null) {
+                pendingTabs.remove(selectedTab);
+                tabbedPane.setComponentAt(index, realComponent);
             }
-        });
+        } else if (refreshIfLoaded && selectedTab instanceof Refreshable r) {
+            r.refresh();
+        }
     }
 }

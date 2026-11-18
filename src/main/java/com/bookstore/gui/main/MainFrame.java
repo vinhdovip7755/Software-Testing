@@ -2,9 +2,9 @@
 
     import com.bookstore.api.client.ApiException;
     import com.bookstore.api.client.AuthApiClient;
-    import com.bookstore.dto.PermissionDTO;
     import com.bookstore.gui.panel.StatisticTab.StatisticsTabbedPane;
     import com.bookstore.gui.panel.AccountTab.AccountTabbedPane;
+    import com.bookstore.gui.panel.AccountTab.ProfilePanel;
     import com.bookstore.gui.panel.BillTab.BillPanel;
     import com.bookstore.gui.panel.EmployeeTab.EmployeePanel;
     import com.bookstore.gui.panel.ImportTab.ImportTabbedPane;
@@ -13,6 +13,7 @@
     import com.bookstore.gui.panel.ProductTab.ProductTabbedPane;
     import com.bookstore.gui.panel.SellingTab.SellingTabbedPane;
     import com.bookstore.util.AppConstant;
+    import com.bookstore.util.PermissionUtil;
     import com.bookstore.util.Refreshable;
     import com.bookstore.util.SharedData;
     import com.formdev.flatlaf.FlatClientProperties;
@@ -20,14 +21,21 @@
     import javax.swing.*;
     import java.awt.*;
     import java.util.HashMap;
+    import java.util.LinkedHashMap;
     import java.util.Map;
+    import java.util.function.BooleanSupplier;
+    import java.util.function.Supplier;
 
     public class MainFrame extends JFrame {
+        private record TabSpec(BooleanSupplier allowed, Supplier<Component> factory) {}
+
         private CardLayout cardLayout;
         private JPanel mainContentPanel, sidebarPanel;
         private JButton btnLogout, btnSelling, btnProduct, btnPrice, btnImport, btnInventory, btnBill, btnEmployee, btnStats, btnAccount;
         private JPanel welcomePanel;
-        private Map<JButton, String[]> menuMap = new HashMap<>();
+        private final Map<JButton, String> menuMap = new LinkedHashMap<>();
+        private final Map<String, TabSpec> tabSpecs = new HashMap<>();
+        private final Map<String, Component> createdTabs = new HashMap<>();
         private JLabel lbUserInfo;
         private JLabel lbWelcome2;
         private static MainFrame instance;
@@ -50,6 +58,8 @@
             setLocationRelativeTo(null);
             setLayout(new BorderLayout());
 
+            registerTabs();
+
             sidebarPanel = createSidebar();
             JScrollPane sidebarScrollPane = new JScrollPane(sidebarPanel);
             sidebarScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -63,19 +73,35 @@
 
             welcomePanel = createWelcomePanel();
             mainContentPanel.add(welcomePanel, "WELCOME");
-            mainContentPanel.add(new SellingTabbedPane(), "SELLING");
-            mainContentPanel.add(new ProductTabbedPane(), "PRODUCT");
-            mainContentPanel.add(new PriceTabbedPane(), "PRICE");
-            mainContentPanel.add(new ImportTabbedPane(), "IMPORT");
-            mainContentPanel.add(new InventoryPanel(), "INVENTORY");
-            mainContentPanel.add(new BillPanel(), "BILL");
-            mainContentPanel.add(new EmployeePanel(), "EMPLOYEE");
-            mainContentPanel.add(new StatisticsTabbedPane(), "STATS");
-            mainContentPanel.add(new AccountTabbedPane(), "ACCOUNT");
-        mainContentPanel.add(new com.bookstore.gui.panel.AccountTab.ProfilePanel(), "PROFILE");
 
             add(mainContentPanel, BorderLayout.CENTER);
             cardLayout.show(mainContentPanel, "WELCOME");
+        }
+
+        private void registerTabs() {
+            registerTab("SELLING", () -> hasAnyViewPermission("MANAGE_SELLING", "MANAGE_CUSTOMER"), SellingTabbedPane::new);
+            registerTab("PRODUCT", () -> hasAnyViewPermission("MANAGE_PRODUCT", "MANAGE_AUTHOR", "MANAGE_CATEGORY", "MANAGE_SUPPLIER"), ProductTabbedPane::new);
+            registerTab("PRICE", () -> hasAnyViewPermission("MANAGE_PRICE", "MANAGE_PROMOTION"), PriceTabbedPane::new);
+            registerTab("IMPORT", () -> hasAnyViewPermission("MANAGE_IMPORT_TICKET", "MANAGE_IMPORT"), ImportTabbedPane::new);
+            registerTab("INVENTORY", () -> hasAnyViewPermission("MANAGE_INVENTORY"), InventoryPanel::new);
+            registerTab("BILL", () -> hasAnyViewPermission("MANAGE_BILL"), BillPanel::new);
+            registerTab("EMPLOYEE", () -> hasAnyViewPermission("MANAGE_EMPLOYEE"), EmployeePanel::new);
+            registerTab("STATS", () -> hasAnyViewPermission("STATISTICS"), StatisticsTabbedPane::new);
+            registerTab("ACCOUNT", () -> SharedData.currentUser != null, AccountTabbedPane::new);
+            registerTab("PROFILE", () -> SharedData.currentUser != null, ProfilePanel::new);
+        }
+
+        private void registerTab(String tabName, BooleanSupplier allowed, Supplier<Component> factory) {
+            tabSpecs.put(tabName, new TabSpec(allowed, factory));
+        }
+
+        private static boolean hasAnyViewPermission(String... actionCodes) {
+            for (String code : actionCodes) {
+                if (PermissionUtil.hasViewPermission(code)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private JPanel createWelcomePanel() {
@@ -162,15 +188,15 @@
             btnStats = createMenuButton("Thống Kê", "stats_icon.svg");
             btnAccount = createMenuButton("Tài Khoản", "account_icon.svg");
 
-            menuMap.put(btnSelling, new String[]{"MANAGE_SELLING", "MANAGE_CUSTOMER"});
-            menuMap.put(btnProduct, new String[]{"MANAGE_PRODUCT", "MANAGE_AUTHOR", "MANAGE_CATEGORY", "MANAGE_SUPPLIER"});
-            menuMap.put(btnPrice, new String[]{"MANAGE_PRICE", "MANAGE_PROMOTION"});
-            menuMap.put(btnImport, new String[]{"MANAGE_IMPORT_TICKET", "MANAGE_IMPORT"});
-            menuMap.put(btnInventory, new String[]{"MANAGE_INVENTORY"});
-            menuMap.put(btnBill, new String[]{"MANAGE_BILL"});
-            menuMap.put(btnEmployee, new String[]{"MANAGE_EMPLOYEE"});
-            menuMap.put(btnStats, new String[]{"STATISTICS"});
-            
+            bindMenuButton(btnSelling, "SELLING");
+            bindMenuButton(btnProduct, "PRODUCT");
+            bindMenuButton(btnPrice, "PRICE");
+            bindMenuButton(btnImport, "IMPORT");
+            bindMenuButton(btnInventory, "INVENTORY");
+            bindMenuButton(btnBill, "BILL");
+            bindMenuButton(btnEmployee, "EMPLOYEE");
+            bindMenuButton(btnStats, "STATS");
+            bindMenuButton(btnAccount, "ACCOUNT");
 
             btnLogout = new JButton("Đăng xuất");
             btnLogout.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
@@ -196,15 +222,6 @@
                     "hoverBackground: #ff4f4f;"
             );
 
-            btnSelling.addActionListener(e -> switchTab("SELLING"));
-            btnProduct.addActionListener(e -> switchTab("PRODUCT"));
-            btnPrice.addActionListener(e -> switchTab("PRICE"));
-            btnImport.addActionListener(e -> switchTab("IMPORT"));
-            btnInventory.addActionListener(e -> switchTab("INVENTORY"));
-            btnBill.addActionListener(e -> switchTab("BILL"));
-            btnEmployee.addActionListener(e -> switchTab("EMPLOYEE"));
-            btnStats.addActionListener(e -> switchTab("STATS"));
-            btnAccount.addActionListener(e -> switchTab("ACCOUNT"));
             btnLogout.addActionListener(e -> {
                 int confirm = JOptionPane.showConfirmDialog(this,
                         "Bạn có chắc chắn muốn đăng xuất?",
@@ -219,6 +236,7 @@
                     }
                     SharedData.currentUser = null;
                     SharedData.userPermissions = Map.of();
+                    clearContentPanels();
                     this.dispose();
                     new LoginFrame().setVisible(true);
                 }
@@ -281,46 +299,71 @@
             return btn;
         }
 
-        private void switchTab(String tabName) {
-            cardLayout.show(mainContentPanel, tabName);
+        private void bindMenuButton(JButton btn, String tabKey) {
+            menuMap.put(btn, tabKey);
+            btn.addActionListener(e -> switchTab(tabKey));
+        }
 
-            for (Component comp : mainContentPanel.getComponents()) {
-                if (comp.isVisible()) {
-                    if (comp instanceof Refreshable r) {
+        private void clearContentPanels() {
+            if (mainContentPanel != null) {
+                mainContentPanel.removeAll();
+            }
+            createdTabs.clear();
+        }
+
+        @Override
+        public void dispose() {
+            clearContentPanels();
+            if (instance == this) {
+                instance = null;
+            }
+            super.dispose();
+        }
+
+        private void switchTab(String tabName) {
+            if ("WELCOME".equals(tabName)) {
+                cardLayout.show(mainContentPanel, "WELCOME");
+                return;
+            }
+
+            TabSpec spec = tabSpecs.get(tabName);
+            if (spec == null || !spec.allowed().getAsBoolean()) {
+                return;
+            }
+
+            Component comp = createdTabs.get(tabName);
+            boolean newlyCreated = false;
+            if (comp == null) {
+                comp = spec.factory().get();
+                if (comp == null) {
+                    return;
+                }
+                createdTabs.put(tabName, comp);
+                mainContentPanel.add(comp, tabName);
+                newlyCreated = true;
+            }
+
+            cardLayout.show(mainContentPanel, tabName);
+            mainContentPanel.revalidate();
+            mainContentPanel.repaint();
+
+            if (!newlyCreated) {
+                if (comp instanceof Refreshable r) {
+                    r.refresh();
+                } else if (comp instanceof JTabbedPane tabbedPane) {
+                    Component selectedTab = tabbedPane.getSelectedComponent();
+                    if (selectedTab instanceof Refreshable r) {
                         r.refresh();
                     }
-                    else if (comp instanceof JTabbedPane tabbedPane) {
-                        Component selectedTab = tabbedPane.getSelectedComponent();
-                        if (selectedTab instanceof Refreshable r) {
-                            r.refresh();
-                        }
-                    }
-                    break;
                 }
             }
         }
 
         private void applyMenuPermissions() {
-            for (Map.Entry<JButton, String[]> entry : menuMap.entrySet()) {
-                JButton btn = entry.getKey();
-                String[] actionCodes = entry.getValue();
-
-
-
-                boolean isVisible = false;
-
-                for (String code : actionCodes) {
-                    PermissionDTO permission = SharedData.userPermissions.get(code);
-                    if (permission != null && permission.isView()) {
-                        isVisible = true;
-                        break;
-                    }
-                }
-
-                if (btn == btnAccount && SharedData.currentUser != null) {
-                    isVisible = true;
-                }
-                btn.setVisible(isVisible);
+            for (Map.Entry<JButton, String> entry : menuMap.entrySet()) {
+                TabSpec spec = tabSpecs.get(entry.getValue());
+                boolean isVisible = spec != null && spec.allowed().getAsBoolean();
+                entry.getKey().setVisible(isVisible);
             }
         }
 
