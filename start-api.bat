@@ -13,7 +13,6 @@ if not exist "%~dp0api-server\target\bookstore-api-1.0-SNAPSHOT.jar" (
     call "C:\Program Files\JetBrains\IntelliJ IDEA 2025.3.4\plugins\maven\lib\maven3\bin\mvn.cmd" -f "%~dp0api-server\pom.xml" package -DskipTests
 )
 
-echo [*] Dang khoi dong truc tiep tu file JAR (sieu toc ~1.5 giay)...
 echo [*] Nhan Ctrl + C hoac dong cua so nay de tat server.
 echo.
 "%JAVA_HOME%\bin\java.exe" -jar "%~dp0api-server\target\bookstore-api-1.0-SNAPSHOT.jar"

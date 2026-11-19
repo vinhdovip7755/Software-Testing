@@ -33,7 +33,7 @@ public class SupplierController {
     }
 
     @GetMapping("/{id}")
-    public SupplierDTO getSupplier(@RequestHeader("Authorization") String authorization, @PathVariable int id) {
+    public SupplierDTO getSupplier(@RequestHeader("Authorization") String authorization, @PathVariable("id") int id) {
         sessionStore.requireAnyView(authorization, "MANAGE_SUPPLIER", "MANAGE_PRODUCT", "MANAGE_IMPORT",
                 "MANAGE_SELLING");
         SupplierDTO supplier = supplierBUS.getById(id);
@@ -55,7 +55,7 @@ public class SupplierController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateSupplier(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id,
+            @PathVariable("id") int id,
             @RequestBody SupplierDTO supplier
     ) {
         sessionStore.requireAction(authorization, "MANAGE_SUPPLIER");

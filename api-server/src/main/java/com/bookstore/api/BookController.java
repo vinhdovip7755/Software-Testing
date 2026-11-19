@@ -43,7 +43,7 @@ public class BookController {
     }
 
     @GetMapping("/{id}")
-    public BookDTO getBook(@RequestHeader("Authorization") String authorization, @PathVariable int id) {
+    public BookDTO getBook(@RequestHeader("Authorization") String authorization, @PathVariable("id") int id) {
         sessionStore.requireAnyView(authorization,
                 "MANAGE_PRODUCT", "MANAGE_AUTHOR", "MANAGE_CATEGORY", "MANAGE_SUPPLIER", "MANAGE_IMPORT",
                 "MANAGE_SELLING");
@@ -66,7 +66,7 @@ public class BookController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateBook(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id,
+            @PathVariable("id") int id,
             @RequestBody BookDTO book
     ) {
         sessionStore.requireAction(authorization, "MANAGE_PRODUCT");

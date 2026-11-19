@@ -1,63 +1,55 @@
-# Kiểm thử giao diện BookStore bằng WinAppDriver
+# Kiểm thử giao diện BookStore bằng WinAppDriver (11 Test Cases)
 
-Dùng với Software-Testing(2).zip trên Windows, JDK 17 và Maven. Giải nén để có WinAppDriver_5Ca/run.ps1 ngay dưới thư mục dự án chứa pom.xml, desktop-client và api-server. Dùng bộ này độc lập với WinAppDriver_UI_Testing cũ. Có thể giữ cả hai trong dự án.
+Chạy từ thư mục gốc dự án (`d:\Code\Testing\Software-Testing`) với JDK 17, API server đang chạy ở cổng `8080` ([start-api.bat](../start-api.bat)) và Windows Developer Mode đã bật (cho chế độ WinAppDriver).
 
-## Chuẩn bị một lần
+## Chạy nhanh bằng 1 lệnh
 
-1. Mở thư mục dự án bằng VS Code. Mở Terminal → New Terminal, chọn PowerShell. Các lệnh bên dưới chạy từ thư mục gốc, ví dụ E:\Software-Testing.
-2. Kiểm tra Maven bằng `mvn -v`, kiểm tra JDK bằng `& "$env:JAVA_HOME\bin\javac.exe" -version`.
-3. Trong bản vừa pull, DatabaseConnection.java đã dùng bookstore_db1. Tài khoản mẫu phải đăng nhập được và có quyền Bán Hàng. Database cần có ít nhất một sách đang bán.
-4. Bật Developer Mode trong Windows Settings. Nếu chưa cài WinAppDriver, tải bộ cài MSI ở https://github.com/microsoft/WinAppDriver/releases rồi cài đặt.
-5. Đóng cửa sổ BookStore đang mở và dừng API cũ bằng Ctrl+C tại terminal chạy API. Biên dịch lại bản vừa pull:
+**1. Chạy bằng WinAppDriver thật (mặc định, nhịp demo `700ms` mỗi thao tác để dễ quan sát / quay màn hình):**
 
-~~~powershell
-mvn -pl desktop-client -am clean install -DskipTests
-~~~
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\WinAppDriver_5Ca\run.ps1 -Email "vinhyt7755@gmail.com" -Password "07072006"
+```
 
-Đợi BUILD SUCCESS. Thực hiện lại sau khi thay đổi code ứng dụng.
+Script tự tìm JDK 17, tự bật/tắt `WinAppDriver.exe`, cache file `.class`, và chạy trọn bộ **11 test case** trong 1 phiên JVM.
 
-## Chạy trong ba terminal của VS Code
+**2. Chạy ở chế độ Swing trực tiếp (không cần WinAppDriver / không chiếm chuột bàn phím):**
 
-**Terminal 1** khởi động API và giữ mở.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\WinAppDriver_5Ca\run.ps1 -Driver swing -Email "vinhyt7755@gmail.com" -Password "07072006"
+```
 
-~~~powershell
-mvn -f api-server/pom.xml spring-boot:run
-~~~
+**3. Tùy chỉnh tốc độ & chạy lẻ:**
+- Đổi tốc độ dừng giữa các thao tác: `-StepDelayMs 1200` (chậm rõ hơn) hoặc `-StepDelayMs 0` (chạy nhanh nhất).
+- Chạy lẻ 1 ca: `-Case <tên_ca>` (vd: `-Case bookFormValidation`).
+- Chạy tách từng cửa sổ riêng biệt cho từng ca: thêm `-Isolated`.
 
-**Terminal 2** khởi động WinAppDriver và giữ mở. Nếu cài ở thư mục khác, dùng đúng đường dẫn tới WinAppDriver.exe.
+## Danh sách 11 Test Cases
 
-~~~powershell
-& "${env:ProgramFiles(x86)}\Windows Application Driver\WinAppDriver.exe"
-~~~
+| # | Ca | Phân hệ | Thao tác & Điều kiện PASS |
+|---|---|---|---|
+| 1 | `emptyEmail` | Đăng nhập | Bỏ trống Email → bấm Đăng Nhập Ngay → hiện `Cảnh báo`: `Vui lòng nhập Email!` |
+| 2 | `invalidEmail` | Đăng nhập | Nhập email sai định dạng (`abc_invalid_mail`) → hiện `Cảnh báo`: `Định dạng Email không hợp lệ!` |
+| 3 | `emptyPassword` | Đăng nhập | Nhập email hợp lệ, bỏ trống mật khẩu → hiện `Cảnh báo`: `Vui lòng nhập mật khẩu!` |
+| 4 | `wrongPassword` | Đăng nhập | Nhập email thật + mật khẩu sai → hiện `Đăng nhập thất bại`: `Mật khẩu không chính xác!` |
+| 5 | `validLogin` | Đăng nhập | Đăng nhập tài khoản đúng → xác nhận hộp thành công → `MainFrame` hiển thị |
+| 6 | `bookSearch` | Bán Hàng | Tìm sách theo mã khớp đúng tập kết quả; nối chuỗi không khớp trả về `0` dòng; xóa từ khóa khôi phục bảng |
+| 7 | `addToCart` | Bán Hàng | Chọn sách còn hàng → `Thêm vào hóa đơn` (mặc định `1`) → giỏ có đúng 1 dòng khớp mã, tên, SL `1` |
+| 8 | `editCartQuantity` | Bán Hàng | Chọn dòng trong giỏ → `Sửa số lượng` thành `2` → giỏ cập nhật SL `2` |
+| 9 | `removeFromCart` | Bán Hàng | Chọn dòng trong giỏ → `Xóa sản phẩm` → giỏ trở về `0` dòng |
+| 10 | `bookFormValidation` | Sản Phẩm | Mở `+ THÊM SÁCH` → bấm `+ Thêm tác giả` khi tên sách trống: `Chọn tác giả` mở sạch không bị `Cảnh báo` đè lên; bấm `Hoàn thành` hiện `Lỗi`: `Vui lòng nhập tên sách!` |
+| 11 | `logout` | Hệ thống | Bấm `Đăng xuất` → xác nhận `Xác nhận đăng xuất` → quay về màn hình `LoginFrame` |
 
-**Terminal 3** chạy thử ca email trống trước. Ca này chỉ cần WinAppDriver và JAR đã build.
+> Toàn bộ 11 ca đều không ghi hóa đơn hay thay đổi dữ liệu trong database. Kết quả được xuất ra `WinAppDriver_5Ca/results/<thời-gian>/summary.csv`.
 
-~~~powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\WinAppDriver_5Ca\run.ps1 -Case emptyEmail
-~~~
+## Bộ test riêng cho phần Đăng nhập (11 Test Cases)
 
-Sau đó chạy đủ năm ca bằng lệnh sau. Khi được hỏi, nhập email và mật khẩu tài khoản **BookStore** có quyền Bán Hàng. Ca sai mật khẩu tự thêm một ký tự vào mật khẩu đã nhập.
+Chạy nhanh riêng phần đăng nhập bằng file `run-login-test.bat` ở thư mục gốc (nhấp đúp là chạy, tự nhận biết API đang bật để chạy đủ 11 ca hoặc tự động chạy 7 ca UI offline nếu API đang tắt), hoặc chạy bằng PowerShell:
 
-~~~powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\WinAppDriver_5Ca\run.ps1
-~~~
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\WinAppDriver_5Ca\run-login.ps1 -Email "vinhyt7755@gmail.com" -Password "07072006"
+```
 
-Script tự mở và đóng một cửa sổ riêng cho mỗi ca. Giữ màn hình Windows mở khóa và tránh gõ hoặc chuyển cửa sổ lúc chạy. Để chạy riêng, thêm `-Case wrongPassword`, `-Case validLogin` hoặc `-Case bookSearch`, `-Case addToCart`.
-
-## Các kết quả được kiểm tra
-
-| Ca | Thao tác | Điều kiện PASS |
-|---|---|---|
-| emptyEmail | Bỏ trống rồi nhấn Đăng Nhập Ngay | Hộp Cảnh báo có nội dung Vui lòng nhập Email! |
-| wrongPassword | Nhập email có thật và mật khẩu sai | Hộp Đăng nhập thất bại có nội dung Mật khẩu không chính xác! |
-| validLogin | Nhập tài khoản đúng, xác nhận hộp thành công | Cửa sổ chính hiển thị |
-| bookSearch | Đăng nhập, mở Bán Hàng, tìm theo mã sách lấy từ bảng, rồi nối chuỗi không khớp | Danh sách mã và tên trả về khớp chính xác tập mong đợi; từ khóa không khớp trả về 0 dòng |
-| addToCart | Mở Bán Hàng, chọn sách còn hàng, nhấn Thêm vào hóa đơn và xác nhận số lượng 1 | Giỏ có đúng một dòng với mã sách, tên sách và số lượng mong đợi |
-
-Có thể thêm tham số `-Email "email-cua-ban@example.com"` vào lệnh chạy để dùng tài khoản khác.
-
-WinKeys.java gửi phím qua phiên WinAppDriver Root. BookstoreUiTest.java dùng Swing để định vị và đặt focus vào đúng ô/nút, đọc nội dung hộp thoại và các dòng JTable. Các thao tác nhập và kích hoạt nút đi qua WinAppDriver. Bộ test không ghi đơn hàng hay sửa dữ liệu sách.
-
-Mỗi lần chạy tạo WinAppDriver_5Ca/results/<thời điểm>/summary.csv và log riêng cho từng ca. PASS, FAIL hoặc TIMEOUT là kết quả thực tế của lần chạy. File .log.err chứa lỗi Java nếu có. Nếu chờ quá lâu ở bước đăng nhập thành công, thử đăng nhập thủ công bằng cùng tài khoản rồi kiểm tra API đang chạy với bookstore_db1. Nếu chờ ở danh sách sách, kiểm tra quyền Bán Hàng và ít nhất một sách có trạng thái đang bán. Nếu kiểm tra focus lỗi, giữ màn hình mở khóa, chạy VS Code và WinAppDriver cùng mức quyền rồi chạy lại ca lỗi.
-
-Bộ test đã được kiểm tra biên dịch với JAR của bản pull. Kết quả giao diện cần được xác nhận trên máy Windows chạy WinAppDriver.
+| Nhóm | Các Test Cases trong `LoginUiTest.java` |
+|---|---|
+| Offline UI (7 ca, không cần API) | `emptyEmail`, `whitespaceEmail`, `invalidEmailNoAt`, `invalidEmailBadDomain`, `emptyPassword`, `togglePasswordVisibility`, `forgotPasswordValidation` |
+| Online API (4 ca, cần `start-api.bat`) | `nonExistentAccount`, `wrongPassword`, `validLoginWithEnter`, `logout` |

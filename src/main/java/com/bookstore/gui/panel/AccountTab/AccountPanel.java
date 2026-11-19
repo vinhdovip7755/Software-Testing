@@ -374,11 +374,11 @@ public class AccountPanel extends JPanel implements Refreshable {
                         txtUser.getText().trim(),
                         new String(txtPass.getPassword()).trim()
                 ));
-                JOptionPane.showMessageDialog(this, message);
+                JOptionPane.showMessageDialog(dialog, message);
                 dialog.dispose();
                 reloadAccounts();
             } catch (ApiException ex) {
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
             }
         });
 

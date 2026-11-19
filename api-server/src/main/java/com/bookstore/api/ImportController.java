@@ -41,7 +41,7 @@ public class ImportController {
     @GetMapping("/{id}/details")
     public List<ImportDetailDTO> getImportDetails(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_IMPORT_TICKET");
         return importBUS.getDetailsByImportId(id);
@@ -99,7 +99,7 @@ public class ImportController {
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approveImport(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         EmployeeDTO approver = requireReviewer(authorization, id);
         if (!importBUS.approveImport(id, approver)) {
@@ -111,7 +111,7 @@ public class ImportController {
     @PostMapping("/{id}/cancel")
     public ResponseEntity<Void> cancelImport(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         EmployeeDTO approver = requireReviewer(authorization, id);
         if (!importBUS.cancelImport(id, approver)) {

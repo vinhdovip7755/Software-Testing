@@ -44,8 +44,8 @@ public class PromotionController {
     @GetMapping("/search")
     public List<PromotionDTO> searchPromotions(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "") String keyword,
-            @RequestParam(defaultValue = "Tên") String type
+            @RequestParam(name = "keyword", defaultValue = "") String keyword,
+            @RequestParam(name = "type", defaultValue = "Tên") String type
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_PROMOTION");
         PromotionBUS promotionBUS = new PromotionBUS();
@@ -56,8 +56,8 @@ public class PromotionController {
     @GetMapping("/books")
     public List<BookDTO> suggestBooks(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "") String keyword,
-            @RequestParam(defaultValue = "0") int categoryId
+            @RequestParam(name = "keyword", defaultValue = "") String keyword,
+            @RequestParam(name = "categoryId", defaultValue = "0") int categoryId
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_PROMOTION");
         if (categoryId < 0) {
@@ -69,7 +69,7 @@ public class PromotionController {
     @GetMapping("/book/{bookId}")
     public BookPromotionDTO getPromotionForBook(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int bookId
+            @PathVariable("bookId") int bookId
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_SELLING");
         if (bookId <= 0) {
@@ -87,7 +87,7 @@ public class PromotionController {
     @GetMapping("/{id}/books")
     public List<Integer> getSelectedBookIds(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_PROMOTION");
         PromotionBUS promotionBUS = new PromotionBUS();
@@ -124,7 +124,7 @@ public class PromotionController {
     @PutMapping("/{id}")
     public ResponseEntity<Void> updatePromotion(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id,
+            @PathVariable("id") int id,
             @RequestBody PromotionSaveRequestDTO request
     ) {
         sessionStore.requireAction(authorization, "MANAGE_PROMOTION");

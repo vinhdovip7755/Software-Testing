@@ -183,12 +183,13 @@ public class BookFormDialog extends JDialog {
         nameField.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
+                if (e.isTemporary()) return;
                 if (nameField.getText().trim().isEmpty()) {
                     nameField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
-                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng nhập tên sách!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                    nameField.requestFocusInWindow();
+                    nameField.setToolTipText("Vui lòng nhập tên sách!");
                 } else {
                     nameField.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                    nameField.setToolTipText(null);
                 }
             }
         });
@@ -204,13 +205,20 @@ public class BookFormDialog extends JDialog {
         categoryCombo.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
+                if (e.isTemporary()) return;
                 if (categoryCombo.getSelectedIndex() <= 0) {
                     categoryCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
-                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng chọn thể loại!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                    categoryCombo.requestFocusInWindow();
+                    categoryCombo.setToolTipText("Vui lòng chọn thể loại!");
                 } else {
                     categoryCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                    categoryCombo.setToolTipText(null);
                 }
+            }
+        });
+        categoryCombo.addActionListener(e -> {
+            if (categoryCombo.getSelectedIndex() > 0) {
+                categoryCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                categoryCombo.setToolTipText(null);
             }
         });
         categoryCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -220,13 +228,20 @@ public class BookFormDialog extends JDialog {
         supplierCombo.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
+                if (e.isTemporary()) return;
                 if (supplierCombo.getSelectedIndex() <= 0) {
                     supplierCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
-                    javax.swing.JOptionPane.showMessageDialog(BookFormDialog.this, "Vui lòng chọn nhà cung cấp!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                    supplierCombo.requestFocusInWindow();
+                    supplierCombo.setToolTipText("Vui lòng chọn nhà cung cấp!");
                 } else {
                     supplierCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                    supplierCombo.setToolTipText(null);
                 }
+            }
+        });
+        supplierCombo.addActionListener(e -> {
+            if (supplierCombo.getSelectedIndex() > 0) {
+                supplierCombo.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                supplierCombo.setToolTipText(null);
             }
         });
         supplierCombo.setFont(new Font("Segoe UI", Font.PLAIN, 13));

@@ -36,8 +36,8 @@ public class StatisticsController {
     @GetMapping("/financial/daily")
     public List<FinancialStatsDTO> getFinancialStatsByDay(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam LocalDate from,
-            @RequestParam LocalDate to
+            @RequestParam("from") LocalDate from,
+            @RequestParam("to") LocalDate to
     ) {
         requireStatisticsView(authorization);
         validateDateRange(from, to);
@@ -56,7 +56,7 @@ public class StatisticsController {
     @GetMapping("/financial/quarter-summary")
     public FinancialQuarterSummaryDTO getFinancialQuarterSummary(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam int year
+            @RequestParam("year") int year
     ) {
         requireStatisticsView(authorization);
         validateYear(year);
@@ -76,8 +76,8 @@ public class StatisticsController {
     @GetMapping("/products/daily")
     public List<ProductStatsDTO> getProductStatsByDay(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam LocalDate from,
-            @RequestParam LocalDate to
+            @RequestParam("from") LocalDate from,
+            @RequestParam("to") LocalDate to
     ) {
         requireStatisticsView(authorization);
         validateDateRange(from, to);
@@ -90,7 +90,7 @@ public class StatisticsController {
     @GetMapping("/products/monthly")
     public List<ProductStatsDTO> getProductStatsByMonth(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam int year
+            @RequestParam("year") int year
     ) {
         requireStatisticsView(authorization);
         validateYear(year);
@@ -100,7 +100,7 @@ public class StatisticsController {
     @GetMapping("/products/quarterly")
     public List<ProductStatsDTO> getProductStatsByQuarter(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam int year
+            @RequestParam("year") int year
     ) {
         requireStatisticsView(authorization);
         validateYear(year);
@@ -116,8 +116,8 @@ public class StatisticsController {
     @GetMapping("/products/top-selling")
     public List<ProductStatsDTO> getTopSellingProducts(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam int year,
-            @RequestParam int quarter
+            @RequestParam("year") int year,
+            @RequestParam("quarter") int quarter
     ) {
         requireStatisticsView(authorization);
         validateYear(year);
@@ -128,8 +128,8 @@ public class StatisticsController {
     @GetMapping("/products/top-slow")
     public List<ProductStatsDTO> getTopSlowProducts(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam int year,
-            @RequestParam int quarter
+            @RequestParam("year") int year,
+            @RequestParam("quarter") int quarter
     ) {
         requireStatisticsView(authorization);
         validateYear(year);
@@ -140,8 +140,8 @@ public class StatisticsController {
     @GetMapping("/customers/top-quantity")
     public List<CustomerStatsDTO> getTopCustomersByQuantity(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam LocalDate from,
-            @RequestParam LocalDate to
+            @RequestParam("from") LocalDate from,
+            @RequestParam("to") LocalDate to
     ) {
         requireStatisticsView(authorization);
         validateDateRange(from, to);
@@ -151,8 +151,8 @@ public class StatisticsController {
     @GetMapping("/customers/top-spending")
     public List<CustomerStatsDTO> getTopCustomersBySpending(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam LocalDate from,
-            @RequestParam LocalDate to
+            @RequestParam("from") LocalDate from,
+            @RequestParam("to") LocalDate to
     ) {
         requireStatisticsView(authorization);
         validateDateRange(from, to);
@@ -162,9 +162,9 @@ public class StatisticsController {
     @GetMapping("/customers/{customerId}/history")
     public List<CustomerHistoryDTO> getCustomerHistory(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int customerId,
-            @RequestParam LocalDate from,
-            @RequestParam LocalDate to
+            @PathVariable("customerId") int customerId,
+            @RequestParam("from") LocalDate from,
+            @RequestParam("to") LocalDate to
     ) {
         requireStatisticsView(authorization);
         if (customerId <= 0) {

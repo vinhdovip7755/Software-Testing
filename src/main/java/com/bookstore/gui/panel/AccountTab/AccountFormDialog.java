@@ -61,13 +61,14 @@ public class AccountFormDialog extends JDialog {
         txtUsername.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
+                if (e.isTemporary()) return;
                 String email = txtUsername.getText().trim();
                 if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtUsername.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
-                    javax.swing.JOptionPane.showMessageDialog(AccountFormDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                    txtUsername.requestFocusInWindow();
+                    txtUsername.setToolTipText("Định dạng Email không hợp lệ!");
                 } else {
                     txtUsername.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                    txtUsername.setToolTipText(null);
                 }
             }
         });
@@ -167,6 +168,7 @@ public class AccountFormDialog extends JDialog {
 
                         @Override
                         protected void done() {
+                            if (!isDisplayable() || !isShowing()) return;
                             try {
                                 get();
                                 JOptionPane.showMessageDialog(AccountFormDialog.this, "Đã khôi phục mật khẩu và gửi email thành công!");
@@ -176,6 +178,10 @@ public class AccountFormDialog extends JDialog {
                                     int countdown = 120;
                                     @Override
                                     public void actionPerformed(java.awt.event.ActionEvent evt) {
+                                        if (!isDisplayable()) {
+                                            timer.stop();
+                                            return;
+                                        }
                                         countdown--;
                                         if (countdown <= 0) {
                                             btnReset.setText("Khôi phục mật khẩu (Gửi lại)");

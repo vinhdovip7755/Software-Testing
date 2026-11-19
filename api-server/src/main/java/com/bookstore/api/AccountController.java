@@ -80,7 +80,7 @@ public class AccountController {
     @PutMapping("/{employeeId}")
     public ResponseEntity<String> updateAccount(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int employeeId,
+            @PathVariable("employeeId") int employeeId,
             @Valid @RequestBody UpdateAccountRequest request
     ) {
         sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
@@ -135,7 +135,7 @@ public class AccountController {
     @PostMapping("/{employeeId}/reset-password")
     public ResponseEntity<String> sendNewPassword(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int employeeId
+            @PathVariable("employeeId") int employeeId
     ) {
         sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
         AccountDTO account = findAccountByEmployeeId(employeeId);

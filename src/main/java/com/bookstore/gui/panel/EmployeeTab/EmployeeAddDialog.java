@@ -60,13 +60,14 @@ public class EmployeeAddDialog extends JDialog {
         txtEmail.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
+                if (e.isTemporary()) return;
                 String email = txtEmail.getText().trim();
                 if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtEmail.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, "error");
-                    javax.swing.JOptionPane.showMessageDialog(EmployeeAddDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                    txtEmail.requestFocusInWindow();
+                    txtEmail.setToolTipText("Định dạng Email không hợp lệ!");
                 } else {
                     txtEmail.putClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE, null);
+                    txtEmail.setToolTipText(null);
                 }
             }
         });

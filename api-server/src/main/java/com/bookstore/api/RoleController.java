@@ -55,7 +55,7 @@ public class RoleController {
     @GetMapping("/{roleId}/permissions")
     public List<RoleActionPermissionDTO> getRolePermissions(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int roleId
+            @PathVariable("roleId") int roleId
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_ROLE");
         if (roleId < 0) {
@@ -95,7 +95,7 @@ public class RoleController {
     @PutMapping("/{roleId}")
     public ResponseEntity<String> updateRole(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int roleId,
+            @PathVariable("roleId") int roleId,
             @Valid @RequestBody RoleSaveRequest request
     ) {
         sessionStore.requireAction(authorization, "MANAGE_ROLE");

@@ -51,7 +51,7 @@ public class BillController {
     @GetMapping("/{id}")
     public BillDTO getBill(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_BILL");
         if (id <= 0) {
@@ -67,7 +67,7 @@ public class BillController {
     @GetMapping("/{id}/details")
     public List<BillDetailDTO> getBillDetails(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_BILL");
         if (id <= 0) {
@@ -78,7 +78,7 @@ public class BillController {
 
     @PostMapping
     public ResponseEntity<BillCreateResponseDTO> createBill(
-            @RequestHeader("Authorization") String authorization,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestBody BillCreateRequestDTO request
     ) {
         AuthSessionStore.Session session = sessionStore.requireAction(authorization, "MANAGE_SELLING");
@@ -204,6 +204,11 @@ public class BillController {
                     "Hóa đơn cần phương thức thanh toán hợp lệ và ít nhất một sách.");
         }
         java.util.Set<Integer> seenBookIds = new java.util.HashSet<>();
+        // Points currently determine membership rank; redemption is not supported.
+        // Never silently accept a payment instruction that will not be applied.
+        if (request.pointsUsed() != 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điểm thưởng vượt giới hạn.");
+        }
         for (BillLineItemRequestDTO line : request.details()) {
             if (line == null || line.bookId() <= 0 || line.quantity() <= 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin sách trong hóa đơn không hợp lệ.");

@@ -41,23 +41,26 @@ public class LoginFrame extends JFrame {
         lbTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         txtUsername = new JTextField();
+        txtUsername.setName("login.email");
                 txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Email của bạn");
         styleField(txtUsername);
         txtUsername.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
+                if (e.isTemporary()) return;
                 String username = txtUsername.getText().trim();
                 if (!username.isEmpty() && !username.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtUsername.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                    javax.swing.JOptionPane.showMessageDialog(LoginFrame.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                    txtUsername.requestFocusInWindow();
+                    txtUsername.setToolTipText("Định dạng Email không hợp lệ!");
                 } else {
                     txtUsername.putClientProperty(FlatClientProperties.OUTLINE, null);
+                    txtUsername.setToolTipText(null);
                 }
             }
         });
 
         txtPassword = new JPasswordField();
+        txtPassword.setName("login.password");
         txtPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mật khẩu");
         styleField(txtPassword);
         txtPassword.putClientProperty(FlatClientProperties.STYLE,
@@ -84,6 +87,7 @@ public class LoginFrame extends JFrame {
         txtPassword.putClientProperty(FlatClientProperties.TEXT_FIELD_TRAILING_COMPONENT, btnToggleEye);
 
         btnLogin = new JButton("Đăng Nhập Ngay");
+        btnLogin.setName("login.submit");
         btnLogin.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnLogin.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnLogin.setFocusPainted(false);

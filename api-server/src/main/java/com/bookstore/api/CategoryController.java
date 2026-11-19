@@ -34,7 +34,7 @@ public class CategoryController {
     }
 
     @GetMapping("/{id}")
-    public CategoryDTO getCategory(@RequestHeader("Authorization") String authorization, @PathVariable int id) {
+    public CategoryDTO getCategory(@RequestHeader("Authorization") String authorization, @PathVariable("id") int id) {
         sessionStore.requireAnyView(authorization, "MANAGE_CATEGORY", "MANAGE_PRODUCT", "MANAGE_IMPORT",
                 "MANAGE_SELLING", "MANAGE_PROMOTION");
         CategoryDTO category = categoryBUS.getById(id);
@@ -56,7 +56,7 @@ public class CategoryController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateCategory(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id,
+            @PathVariable("id") int id,
             @RequestBody CategoryDTO category
     ) {
         sessionStore.requireAction(authorization, "MANAGE_CATEGORY");

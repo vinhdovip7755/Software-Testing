@@ -1,4 +1,9 @@
 package com.bookstore.api.contract;
 
-public record BillLineItemRequestDTO(int bookId, int quantity) {
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+public record BillLineItemRequestDTO(
+        int bookId,
+        @JsonDeserialize(using = BillQuantityDeserializer.class) int quantity
+) {
 }

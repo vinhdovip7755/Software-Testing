@@ -43,7 +43,7 @@ public class AuthorController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateAuthor(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id,
+            @PathVariable("id") int id,
             @RequestBody AuthorDTO author
     ) {
         sessionStore.requireAction(authorization, "MANAGE_AUTHOR");

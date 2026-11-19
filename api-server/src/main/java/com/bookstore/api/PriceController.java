@@ -40,8 +40,8 @@ public class PriceController {
     @GetMapping("/search")
     public List<PriceDTO> searchPrices(
             @RequestHeader("Authorization") String authorization,
-            @RequestParam(defaultValue = "") String keyword,
-            @RequestParam(defaultValue = "Tên") String type
+            @RequestParam(name = "keyword", defaultValue = "") String keyword,
+            @RequestParam(name = "type", defaultValue = "Tên") String type
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_PRICE");
         if (!SEARCH_TYPES.contains(type)) {
@@ -54,7 +54,7 @@ public class PriceController {
     @PutMapping("/{bookId}")
     public ResponseEntity<Void> updateBookPrice(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int bookId,
+            @PathVariable("bookId") int bookId,
             @RequestBody PriceUpdateRequestDTO request
     ) {
         sessionStore.requireAction(authorization, "MANAGE_PRICE");

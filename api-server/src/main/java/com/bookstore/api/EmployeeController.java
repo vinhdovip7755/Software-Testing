@@ -42,7 +42,7 @@ public class EmployeeController {
     @GetMapping("/{employeeId}/activity")
     public EmployeeActivityDTO getActivity(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int employeeId
+            @PathVariable("employeeId") int employeeId
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_EMPLOYEE");
         if (employeeId <= 0) {
@@ -68,7 +68,7 @@ public class EmployeeController {
     @PutMapping("/{employeeId}")
     public ResponseEntity<String> updateEmployee(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int employeeId,
+            @PathVariable("employeeId") int employeeId,
             @RequestBody EmployeeDTO employee
     ) {
         sessionStore.requireAction(authorization, "MANAGE_EMPLOYEE");

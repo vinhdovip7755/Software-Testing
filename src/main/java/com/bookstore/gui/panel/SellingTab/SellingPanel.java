@@ -123,6 +123,7 @@ public class SellingPanel extends JPanel implements Refreshable {
         pSearchRow.setOpaque(false);
 
         txtSearch = new JTextField();
+        txtSearch.setName("selling.search");
         txtSearch.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Tìm kiếm theo tên hoặc mã sách...");
         FlatSVGIcon searchIcon = new FlatSVGIcon("icon/search_icon.svg").derive(20,20);
         txtSearch.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, searchIcon);
@@ -146,6 +147,7 @@ public class SellingPanel extends JPanel implements Refreshable {
             }
         };
         tblProduct = new JTable(productModel);
+        tblProduct.setName("selling.products");
         tblProduct.setRowHeight(30);
         tblProduct.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         styleTable(tblProduct);

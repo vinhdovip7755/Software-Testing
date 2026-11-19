@@ -36,7 +36,7 @@ public class MembershipRankController {
     @GetMapping("/by-points/{point}")
     public MembershipRankDTO getRankByPoint(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int point
+            @PathVariable("point") int point
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_CUSTOMER", "MANAGE_SELLING");
         return rankBUS.getRankByPoint(point);
@@ -58,7 +58,7 @@ public class MembershipRankController {
     @PutMapping("/{id}")
     public ResponseEntity<Void> updateRank(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id,
+            @PathVariable("id") int id,
             @RequestBody MembershipRankDTO rank
     ) {
         sessionStore.requireAction(authorization, "MANAGE_CUSTOMER");
@@ -76,7 +76,7 @@ public class MembershipRankController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRank(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         sessionStore.requireAction(authorization, "MANAGE_CUSTOMER");
         if (id <= 0) {

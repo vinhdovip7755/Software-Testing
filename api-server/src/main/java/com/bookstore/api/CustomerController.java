@@ -37,7 +37,7 @@ public class CustomerController {
     @GetMapping("/phone/{phone}")
     public CustomerDTO getCustomerByPhone(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable String phone
+            @PathVariable("phone") String phone
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_CUSTOMER", "MANAGE_SELLING");
         CustomerDTO customer = customerBUS.selectByPhone(phone);
@@ -50,7 +50,7 @@ public class CustomerController {
     @GetMapping("/{id}/statistics")
     public CustomerPurchaseSummaryDTO getCustomerStatistics(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id
+            @PathVariable("id") int id
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_CUSTOMER");
         if (id <= 0) {
@@ -77,7 +77,7 @@ public class CustomerController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateCustomer(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int id,
+            @PathVariable("id") int id,
             @RequestBody CustomerDTO customer
     ) {
         sessionStore.requireAction(authorization, "MANAGE_CUSTOMER");

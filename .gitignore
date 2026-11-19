@@ -45,3 +45,6 @@ Thumbs.db
 
 #Scratch
 /scratch
+
+# WinAppDriver test output
+WinAppDriver_*/results/

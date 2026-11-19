@@ -34,7 +34,7 @@ public class InventoryController {
     @GetMapping("/books/{bookId}/lots")
     public List<BookLotDTO> getBookLots(
             @RequestHeader("Authorization") String authorization,
-            @PathVariable int bookId
+            @PathVariable("bookId") int bookId
     ) {
         requireInventoryView(authorization);
         if (bookId <= 0) {

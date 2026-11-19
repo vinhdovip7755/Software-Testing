@@ -2,7 +2,7 @@
     "info":  {
                  "name":  "BookStore POS | 14 test case Bills",
                  "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-                 "description":  "Chạy với DB test. Đặt URL và dữ liệu trong Variables hoặc environment đang chọn. Biến environment có thể ghi đè biến collection cùng tên. Mặc định đăng nhập bằng salesUsername/salesPassword từ BookStore API Local. Nếu dùng environment cũ, đặt baseUrl thành http://127.0.0.1:8081 khi chạy API trên cổng 8081. Chọn sách đang bán còn ít nhất 5 cuốn, khách có hạng chiết khấu, và điền inactiveBookId của sách có status=0. Xác nhận ID thiếu thực sự chưa tồn tại và ngưỡng tồn/điểm đủ lớn. Chạy toàn bộ một lượt, bắt đầu từ đăng nhập. TC12 có thể tạo thêm hóa đơn và được kỳ vọng phát hiện khoảng trống triển khai. Các ca thành công làm thay đổi dữ liệu. Đối chiếu tồn kho và số dư điểm trước/sau nếu cần bằng các request tương ứng trong collection gốc.",
+                 "description":  "Chạy với DB test. Đặt URL và dữ liệu trong Variables hoặc environment đang chọn. Biến environment có thể ghi đè biến collection cùng tên. Mặc định đăng nhập bằng salesUsername/salesPassword từ BookStore API Local. Nếu dùng environment cũ, đặt baseUrl thành http://127.0.0.1:8081 khi chạy API trên cổng 8081. Chọn sách đang bán còn ít nhất 5 cuốn, khách có hạng chiết khấu, và điền inactiveBookId của sách có status=0. Xác nhận ID thiếu thực sự chưa tồn tại và ngưỡng tồn/điểm đủ lớn. Chạy toàn bộ một lượt, bắt đầu từ đăng nhập. API hiện chỉ tích điểm, không hỗ trợ tiêu điểm: pointsUsed phải bằng 0 hoặc bỏ qua. TC12 phải bị từ chối trước khi tạo hóa đơn. Các ca thành công làm thay đổi dữ liệu. Đối chiếu tồn kho và số dư điểm trước/sau nếu cần bằng các request tương ứng trong collection gốc.",
                  "_postman_id":  "95ea3904-edcf-44a7-a285-1fba1f174e7e"
              },
     "variable":  [
@@ -592,6 +592,31 @@
                                               }
                                  },
                      "event":  [
+{
+    "script":  {
+                   "exec":  [
+                                "const id = Number(pm.variables.get(\"inactiveBookId\"));",
+                                "if (!Number.isSafeInteger(id) || id \u003c= 0) {",
+                                "    pm.sendRequest({",
+                                "        url: pm.variables.replaceIn(\"{{baseUrl}}/api/books\"),",
+                                "        method: \"GET\",",
+                                "        header: { Authorization: \"Bearer \" + pm.collectionVariables.get(\"billsRunToken\") }",
+                                "    }, function (err, response) {",
+                                "        if (err || response.code !== 200) {",
+                                "            throw new Error(\"Không lấy được danh sách sách. Hãy đặt inactiveBookId là ID sách status=0.\");",
+                                "        }",
+                                "        const book = response.json().find(b =\u003e b.status === 0 \u0026\u0026 b.bookId \u003e 0);",
+                                "        if (!book) {",
+                                "            throw new Error(\"DB chưa có sách ngừng bán (status=0). Hãy chuẩn bị dữ liệu TC_BILL_08.\");",
+                                "        }",
+                                "        pm.variables.set(\"inactiveBookId\", book.bookId);",
+                                "    });",
+                                "}"
+                            ],
+                   "type":  "text/javascript"
+               },
+    "listen":  "prerequest"
+},
                                    {
                                        "listen":  "test",
                                        "script":  {
@@ -861,7 +886,7 @@
                                                                           }
                                                               }
                                               },
-                                     "description":  "Assertion theo đặc tả nghiệp vụ. DTO hiện chưa hỗ trợ pointsUsed, vì vậy ca có thể FAIL và tạo hóa đơn. Chạy trên DB test, giữ ít nhất một cuốn còn tồn sau TC01–03 để quan sát hành vi.",
+                                     "description":  "API chỉ hỗ trợ tích điểm. Mọi pointsUsed khác 0 đều bị từ chối với HTTP 400, không tạo hóa đơn và không thay đổi tồn kho hay điểm.",
                                      "auth":  {
                                                   "type":  "noauth"
                                               }

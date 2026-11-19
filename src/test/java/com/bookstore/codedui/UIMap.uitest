@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UITest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+        Name="UIMap"
+        Id="b8f2c710-4b88-4f43-9f25-0001a2b3c4d5"
+        AssemblyVersion="12.0.21005.1"
+        Version="1.0"
+        xmlns="http://schemas.microsoft.com/VisualStudio/TeamTest/UITest/2010">
+  <Configuration>
+    <Group Name="IE">
+      <Setting Name="Version" Value="Swing-FlatLaf" Type="System.String" />
+    </Group>
+  </Configuration>
+  <InitializeActions />
+  <ExecuteActions>
+    <TestStepMarkerAction MarkerInformation="loginValidAdmin">
+      <ParameterName>LoginValidAdminParams</ParameterName>
+    </TestStepMarkerAction>
+    <LaunchApplicationAction UIObjectName="UIMap.UILoginWindow">
+      <FileName>com.bookstore.gui.main.LoginFrame</FileName>
+      <AlternateFileName>BookStoreApp</AlternateFileName>
+    </LaunchApplicationAction>
+    <SetValueAction UIObjectName="UIMap.UILoginWindow.UIUsernameEdit" Value="hotro.adminhethong@gmail.com" />
+    <SetValueAction UIObjectName="UIMap.UILoginWindow.UIPasswordEdit" Value="admin" />
+    <MouseAction UIObjectName="UIMap.UILoginWindow.UILoginButton" ActionType="Click" />
+
+    <AssertAction UIObjectName="UIMap.UIMainWindow.UIWelcomeText">
+      <ParameterName>AssertWelcomeExpectedValues</ParameterName>
+      <PropertyName>DisplayText</PropertyName>
+      <ExpectedValue>Chào Mừng Trở Lại Hệ Thống</ExpectedValue>
+      <MessageOnValidationFailure>Login welcome assertion is failed</MessageOnValidationFailure>
+      <Comparison>AreEqual</Comparison>
+    </AssertAction>
+
+    <TestStepMarkerAction MarkerInformation="togglePasswordEyeOnLogin">
+      <ParameterName>TogglePasswordEyeParams</ParameterName>
+    </TestStepMarkerAction>
+    <LaunchApplicationAction UIObjectName="UIMap.UILoginWindow">
+      <FileName>com.bookstore.gui.main.LoginFrame</FileName>
+    </LaunchApplicationAction>
+    <SetValueAction UIObjectName="UIMap.UILoginWindow.UIPasswordEdit" Value="Secret123" />
+    <MouseAction UIObjectName="UIMap.UILoginWindow.UIToggleEyeButton" ActionType="Click" />
+    <AssertAction UIObjectName="UIMap.UILoginWindow.UIPasswordEdit">
+      <ParameterName>AssertPasswordEyeExpectedValues</ParameterName>
+      <PropertyName>DisplayText</PropertyName>
+      <ExpectedValue>Secret123</ExpectedValue>
+      <MessageOnValidationFailure>Password eye toggle DisplayText assertion is failed</MessageOnValidationFailure>
+      <Comparison>AreEqual</Comparison>
+    </AssertAction>
+
+    <TestStepMarkerAction MarkerInformation="inputImportQuantityAndDiscount">
+      <ParameterName>InputImportQuantityAndDiscountParams</ParameterName>
+    </TestStepMarkerAction>
+    <LaunchApplicationAction UIObjectName="UIMap.UIImportDialogWindow">
+      <FileName>com.bookstore.gui.panel.ImportTab.ImportQuantityDiscountDialog</FileName>
+    </LaunchApplicationAction>
+    <SetValueAction UIObjectName="UIMap.UIImportDialogWindow.UIQuantityEdit" Value="20" />
+    <SetValueAction UIObjectName="UIMap.UIImportDialogWindow.UIDiscountEdit" Value="15" />
+    <MouseAction UIObjectName="UIMap.UIImportDialogWindow.UIOkButton" ActionType="Click" />
+    <AssertAction UIObjectName="UIMap.UIImportDialogWindow.UIResultText">
+      <ParameterName>AssertImportExpectedValues</ParameterName>
+      <PropertyName>DisplayText</PropertyName>
+      <ExpectedValue>SL: 20 | CK: 15.0%</ExpectedValue>
+      <MessageOnValidationFailure>Import quantity/discount calculation is failed</MessageOnValidationFailure>
+      <Comparison>AreEqual</Comparison>
+    </AssertAction>
+
+    <TestStepMarkerAction MarkerInformation="clickLoginWithEmptyEmail">
+      <ParameterName>ClickLoginEmptyEmailParams</ParameterName>
+    </TestStepMarkerAction>
+    <SetValueAction UIObjectName="UIMap.UILoginWindow.UIUsernameEdit" Value="" />
+    <MouseAction UIObjectName="UIMap.UILoginWindow.UILoginButton" ActionType="Click" />
+    <AssertAction UIObjectName="UIMap.UIOptionPaneWindow.UIMessageText">
+      <ParameterName>AssertEmptyEmailExpectedValues</ParameterName>
+      <PropertyName>DisplayText</PropertyName>
+      <ExpectedValue>Vui lòng nhập Email!</ExpectedValue>
+      <MessageOnValidationFailure>Empty email warning assertion is failed</MessageOnValidationFailure>
+      <Comparison>AreEqual</Comparison>
+    </AssertAction>
+  </ExecuteActions>
+  <CleanupActions />
+  <UIMaps>
+    <UIMap Id="UIMap">
+      <TopLevelWindows>
+        <TopLevelWindow ControlType="Window" Id="UILoginWindow" FriendlyName="Ứng Dụng Quản Lý Bán Sách" TechnologyName="Swing">
+          <SearchConfigurations>
+            <SearchConfiguration>VisibleOnly</SearchConfiguration>
+          </SearchConfigurations>
+          <Descendants>
+            <UIObject ControlType="Edit" Id="UIUsernameEdit" FriendlyName="Email của bạn" TechnologyName="Swing" />
+            <UIObject ControlType="Edit" Id="UIPasswordEdit" FriendlyName="Mật khẩu" TechnologyName="Swing" />
+            <UIObject ControlType="ToggleButton" Id="UIToggleEyeButton" FriendlyName="ToggleEye" TechnologyName="Swing" />
+            <UIObject ControlType="Button" Id="UILoginButton" FriendlyName="Đăng Nhập Ngay" TechnologyName="Swing" />
+          </Descendants>
+        </TopLevelWindow>
+        <TopLevelWindow ControlType="Window" Id="UIMainWindow" FriendlyName="MainFrame" TechnologyName="Swing">
+          <Descendants>
+            <UIObject ControlType="Text" Id="UIWelcomeText" FriendlyName="Chào Mừng Trở Lại Hệ Thống" TechnologyName="Swing" />
+          </Descendants>
+        </TopLevelWindow>
+        <TopLevelWindow ControlType="Window" Id="UIImportDialogWindow" FriendlyName="Nhập số lượng &amp; chiết khấu NXB" TechnologyName="Swing">
+          <Descendants>
+            <UIObject ControlType="Edit" Id="UIQuantityEdit" FriendlyName="Nhập số lượng &gt; 0..." TechnologyName="Swing" />
+            <UIObject ControlType="Edit" Id="UIDiscountEdit" FriendlyName="Từ 0 đến 100%..." TechnologyName="Swing" />
+            <UIObject ControlType="Button" Id="UIOkButton" FriendlyName="Xác nhận" TechnologyName="Swing" />
+            <UIObject ControlType="Text" Id="UIResultText" FriendlyName="ImportResultSummary" TechnologyName="Swing" />
+          </Descendants>
+        </TopLevelWindow>
+        <TopLevelWindow ControlType="Window" Id="UIOptionPaneWindow" FriendlyName="JOptionPaneDialog" TechnologyName="Swing">
+          <Descendants>
+            <UIObject ControlType="Text" Id="UIMessageText" FriendlyName="OptionPane.message" TechnologyName="Swing" />
+            <UIObject ControlType="Button" Id="UIOkButton" FriendlyName="OK" TechnologyName="Swing" />
+          </Descendants>
+        </TopLevelWindow>
+      </TopLevelWindows>
+    </UIMap>
+  </UIMaps>
+</UITest>

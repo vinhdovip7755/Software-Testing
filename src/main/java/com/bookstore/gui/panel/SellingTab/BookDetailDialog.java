@@ -26,7 +26,6 @@ public class BookDetailDialog extends JDialog {
         setResizable(false);
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
-        setAlwaysOnTop(true);
         setLocationRelativeTo(getParent());
 
         JPanel pHeader = new JPanel(new BorderLayout());

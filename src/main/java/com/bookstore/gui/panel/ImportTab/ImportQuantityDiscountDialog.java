@@ -89,71 +89,55 @@ public class ImportQuantityDiscountDialog extends JDialog {
         pBottom.add(btnOk);
         add(pBottom, BorderLayout.SOUTH);
 
-        // Ràng buộc & sự kiện focusLost cho txtQty
+        // Ràng buộc & sự kiện focusLost cho txtQty (chỉ đánh dấu viền đỏ, báo lỗi khi bấm Xác nhận)
         txtQty.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent e) {
                 if (e.isTemporary()) return;
-                Component opposite = e.getOppositeComponent();
-                if (opposite == btnCancel) return;
-
                 String val = txtQty.getText().trim();
                 if (val.isEmpty()) {
                     txtQty.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                    JOptionPane.showMessageDialog(ImportQuantityDiscountDialog.this,
-                            "Số lượng nhập không được để trống!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-                    txtQty.requestFocusInWindow();
+                    txtQty.setToolTipText("Số lượng nhập không được để trống!");
                 } else {
                     try {
                         int q = Integer.parseInt(val);
                         if (q <= 0) {
                             txtQty.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                            JOptionPane.showMessageDialog(ImportQuantityDiscountDialog.this,
-                                    "Số lượng nhập phải là số nguyên dương lớn hơn 0!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-                            txtQty.requestFocusInWindow();
+                            txtQty.setToolTipText("Số lượng nhập phải là số nguyên dương lớn hơn 0!");
                         } else {
                             txtQty.putClientProperty(FlatClientProperties.OUTLINE, null);
+                            txtQty.setToolTipText(null);
                         }
                     } catch (NumberFormatException ex) {
                         txtQty.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                        JOptionPane.showMessageDialog(ImportQuantityDiscountDialog.this,
-                                "Số lượng nhập không hợp lệ! Vui lòng chỉ nhập số nguyên.", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-                        txtQty.requestFocusInWindow();
+                        txtQty.setToolTipText("Số lượng nhập không hợp lệ! Vui lòng chỉ nhập số nguyên.");
                     }
                 }
             }
         });
 
-        // Ràng buộc & sự kiện focusLost cho txtDiscount
+        // Ràng buộc & sự kiện focusLost cho txtDiscount (chỉ đánh dấu viền đỏ, báo lỗi khi bấm Xác nhận)
         txtDiscount.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent e) {
                 if (e.isTemporary()) return;
-                Component opposite = e.getOppositeComponent();
-                if (opposite == btnCancel) return;
-
                 String val = txtDiscount.getText().trim();
                 if (val.isEmpty()) {
                     txtDiscount.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                    JOptionPane.showMessageDialog(ImportQuantityDiscountDialog.this,
-                            "Chiết khấu NXB không được để trống!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-                    txtDiscount.requestFocusInWindow();
+                    txtDiscount.setToolTipText("Chiết khấu NXB không được để trống!");
                 } else {
                     try {
                         double d = Double.parseDouble(val);
                         if (d < 0 || d > 100) {
                             txtDiscount.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                            JOptionPane.showMessageDialog(ImportQuantityDiscountDialog.this,
-                                    "Chiết khấu NXB phải nằm trong khoảng từ 0% đến 100%!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-                            txtDiscount.requestFocusInWindow();
+                            txtDiscount.setToolTipText("Chiết khấu NXB phải nằm trong khoảng từ 0% đến 100%!");
                         } else {
                             txtDiscount.putClientProperty(FlatClientProperties.OUTLINE, null);
+                            txtDiscount.setToolTipText(null);
                         }
                     } catch (NumberFormatException ex) {
                         txtDiscount.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                        JOptionPane.showMessageDialog(ImportQuantityDiscountDialog.this,
-                                "Chiết khấu không hợp lệ! Vui lòng nhập số hợp lệ.", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-                        txtDiscount.requestFocusInWindow();
+                        txtDiscount.setToolTipText("Chiết khấu không hợp lệ! Vui lòng nhập số hợp lệ.");
                     }
                 }
             }

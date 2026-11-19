@@ -40,13 +40,14 @@ public class ForgotPasswordDialog extends JDialog {
         txtEmail.addFocusListener(new java.awt.event.FocusAdapter() {
             @Override
             public void focusLost(java.awt.event.FocusEvent e) {
+                if (e.isTemporary()) return;
                 String email = txtEmail.getText().trim();
                 if (!email.isEmpty() && !email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
                     txtEmail.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                    javax.swing.JOptionPane.showMessageDialog(ForgotPasswordDialog.this, "Định dạng Email không hợp lệ!", "Cảnh báo", javax.swing.JOptionPane.WARNING_MESSAGE);
-                    txtEmail.requestFocusInWindow();
+                    txtEmail.setToolTipText("Định dạng Email không hợp lệ!");
                 } else {
                     txtEmail.putClientProperty(FlatClientProperties.OUTLINE, null);
+                    txtEmail.setToolTipText(null);
                 }
             }
         });
@@ -157,6 +158,7 @@ public class ForgotPasswordDialog extends JDialog {
 
             @Override
             protected void done() {
+                if (!isDisplayable() || !isShowing()) return;
                 try {
                     get();
                     JOptionPane.showMessageDialog(ForgotPasswordDialog.this,
@@ -175,6 +177,10 @@ public class ForgotPasswordDialog extends JDialog {
                         int countdown = 120;
                         @Override
                         public void actionPerformed(java.awt.event.ActionEvent evt) {
+                            if (!isDisplayable()) {
+                                timer.stop();
+                                return;
+                            }
                             countdown--;
                             if (countdown <= 0) {
                                 btnSendOtp.setText("Gửi lại mã OTP");
