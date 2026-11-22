@@ -4,6 +4,8 @@ import com.bookstore.api.contract.CustomerPurchaseSummaryDTO;
 import com.bookstore.dto.CustomerDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class CustomerApiClient {
@@ -13,8 +15,12 @@ public class CustomerApiClient {
     }
 
     public CustomerDTO selectByPhone(String phone) {
+        if (phone == null) {
+            return null;
+        }
+        String encodedPhone = URLEncoder.encode(phone, StandardCharsets.UTF_8).replace("+", "%20");
         try {
-            return ApiClient.get("/api/customers/phone/" + phone, new TypeReference<>() {
+            return ApiClient.get("/api/customers/phone/" + encodedPhone, new TypeReference<>() {
             });
         } catch (ApiException e) {
             if (e.getStatusCode() == 404) {

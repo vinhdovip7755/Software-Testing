@@ -49,7 +49,7 @@ public class ImportQuantityDiscountDialog extends JDialog {
         JLabel lbDiscount = new JLabel("<html>Chiết khấu NXB (%) <font color='red'>*</font>:</html>");
         lbDiscount.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         String discStr = "0";
-        if (initialDiscount > 0) {
+        if (Double.isFinite(initialDiscount) && initialDiscount > 0) {
             discStr = (initialDiscount == (long) initialDiscount) 
                     ? String.format("%d", (long) initialDiscount) 
                     : String.valueOf(initialDiscount);
@@ -128,7 +128,7 @@ public class ImportQuantityDiscountDialog extends JDialog {
                 } else {
                     try {
                         double d = Double.parseDouble(val);
-                        if (d < 0 || d > 100) {
+                        if (!Double.isFinite(d) || d < 0 || d > 100) {
                             txtDiscount.putClientProperty(FlatClientProperties.OUTLINE, "error");
                             txtDiscount.setToolTipText("Chiết khấu NXB phải nằm trong khoảng từ 0% đến 100%!");
                         } else {
@@ -153,9 +153,10 @@ public class ImportQuantityDiscountDialog extends JDialog {
             return;
         }
 
+        int parsedQuantity;
         try {
-            quantity = Integer.parseInt(qtyStr);
-            if (quantity <= 0) {
+            parsedQuantity = Integer.parseInt(qtyStr);
+            if (parsedQuantity <= 0) {
                 txtQty.putClientProperty(FlatClientProperties.OUTLINE, "error");
                 JOptionPane.showMessageDialog(this, "Số lượng nhập phải là số nguyên dương lớn hơn 0!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 txtQty.requestFocus();
@@ -176,9 +177,10 @@ public class ImportQuantityDiscountDialog extends JDialog {
             return;
         }
 
+        double parsedDiscount;
         try {
-            discount = Double.parseDouble(discountStr);
-            if (discount < 0 || discount > 100) {
+            parsedDiscount = Double.parseDouble(discountStr);
+            if (!Double.isFinite(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100) {
                 txtDiscount.putClientProperty(FlatClientProperties.OUTLINE, "error");
                 JOptionPane.showMessageDialog(this, "Chiết khấu NXB phải nằm trong khoảng từ 0% đến 100%!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 txtDiscount.requestFocus();
@@ -191,6 +193,8 @@ public class ImportQuantityDiscountDialog extends JDialog {
             return;
         }
 
+        quantity = parsedQuantity;
+        discount = parsedDiscount;
         confirmed = true;
         dispose();
     }

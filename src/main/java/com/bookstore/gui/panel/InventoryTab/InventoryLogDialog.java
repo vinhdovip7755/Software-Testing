@@ -14,8 +14,9 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -32,6 +33,7 @@ public class InventoryLogDialog extends JDialog {
 
     public InventoryLogDialog(Window parent) {
         super(parent, "Biến Động Tồn Kho (Thẻ Kho)", ModalityType.APPLICATION_MODAL);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(1000, 650);
         setLocationRelativeTo(parent);
         setResizable(false);
@@ -146,42 +148,34 @@ public class InventoryLogDialog extends JDialog {
         }
     }
 
-    private void filterData() {
-        tableModel.setRowCount(0);
+    private LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
 
+    private boolean isDateOutOfBounds(LocalDate date) {
+        Date normalized = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return AppConstant.isDateOutOfBounds(normalized);
+    }
+
+    private void filterData() {
         String keyword = txtSearch.getText().trim().toLowerCase();
         int actionIdx = cboAction.getSelectedIndex();
         Date fromDate = dchDateFrom.getDate();
         Date toDate = dchDateTo.getDate();
 
-        if (fromDate != null && toDate != null && fromDate.after(toDate)) {
+        LocalDate fromLocal = fromDate != null ? toLocalDate(fromDate) : null;
+        LocalDate toLocal = toDate != null ? toLocalDate(toDate) : null;
+
+        if (fromLocal != null && toLocal != null && fromLocal.isAfter(toLocal)) {
             JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if ((fromDate != null && AppConstant.isDateOutOfBounds(fromDate)) || (toDate != null && AppConstant.isDateOutOfBounds(toDate))) {
+        if ((fromLocal != null && isDateOutOfBounds(fromLocal)) || (toLocal != null && isDateOutOfBounds(toLocal))) {
             JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        Calendar calFrom = null;
-        if (fromDate != null) {
-            calFrom = Calendar.getInstance();
-            calFrom.setTime(fromDate);
-            calFrom.set(Calendar.HOUR_OF_DAY, 0);
-            calFrom.set(Calendar.MINUTE, 0);
-            calFrom.set(Calendar.SECOND, 0);
-            calFrom.set(Calendar.MILLISECOND, 0);
-        }
-
-        Calendar calTo = null;
-        if (toDate != null) {
-            calTo = Calendar.getInstance();
-            calTo.setTime(toDate);
-            calTo.set(Calendar.HOUR_OF_DAY, 23);
-            calTo.set(Calendar.MINUTE, 59);
-            calTo.set(Calendar.SECOND, 59);
-            calTo.set(Calendar.MILLISECOND, 999);
-        }
+        tableModel.setRowCount(0);
 
         SimpleDateFormat displaySdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
@@ -200,9 +194,14 @@ public class InventoryLogDialog extends JDialog {
             else if (actionIdx == 3) matchAction = logAction.contains("hủy");
 
             boolean matchDate = true;
-            if (log.getCreatedDate() != null) {
-                if (calFrom != null && log.getCreatedDate().before(calFrom.getTime())) matchDate = false;
-                if (calTo != null && log.getCreatedDate().after(calTo.getTime())) matchDate = false;
+            if (fromLocal != null || toLocal != null) {
+                if (log.getCreatedDate() == null) {
+                    matchDate = false;
+                } else {
+                    LocalDate logDate = toLocalDate(log.getCreatedDate());
+                    if (fromLocal != null && logDate.isBefore(fromLocal)) matchDate = false;
+                    if (toLocal != null && logDate.isAfter(toLocal)) matchDate = false;
+                }
             }
 
             if (matchKey && matchAction && matchDate) {

@@ -66,11 +66,11 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         dchDenNgay.setMaxSelectableDate(com.bookstore.util.AppConstant.SYSTEM_MAX_DATE);
         initUI();
         bindEvents();
-        // Set default dates
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
-        dchTuNgay.setDate(cal.getTime());
-        dchDenNgay.setDate(new Date());
+        // Set default dates from a single LocalDate.now() so 1st-of-month never fails
+        LocalDate today = LocalDate.now();
+        LocalDate firstOfMonth = today.withDayOfMonth(1);
+        dchTuNgay.setDate(Date.from(firstOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        dchDenNgay.setDate(Date.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant()));
         loadThongKe();
     }
 
@@ -236,13 +236,15 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
                     JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if (tuNgay.after(denNgay)) {
+        LocalDate from = toLocalDate(tuNgay);
+        LocalDate to = toLocalDate(denNgay);
+        if (from.isAfter(to)) {
             JOptionPane.showMessageDialog(this,
                     "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!",
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        if (AppConstant.isDateOutOfBounds(tuNgay) || AppConstant.isDateOutOfBounds(denNgay)) {
+        if (isDateOutOfBounds(from) || isDateOutOfBounds(to)) {
             JOptionPane.showMessageDialog(this,
                     "Khoảng ngày thống kê phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!",
                     "Lỗi", JOptionPane.ERROR_MESSAGE);
@@ -250,8 +252,6 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
         }
 
         try {
-            LocalDate from = toLocalDate(tuNgay);
-            LocalDate to = toLocalDate(denNgay);
             List<FinancialStatsDTO> currentData = statisticsApiClient.getFinancialStatsByDay(from, to);
             FinancialStatsDTO totalData = statisticsApiClient.getTotalFinancialStats();
             int year = from.getYear();
@@ -307,6 +307,11 @@ public class FinancialStatsPanel extends JPanel implements Refreshable {
 
     private LocalDate toLocalDate(Date date) {
         return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private boolean isDateOutOfBounds(LocalDate date) {
+        Date normalized = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return AppConstant.isDateOutOfBounds(normalized);
     }
 
     private String formatCurrency(double amount) {

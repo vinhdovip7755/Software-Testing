@@ -63,9 +63,37 @@ public class SellingPanel extends JPanel implements Refreshable {
     private CustomerDTO currentCustomer = null;
     private double currentRankDiscountPercent;
     private double vatRate = Double.NaN;
+    private boolean lastBookLoadSucceeded = false;
 
     public SellingPanel() {
         initUI();
+    }
+
+    private void applyPermissions() {
+        boolean canSell = PermissionUtil.hasActionPermission("MANAGE_SELLING");
+        if (btnAddToCart != null) {
+            btnAddToCart.setVisible(canSell);
+            btnAddToCart.setEnabled(canSell);
+        }
+        if (btnCustomer != null) {
+            btnCustomer.setEnabled(canSell);
+        }
+        if (btnRefresh != null) {
+            btnRefresh.setVisible(canSell);
+            btnRefresh.setEnabled(canSell);
+        }
+        if (btnDelete != null) {
+            btnDelete.setVisible(canSell);
+            btnDelete.setEnabled(canSell);
+        }
+        if (btnEdit != null) {
+            btnEdit.setVisible(canSell);
+            btnEdit.setEnabled(canSell);
+        }
+        if (btnPay != null) {
+            btnPay.setVisible(canSell);
+            btnPay.setEnabled(canSell && Double.isFinite(vatRate));
+        }
     }
 
     @Override
@@ -73,7 +101,9 @@ public class SellingPanel extends JPanel implements Refreshable {
         if (SharedData.currentUser != null && txtEmployee != null) {
             txtEmployee.setText(SharedData.currentUser.getEmployeeName());
         }
+        applyPermissions();
         loadSellingData();
+        revalidateCartItems();
     }
 
     private void initUI() {
@@ -87,6 +117,7 @@ public class SellingPanel extends JPanel implements Refreshable {
         JPanel rightPanel = createRightPanel();
         add(rightPanel);
 
+        applyPermissions();
         loadSellingData();
         addEvents();
     }
@@ -465,8 +496,13 @@ public class SellingPanel extends JPanel implements Refreshable {
     private void loadBookTableInternal() throws ApiException {
         try {
             listBooks = bookApiClient.selectActiveBooks();
+            if (listBooks == null) {
+                listBooks = new ArrayList<>();
+            }
+            lastBookLoadSucceeded = true;
             updateProductTable(listBooks);
         } catch (ApiException e) {
+            lastBookLoadSucceeded = false;
             listBooks = new ArrayList<>();
             updateProductTable(listBooks);
             throw e;
@@ -487,13 +523,87 @@ public class SellingPanel extends JPanel implements Refreshable {
             if (!Double.isFinite(vatRate) || vatRate < 0 || vatRate > 1) {
                 throw new ApiException(502, "Cấu hình thuế VAT không hợp lệ.");
             }
-            btnPay.setEnabled(true);
+            btnPay.setEnabled(PermissionUtil.hasActionPermission("MANAGE_SELLING"));
             calculateTotal();
         } catch (ApiException e) {
             vatRate = Double.NaN;
             btnPay.setEnabled(false);
             calculateTotal();
             throw e;
+        }
+    }
+
+    private void revalidateCartItems() {
+        if (!lastBookLoadSucceeded || cartModel == null || cartModel.getRowCount() == 0) {
+            return;
+        }
+
+        Map<Integer, BookDTO> activeBookMap = new HashMap<>();
+        for (BookDTO book : listBooks) {
+            if (book != null) {
+                activeBookMap.put(book.getBookId(), book);
+            }
+        }
+
+        List<String> removedItems = new ArrayList<>();
+        List<String> adjustedItems = new ArrayList<>();
+
+        for (int i = cartModel.getRowCount() - 1; i >= 0; i--) {
+            int bookId = Integer.parseInt(cartModel.getValueAt(i, 0).toString());
+            String cartBookName = String.valueOf(cartModel.getValueAt(i, 1));
+            int cartQty = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
+
+            BookDTO latest = activeBookMap.get(bookId);
+            if (latest == null || latest.getStatus() != 1 || latest.getQuantity() <= 0) {
+                cartModel.removeRow(i);
+                cartPromotions.remove(bookId);
+                removedItems.add(cartBookName);
+                continue;
+            }
+
+            int updatedQty = cartQty;
+            if (updatedQty > latest.getQuantity()) {
+                updatedQty = latest.getQuantity();
+                adjustedItems.add(latest.getBookName() + " (giảm còn " + updatedQty + ")");
+            }
+
+            double promoPercent = 0;
+            try {
+                BookPromotionDTO latestPromo = promotionApiClient.getPromotionForBook(bookId);
+                if (latestPromo != null && Double.isFinite(latestPromo.percent())
+                        && latestPromo.percent() >= 0 && latestPromo.percent() <= 100) {
+                    promoPercent = latestPromo.percent();
+                    cartPromotions.put(bookId, latestPromo);
+                }
+            } catch (ApiException ignored) {
+                String existingPercentStr = cartModel.getValueAt(i, 4).toString().replace("%", "").trim();
+                try {
+                    promoPercent = Double.parseDouble(existingPercentStr);
+                } catch (NumberFormatException ignoredParse) {
+                    promoPercent = 0;
+                }
+            }
+
+            double unitPrice = latest.getSellingPrice();
+            double actualPrice = unitPrice * (1 - promoPercent / 100.0);
+            cartModel.setValueAt(latest.getBookName(), i, 1);
+            cartModel.setValueAt(updatedQty, i, 2);
+            cartModel.setValueAt(MoneyFormatter.toVND(unitPrice), i, 3);
+            cartModel.setValueAt((int) promoPercent + "%", i, 4);
+            cartModel.setValueAt(MoneyFormatter.toVND(updatedQty * actualPrice), i, 5);
+        }
+
+        calculateTotal();
+
+        if (!removedItems.isEmpty() || !adjustedItems.isEmpty()) {
+            StringBuilder notice = new StringBuilder("Giỏ hàng đã được cập nhật theo tồn kho/trạng thái mới nhất:");
+            if (!removedItems.isEmpty()) {
+                notice.append("\n- Đã gỡ (ngừng bán/hết hàng): ").append(String.join(", ", removedItems));
+            }
+            if (!adjustedItems.isEmpty()) {
+                notice.append("\n- Đã điều chỉnh số lượng: ").append(String.join(", ", adjustedItems));
+            }
+            JOptionPane.showMessageDialog(this, notice.toString(), "Cập nhật giỏ hàng", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
@@ -619,6 +729,9 @@ public class SellingPanel extends JPanel implements Refreshable {
     }
 
     private void openCustomerSearchDialog() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SELLING")) {
+            return;
+        }
         JFrame parent = (JFrame) SwingUtilities.getWindowAncestor(this);
         CustomerSearchDialog dialog = new CustomerSearchDialog(parent);
         dialog.setVisible(true);
@@ -751,6 +864,9 @@ public class SellingPanel extends JPanel implements Refreshable {
     }
 
     private void addToCart() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SELLING")) {
+            return;
+        }
         int selectedRow = tblProduct.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sách cần thêm!");
@@ -817,14 +933,16 @@ public class SellingPanel extends JPanel implements Refreshable {
 
             if (idInCart == bookId) {
                 int currentQty = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
-                int newQty = currentQty + quantityToAdd;
+                int availableStock = selectedBook.getQuantity();
+                long totalRequested = (long) currentQty + (long) quantityToAdd;
 
-                if (newQty > selectedBook.getQuantity()) {
+                if (quantityToAdd > availableStock - currentQty || totalRequested > availableStock) {
                     JOptionPane.showMessageDialog(this,
-                            "Tổng số lượng (" + newQty + ") vượt quá tồn kho hiện tại (" + selectedBook.getQuantity() + ")!");
+                            "Tổng số lượng (" + totalRequested + ") vượt quá tồn kho hiện tại (" + availableStock + ")!");
                     return;
                 }
 
+                int newQty = currentQty + quantityToAdd;
                 cartModel.setValueAt(newQty, i, 2);
 
                 double total = newQty * newPrice;
@@ -858,6 +976,9 @@ public class SellingPanel extends JPanel implements Refreshable {
     }
 
     private void refreshCart() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SELLING")) {
+            return;
+        }
         if (cartModel.getRowCount() == 0) return;
 
         int confirm = JOptionPane.showConfirmDialog(this,
@@ -876,29 +997,37 @@ public class SellingPanel extends JPanel implements Refreshable {
     }
 
     private void deleteRowFromCart() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SELLING")) {
+            return;
+        }
         int selectedRow = tblCart.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm trong giỏ hàng để xóa!");
             return;
         }
 
-        int bookId = Integer.parseInt(cartModel.getValueAt(selectedRow, 0).toString());
-        cartModel.removeRow(selectedRow);
+        int modelRow = tblCart.convertRowIndexToModel(selectedRow);
+        int bookId = Integer.parseInt(cartModel.getValueAt(modelRow, 0).toString());
+        cartModel.removeRow(modelRow);
         cartPromotions.remove(bookId);
         calculateTotal();
     }
 
     private void editRowFromCart() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SELLING")) {
+            return;
+        }
         int selectedRow = tblCart.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm trong giỏ hàng để sửa số lượng!");
             return;
         }
 
-        int bookId = Integer.parseInt(cartModel.getValueAt(selectedRow, 0).toString());
-        int currentQty = Integer.parseInt(cartModel.getValueAt(selectedRow, 2).toString());
-        double oldPrice = MoneyFormatter.toDouble(cartModel.getValueAt(selectedRow, 3).toString());
-        String percentStr = cartModel.getValueAt(selectedRow, 4).toString().replace("%", "").trim();
+        int modelRow = tblCart.convertRowIndexToModel(selectedRow);
+        int bookId = Integer.parseInt(cartModel.getValueAt(modelRow, 0).toString());
+        int currentQty = Integer.parseInt(cartModel.getValueAt(modelRow, 2).toString());
+        double oldPrice = MoneyFormatter.toDouble(cartModel.getValueAt(modelRow, 3).toString());
+        String percentStr = cartModel.getValueAt(modelRow, 4).toString().replace("%", "").trim();
         int promoPercent = 0;
         try {
             promoPercent = Integer.parseInt(percentStr);
@@ -911,6 +1040,20 @@ public class SellingPanel extends JPanel implements Refreshable {
                 .filter(b -> b.getBookId() == bookId)
                 .findFirst()
                 .orElse(null);
+
+        if (book == null || book.getStatus() == 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Sản phẩm này đã ngừng bán hoặc không còn tồn tại trong hệ thống. Vui lòng xóa khỏi giỏ hàng!",
+                    "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (book.getQuantity() <= 0) {
+            JOptionPane.showMessageDialog(this,
+                    "Sản phẩm \"" + book.getBookName() + "\" hiện đã hết hàng!",
+                    "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
         String input = JOptionPane.showInputDialog(this,
                 "Cập nhật số lượng cho: " + book.getBookName() + "\n(Tồn kho: " + book.getQuantity() + ")",
@@ -932,10 +1075,10 @@ public class SellingPanel extends JPanel implements Refreshable {
                 return;
             }
 
-            cartModel.setValueAt(newQty, selectedRow, 2);
+            cartModel.setValueAt(newQty, modelRow, 2);
 
             double newTotal = newQty * actualPrice;
-            cartModel.setValueAt(MoneyFormatter.toVND(newTotal), selectedRow, 5);
+            cartModel.setValueAt(MoneyFormatter.toVND(newTotal), modelRow, 5);
 
             calculateTotal();
 
@@ -945,6 +1088,9 @@ public class SellingPanel extends JPanel implements Refreshable {
     }
 
     private void createNewBill() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SELLING")) {
+            return;
+        }
         if (cartModel.getRowCount() == 0) {
             JOptionPane.showMessageDialog(this, "Giỏ hàng đang trống!");
             return;

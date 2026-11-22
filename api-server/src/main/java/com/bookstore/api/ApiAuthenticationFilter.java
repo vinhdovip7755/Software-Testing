@@ -38,15 +38,26 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        response.setHeader("Cache-Control", "no-store");
+        response.setHeader("X-Content-Type-Options", "nosniff");
+
         String authorization = request.getHeader("Authorization");
         if (authorization == null || !authorization.startsWith("Bearer ")) {
-            writeUnauthorized(response);
+            writeJsonError(response, HttpServletResponse.SC_UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
             return;
         }
 
-        AuthSessionStore.Session session = sessionStore.find(authorization.substring("Bearer ".length()));
+        AuthSessionStore.Session session;
+        try {
+            session = sessionStore.find(authorization.substring("Bearer ".length()));
+        } catch (IllegalStateException ex) {
+            writeJsonError(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Hệ thống tạm thời không thể kết nối cơ sở dữ liệu. Vui lòng thử lại sau.");
+            return;
+        }
+
         if (session == null) {
-            writeUnauthorized(response);
+            writeJsonError(response, HttpServletResponse.SC_UNAUTHORIZED, "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
             return;
         }
 
@@ -54,10 +65,10 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private void writeUnauthorized(HttpServletResponse response) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    private void writeJsonError(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getOutputStream(), Map.of("message", "Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+        objectMapper.writeValue(response.getOutputStream(), Map.of("message", message));
     }
 }

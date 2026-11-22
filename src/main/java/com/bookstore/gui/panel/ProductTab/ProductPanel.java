@@ -12,6 +12,7 @@ import java.util.List;
 import java.io.IOException;
 
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 import com.bookstore.util.SearchableComboBox;
 import com.bookstore.api.client.AuthorApiClient;
@@ -27,12 +28,15 @@ public class ProductPanel extends JPanel implements Refreshable {
     private static final Color MAIN_COLOR = Color.decode(AppConstant.GREEN_COLOR_CODE);
     private static final Color BUTTON_COLOR = Color.decode(AppConstant.BUTTON_COLOR);
     private static final Color BORDER_COLOR = Color.decode("#E0E0E0");
+    private static final int MAX_IMAGE_CACHE_SIZE = 200;
 
     private JTextField searchField;
     private SearchableComboBox<String> authorCombo;
     private JComboBox<String> categoryCombo;
     private SearchableComboBox<String> supplierCombo;
     private JComboBox<String> statusCombo;
+    private JButton importButton;
+    private JButton addButton;
     private JTable bookTable;
     private DefaultTableModel tableModel;
     private Set<String> selectedTags = new HashSet<>();
@@ -49,6 +53,14 @@ public class ProductPanel extends JPanel implements Refreshable {
     private List<CategoryDTO> categories;
     private List<SupplierDTO> suppliers;
     private Set<String> allTags;
+    private boolean isUpdatingFilters = false;
+    private final Map<String, ImageIcon> coverIconCache = new LinkedHashMap<>(64, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, ImageIcon> eldest) {
+            return size() > MAX_IMAGE_CACHE_SIZE;
+        }
+    };
+    private final Map<String, ImageIcon> placeholderIconCache = new HashMap<>();
 
     public ProductPanel() {
         bookBUS = new BookApiClient();
@@ -64,18 +76,70 @@ public class ProductPanel extends JPanel implements Refreshable {
     }
 
     private void applyPermissions() {
-        com.bookstore.dto.PermissionDTO perm = com.bookstore.util.SharedData.userPermissions.get("MANAGE_PRODUCT");
-        boolean hasAction = (perm != null && perm.isAction());
-        // btnAddProduct.setVisible(hasAction);
-        // btnEditProduct.setVisible(hasAction);
-        // btnDeleteProduct.setVisible(hasAction);
-        // btnImportExcel.setVisible(hasAction);
+        boolean hasAction = PermissionUtil.hasActionPermission("MANAGE_PRODUCT");
+        if (addButton != null) {
+            addButton.setVisible(hasAction);
+            addButton.setEnabled(hasAction);
+        }
+        if (importButton != null) {
+            importButton.setVisible(hasAction);
+            importButton.setEnabled(hasAction);
+        }
+        if (bookTable != null) {
+            if (bookTable.isEditing()) {
+                bookTable.getCellEditor().cancelCellEditing();
+            }
+            bookTable.repaint();
+        }
     }
 
     @Override
     public void refresh() {
+        applyPermissions();
         loadDataFromDatabase();
-        loadTableData();
+        refreshFilterCombos();
+        filterBooks();
+    }
+
+    private void refreshFilterCombos() {
+        if (authorCombo == null || categoryCombo == null || supplierCombo == null) {
+            return;
+        }
+        isUpdatingFilters = true;
+        try {
+            String selectedAuthor = getSelectedFilterValue(authorCombo.getSelectedItem());
+            String selectedCategory = getSelectedFilterValue(categoryCombo.getSelectedItem());
+            String selectedSupplier = getSelectedFilterValue(supplierCombo.getSelectedItem());
+
+            List<String> authorNames = getAuthorNamesList();
+            authorCombo.updateData(authorNames);
+            if (!selectedAuthor.isEmpty() && authorNames.contains(selectedAuthor)) {
+                authorCombo.setSelectedItem(selectedAuthor);
+            } else {
+                authorCombo.resetSelection();
+            }
+
+            List<String> categoryNames = getCategoryNamesList();
+            categoryCombo.setModel(new DefaultComboBoxModel<>(categoryNames.toArray(new String[0])));
+            if (!selectedCategory.isEmpty() && categoryNames.contains(selectedCategory)) {
+                categoryCombo.setSelectedItem(selectedCategory);
+            } else if (categoryCombo.getItemCount() > 0) {
+                categoryCombo.setSelectedIndex(0);
+            }
+
+            List<String> supplierNames = getSupplierNamesList();
+            supplierCombo.updateData(supplierNames);
+            if (!selectedSupplier.isEmpty() && supplierNames.contains(selectedSupplier)) {
+                supplierCombo.setSelectedItem(selectedSupplier);
+            } else {
+                supplierCombo.resetSelection();
+            }
+
+            selectedTags.retainAll(allTags);
+            updateTagButtonText();
+        } finally {
+            isUpdatingFilters = false;
+        }
     }
 
     private void loadDataFromDatabase() {
@@ -153,7 +217,7 @@ public class ProductPanel extends JPanel implements Refreshable {
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actionPanel.setOpaque(false);
 
-        JButton importButton = createStyledButton("IMPORT EXCEL", Color.decode("#1976D2"));
+        importButton = createStyledButton("IMPORT EXCEL", Color.decode("#1976D2"));
         importButton.setPreferredSize(new Dimension(170, 38));
 
         FlatSVGIcon importIcon = new FlatSVGIcon("icon/import_excel_icon.svg").derive(20, 20);
@@ -162,6 +226,9 @@ public class ProductPanel extends JPanel implements Refreshable {
         importButton.setIconTextGap(8);
 
         importButton.addActionListener(e -> {
+            if (!PermissionUtil.hasActionPermission("MANAGE_PRODUCT")) {
+                return;
+            }
             showImportGuideDialog();
             importBooksFromExcel();
         });
@@ -179,7 +246,7 @@ public class ProductPanel extends JPanel implements Refreshable {
         actionPanel.add(exportButton);
 
 
-        JButton addButton = createStyledButton("+ THÊM SÁCH", BUTTON_COLOR);
+        addButton = createStyledButton("+ THÊM SÁCH", BUTTON_COLOR);
         addButton.setPreferredSize(new Dimension(160, 38));
         addButton.addActionListener(e -> showAddBookDialog());
         actionPanel.add(addButton);
@@ -435,12 +502,17 @@ public class ProductPanel extends JPanel implements Refreshable {
     }
 
     private void filterBooks() {
+        if (isUpdatingFilters) {
+            return;
+        }
         String searchText = searchField.getText().toLowerCase().trim();
         String unaccentSearch = removeDiacritics(searchText);
         Object selectedAuthorObj = authorCombo.getSelectedItem();
         Object selectedCategoryObj = categoryCombo.getSelectedItem();
         Object selectedSupplierObj = supplierCombo.getSelectedItem();
-        String selectedStatus = (String) statusCombo.getSelectedItem();
+        String selectedStatus = statusCombo.getSelectedItem() != null
+                ? statusCombo.getSelectedItem().toString()
+                : "Tất cả trạng thái";
 
         String selectedAuthor = getSelectedFilterValue(selectedAuthorObj);
         String selectedCategory = getSelectedFilterValue(selectedCategoryObj);
@@ -655,6 +727,9 @@ public class ProductPanel extends JPanel implements Refreshable {
     }
 
     private void importBooksFromExcel() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_PRODUCT")) {
+            return;
+        }
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Chọn file Excel để import");
 
@@ -687,6 +762,7 @@ public class ProductPanel extends JPanel implements Refreshable {
             }
 
             loadDataFromDatabase();
+            refreshFilterCombos();
             filterBooks();
 
             StringBuilder message = new StringBuilder();
@@ -857,6 +933,9 @@ public class ProductPanel extends JPanel implements Refreshable {
     }
 
     private void showAddBookDialog() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_PRODUCT")) {
+            return;
+        }
         BookFormDialog dialog = new BookFormDialog(
                 (Frame) SwingUtilities.getWindowAncestor(this),
                 "Thêm sách mới",
@@ -890,6 +969,7 @@ public class ProductPanel extends JPanel implements Refreshable {
 
                 if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                     loadDataFromDatabase();
+                    refreshFilterCombos();
                     filterBooks();
 
                     JOptionPane.showMessageDialog(this, result,
@@ -909,6 +989,9 @@ public class ProductPanel extends JPanel implements Refreshable {
     }
 
     private void showEditBookDialog(BookDTO book) {
+        if (!PermissionUtil.hasActionPermission("MANAGE_PRODUCT") || book == null) {
+            return;
+        }
         BookFormDialog dialog = new BookFormDialog(
                 (Frame) SwingUtilities.getWindowAncestor(this),
                 "Chỉnh sửa sách",
@@ -942,7 +1025,10 @@ public class ProductPanel extends JPanel implements Refreshable {
                 String result = bookBUS.updateBook(bookDTO);
 
                 if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
+                    evictCoverCache(book.getImage());
+                    evictCoverCache(updatedBook.getImage());
                     loadDataFromDatabase();
+                    refreshFilterCombos();
                     filterBooks();
 
                     JOptionPane.showMessageDialog(this, result,
@@ -981,7 +1067,7 @@ public class ProductPanel extends JPanel implements Refreshable {
         imageLabel.setHorizontalAlignment(JLabel.CENTER);
         imageLabel.setVerticalAlignment(JLabel.TOP);
         imageLabel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
-        imageLabel.setIcon(new ImageIcon(getBookCoverImage(book, 160, 240)));
+        imageLabel.setIcon(getBookCoverIcon(book, 160, 240));
         mainPanel.add(imageLabel, BorderLayout.WEST);
 
         JPanel detailsPanel = new JPanel();
@@ -1163,23 +1249,50 @@ public class ProductPanel extends JPanel implements Refreshable {
         return img;
     }
 
-    private Image getBookCoverImage(BookDTO book, int width, int height) {
-        if (book != null && book.getImage() != null && !book.getImage().trim().isEmpty()) {
-            String imagePath = "data/book_covers/" + book.getImage();
-            File imageFile = new File(imagePath);
-            if (!imageFile.exists()) {
-                imagePath = book.getImage();
-                imageFile = new File(imagePath);
-            }
+    private ImageIcon getPlaceholderIcon(int width, int height) {
+        String key = width + "x" + height;
+        return placeholderIconCache.computeIfAbsent(key, k -> new ImageIcon(createBookPlaceholder(width, height)));
+    }
 
-            if (imageFile.exists()) {
-                ImageIcon icon = new ImageIcon(imagePath);
-                if (icon.getIconWidth() > 0 && icon.getIconHeight() > 0) {
-                    return icon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
-                }
-            }
+    private void evictCoverCache(String imageName) {
+        if (imageName == null || imageName.trim().isEmpty()) {
+            return;
         }
-        return createBookPlaceholder(width, height);
+        String prefix = imageName.trim() + "@";
+        coverIconCache.keySet().removeIf(k -> k.startsWith(prefix));
+    }
+
+    private ImageIcon getBookCoverIcon(BookDTO book, int width, int height) {
+        if (book == null || book.getImage() == null || book.getImage().trim().isEmpty()) {
+            return getPlaceholderIcon(width, height);
+        }
+        String rawImage = book.getImage().trim();
+        String cacheKey = rawImage + "@" + width + "x" + height;
+        ImageIcon cached = coverIconCache.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        String imagePath = "data/book_covers/" + rawImage;
+        File imageFile = new File(imagePath);
+        if (!imageFile.exists()) {
+            imagePath = rawImage;
+            imageFile = new File(imagePath);
+        }
+
+        ImageIcon resolved;
+        if (imageFile.exists()) {
+            ImageIcon source = new ImageIcon(imagePath);
+            if (source.getIconWidth() > 0 && source.getIconHeight() > 0) {
+                resolved = new ImageIcon(source.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH));
+            } else {
+                resolved = getPlaceholderIcon(width, height);
+            }
+        } else {
+            resolved = getPlaceholderIcon(width, height);
+        }
+        coverIconCache.put(cacheKey, resolved);
+        return resolved;
     }
 
     private String truncateText(String text, Font font, int maxWidth, int maxLines) {
@@ -1291,18 +1404,40 @@ public class ProductPanel extends JPanel implements Refreshable {
     }
 
     class BookCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                                                       boolean isSelected, boolean hasFocus, int row, int column) {
+        private final JPanel panel;
+        private final JLabel imageLabel;
+        private final JLabel nameLabel;
+        private final Font boldFont = new Font("Segoe UI", Font.BOLD, 13);
 
-            BookDTO book = (BookDTO) value;
-
-            JPanel panel = new JPanel(new BorderLayout(10, 0));
+        public BookCellRenderer() {
+            panel = new JPanel(new BorderLayout(10, 0));
             panel.setOpaque(true);
             panel.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createMatteBorder(0, 0, 0, 1, BORDER_COLOR),
                     new EmptyBorder(5, 10, 5, 10)
             ));
+
+            imageLabel = new JLabel();
+            imageLabel.setPreferredSize(new Dimension(50, 70));
+            imageLabel.setHorizontalAlignment(JLabel.CENTER);
+            imageLabel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
+            imageLabel.setOpaque(true);
+            imageLabel.setBackground(Color.decode("#F5F5F5"));
+
+            nameLabel = new JLabel();
+            nameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+            nameLabel.setVerticalAlignment(SwingConstants.CENTER);
+            nameLabel.setHorizontalAlignment(SwingConstants.LEFT);
+
+            panel.add(imageLabel, BorderLayout.WEST);
+            panel.add(nameLabel, BorderLayout.CENTER);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus, int row, int column) {
+
+            BookDTO book = (BookDTO) value;
 
             if (isSelected) {
                 panel.setBackground(table.getSelectionBackground());
@@ -1310,24 +1445,11 @@ public class ProductPanel extends JPanel implements Refreshable {
                 panel.setBackground(table.getBackground());
             }
 
-            JLabel imageLabel = new JLabel();
-            imageLabel.setPreferredSize(new Dimension(50, 70));
-            imageLabel.setHorizontalAlignment(JLabel.CENTER);
-            imageLabel.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1));
-            imageLabel.setOpaque(true);
-            imageLabel.setBackground(Color.decode("#F5F5F5"));
-            imageLabel.setIcon(new ImageIcon(getBookCoverImage(book, 50, 70)));
+            imageLabel.setIcon(getBookCoverIcon(book, 50, 70));
 
-            panel.add(imageLabel, BorderLayout.WEST);
-
-            int availableWidth = table.getColumnModel().getColumn(0).getWidth() - 80;
-            String truncatedName = truncateText(book.getBookName(), new Font("Segoe UI", Font.BOLD, 13), availableWidth, 2);
-
-            JLabel nameLabel = new JLabel("<html><b>" + truncatedName + "</b></html>");
-            nameLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-            nameLabel.setVerticalAlignment(SwingConstants.CENTER);
-            nameLabel.setHorizontalAlignment(SwingConstants.LEFT);
-            panel.add(nameLabel, BorderLayout.CENTER);
+            int availableWidth = Math.max(80, table.getColumnModel().getColumn(0).getWidth() - 80);
+            String truncatedName = truncateText(book != null ? book.getBookName() : "", boldFont, availableWidth, 2);
+            nameLabel.setText("<html><b>" + truncatedName + "</b></html>");
 
             return panel;
         }
@@ -1399,6 +1521,9 @@ public class ProductPanel extends JPanel implements Refreshable {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus, int row, int column) {
+            boolean canEdit = PermissionUtil.hasActionPermission("MANAGE_PRODUCT");
+            editButton.setVisible(canEdit);
+            editButton.setEnabled(canEdit);
 
             if (isSelected) {
                 setBackground(table.getSelectionBackground());
@@ -1434,7 +1559,9 @@ public class ProductPanel extends JPanel implements Refreshable {
             editButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
             editButton.addActionListener(e -> {
                 fireEditingStopped();
-                SwingUtilities.invokeLater(() -> showEditBookDialog(currentBook));
+                if (PermissionUtil.hasActionPermission("MANAGE_PRODUCT")) {
+                    SwingUtilities.invokeLater(() -> showEditBookDialog(currentBook));
+                }
             });
 
             viewButton = new JButton("Xem");
@@ -1458,6 +1585,9 @@ public class ProductPanel extends JPanel implements Refreshable {
         public Component getTableCellEditorComponent(JTable table, Object value,
                                                      boolean isSelected, int row, int column) {
             currentBook = (BookDTO) value;
+            boolean canEdit = PermissionUtil.hasActionPermission("MANAGE_PRODUCT");
+            editButton.setVisible(canEdit);
+            editButton.setEnabled(canEdit);
             panel.setBackground(table.getSelectionBackground());
             return panel;
         }

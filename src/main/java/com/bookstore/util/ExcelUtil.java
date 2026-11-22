@@ -7,12 +7,19 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Locale;
+import java.math.BigDecimal;
+import java.nio.file.AccessDeniedException;
+import java.nio.file.FileSystemException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class ExcelUtil {
     private static final String SHEET_NAME = "Products";
+    private static final double MAX_PRICE = 999_999_999_999_999.0;
+    private static final BigDecimal MIN_YEAR = BigDecimal.valueOf(1000);
+    private static final BigDecimal MAX_YEAR = BigDecimal.valueOf(9999);
+    private static final BigDecimal MAX_INT = BigDecimal.valueOf(Integer.MAX_VALUE);
     private static final String[] HEADERS = {
             "Tên sách", "Tác giả", "Thể loại", "Nhà cung cấp", "Năm xuất bản", "Giá bán", "Số lượng", "Trạng thái", "Dịch giả", "Tags", "Mô tả"
     };
@@ -28,10 +35,10 @@ public class ExcelUtil {
             int rowIndex = 1;
             for (ExcelBookRow data : rows) {
                 Row row = sheet.createRow(rowIndex++);
-                row.createCell(0).setCellValue(defaultString(data.getBookName()));
-                row.createCell(1).setCellValue(defaultString(data.getAuthorNames()));
-                row.createCell(2).setCellValue(defaultString(data.getCategoryName()));
-                row.createCell(3).setCellValue(defaultString(data.getSupplierName()));
+                row.createCell(0).setCellValue(sanitizeForExcelExport(data.getBookName()));
+                row.createCell(1).setCellValue(sanitizeForExcelExport(data.getAuthorNames()));
+                row.createCell(2).setCellValue(sanitizeForExcelExport(data.getCategoryName()));
+                row.createCell(3).setCellValue(sanitizeForExcelExport(data.getSupplierName()));
                 if (data.getPublicationYear() > 0) {
                     row.createCell(4).setCellValue(data.getPublicationYear());
                 } else {
@@ -40,9 +47,9 @@ public class ExcelUtil {
                 row.createCell(5).setCellValue(data.getSellingPrice());
                 row.createCell(6).setCellValue(data.getQuantity());
                 row.createCell(7).setCellValue(data.getStatus() == 1 ? "Đang bán" : "Ngừng bán");
-                row.createCell(8).setCellValue(defaultString(data.getTranslator()));
-                row.createCell(9).setCellValue(defaultString(data.getTagDetail()));
-                row.createCell(10).setCellValue(defaultString(data.getDescription()));
+                row.createCell(8).setCellValue(sanitizeForExcelExport(data.getTranslator()));
+                row.createCell(9).setCellValue(sanitizeForExcelExport(data.getTagDetail()));
+                row.createCell(10).setCellValue(sanitizeForExcelExport(data.getDescription()));
             }
 
             for (int i = 0; i < HEADERS.length; i++) {
@@ -57,10 +64,30 @@ public class ExcelUtil {
 
     public static boolean isFileInUse(IOException exception) {
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
-            String message = cause.getMessage();
-            if (message != null
-                    && message.toLowerCase(Locale.ROOT).contains("being used by another process")) {
+            if (cause instanceof AccessDeniedException) {
                 return true;
+            }
+            String message = cause.getMessage();
+            if (message != null) {
+                String lower = message.toLowerCase(Locale.ROOT);
+                if (lower.contains("being used by another process")
+                        || lower.contains("used by another process")
+                        || lower.contains("sharing violation")
+                        || lower.contains("lock violation")
+                        || lower.contains("cannot access the file")
+                        || lower.contains("text file busy")
+                        || lower.contains("resource temporarily unavailable")
+                        || lower.contains("đang được sử dụng")) {
+                    return true;
+                }
+            }
+            if (cause instanceof FileSystemException fse && fse.getReason() != null) {
+                String reason = fse.getReason().toLowerCase(Locale.ROOT);
+                if (reason.contains("being used by another process")
+                        || reason.contains("sharing violation")
+                        || reason.contains("lock violation")) {
+                    return true;
+                }
             }
         }
         return false;
@@ -101,7 +128,7 @@ public class ExcelUtil {
                 data.setPublicationYear(parsePublicationYear(getCellValue(row.getCell(4)), sourceRow));
                 data.setSellingPrice(parseSellingPrice(getCellValue(row.getCell(5)), sourceRow));
                 data.setQuantity(parseQuantity(getCellValue(row.getCell(6)), sourceRow));
-                data.setStatus(parseStatus(getCellValue(row.getCell(7))));
+                data.setStatus(parseStatus(getCellValue(row.getCell(7)), sourceRow));
                 data.setTranslator(getCellValue(row.getCell(8)));
                 data.setTagDetail(getCellValue(row.getCell(9)));
                 data.setDescription(getCellValue(row.getCell(10)));
@@ -133,30 +160,31 @@ public class ExcelUtil {
 
         return switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    yield "";
-                }
-                double numberValue = cell.getNumericCellValue();
-                if (numberValue == (long) numberValue) {
-                    yield String.valueOf((long) numberValue);
-                }
-                yield String.valueOf(numberValue);
-            }
+            case NUMERIC -> formatNumericCell(cell);
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            case FORMULA -> {
-                try {
-                    yield cell.getStringCellValue().trim();
-                } catch (IllegalStateException ex) {
-                    double numberValue = cell.getNumericCellValue();
-                    if (numberValue == (long) numberValue) {
-                        yield String.valueOf((long) numberValue);
-                    }
-                    yield String.valueOf(numberValue);
-                }
-            }
+            case FORMULA -> switch (cell.getCachedFormulaResultType()) {
+                case STRING -> cell.getStringCellValue().trim();
+                case NUMERIC -> formatNumericCell(cell);
+                case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+                case ERROR, BLANK, _NONE -> "";
+                default -> "";
+            };
             default -> "";
         };
+    }
+
+    private static String formatNumericCell(Cell cell) {
+        if (DateUtil.isCellDateFormatted(cell)) {
+            return "";
+        }
+        double numberValue = cell.getNumericCellValue();
+        if (!Double.isFinite(numberValue)) {
+            return "";
+        }
+        if (numberValue == 0.0) {
+            return "0";
+        }
+        return BigDecimal.valueOf(numberValue).stripTrailingZeros().toPlainString();
     }
 
     private static void validateHeaderRow(Row headerRow) {
@@ -171,18 +199,20 @@ public class ExcelUtil {
         }
     }
 
-    private static int parseStatus(String statusText) {
-        if (statusText == null) {
+    private static int parseStatus(String statusText, int rowNum) {
+        if (statusText == null || statusText.trim().isEmpty()) {
             return 1;
         }
-        String normalized = statusText.trim().toLowerCase();
-        if (normalized.equals("1") || normalized.contains("đang bán") || normalized.contains("dang ban")) {
+        String normalized = statusText.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        if (normalized.equals("1") || normalized.equals("đang bán") || normalized.equals("dang ban")) {
             return 1;
         }
-        if (normalized.equals("0") || normalized.contains("ngừng bán") || normalized.contains("ngung ban")) {
+        if (normalized.equals("0") || normalized.equals("ngừng bán") || normalized.equals("ngung ban")) {
             return 0;
         }
-        return 1;
+        throw new IllegalArgumentException(
+                "Dòng " + rowNum + ": Trạng thái không hợp lệ: '" + statusText
+                        + "'. Chỉ chấp nhận 'Đang bán', 'Ngừng bán', 1 hoặc 0.");
     }
 
     private static int parsePublicationYear(String text, int rowNum) {
@@ -190,12 +220,17 @@ public class ExcelUtil {
             return 0;
         }
         try {
-            int year = (int) Math.round(Double.parseDouble(text.trim()));
-            if (year < 1000 || year > 9999) {
-                throw new IllegalArgumentException("Dòng " + rowNum + ": Năm xuất bản phải gồm 4 chữ số hợp lệ (ví dụ: 2023).");
+            BigDecimal parsed = new BigDecimal(text.trim()).stripTrailingZeros();
+            if (parsed.scale() > 0) {
+                throw new IllegalArgumentException(
+                        "Dòng " + rowNum + ": Năm xuất bản phải là số nguyên gồm 4 chữ số hợp lệ (ví dụ: 2023).");
             }
-            return year;
-        } catch (NumberFormatException e) {
+            if (parsed.compareTo(MIN_YEAR) < 0 || parsed.compareTo(MAX_YEAR) > 0) {
+                throw new IllegalArgumentException(
+                        "Dòng " + rowNum + ": Năm xuất bản phải gồm 4 chữ số hợp lệ (ví dụ: 2023).");
+            }
+            return parsed.intValueExact();
+        } catch (NumberFormatException | ArithmeticException e) {
             throw new IllegalArgumentException("Dòng " + rowNum + ": Năm xuất bản không hợp lệ: '" + text + "'.");
         }
     }
@@ -228,8 +263,8 @@ public class ExcelUtil {
         }
         try {
             double price = Double.parseDouble(normalizeNumericText(text));
-            if (!Double.isFinite(price) || price < 0) {
-                throw new IllegalArgumentException("Dòng " + rowNum + ": Giá bán không được là số âm.");
+            if (!Double.isFinite(price) || price < 0 || price > MAX_PRICE) {
+                throw new IllegalArgumentException("Dòng " + rowNum + ": Giá bán không được là số âm hoặc vượt giới hạn.");
             }
             return price;
         } catch (NumberFormatException e) {
@@ -242,16 +277,18 @@ public class ExcelUtil {
             return 0;
         }
         try {
-            double parsed = Double.parseDouble(normalizeNumericText(text));
-            if (!Double.isFinite(parsed) || parsed != Math.rint(parsed)) {
+            BigDecimal parsed = new BigDecimal(normalizeNumericText(text)).stripTrailingZeros();
+            if (parsed.scale() > 0) {
                 throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng không hợp lệ: '" + text + "'.");
             }
-            int qty = (int) parsed;
-            if (qty < 0) {
+            if (parsed.signum() < 0) {
                 throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng không được là số âm.");
             }
-            return qty;
-        } catch (NumberFormatException e) {
+            if (parsed.compareTo(MAX_INT) > 0) {
+                throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng vượt quá giới hạn cho phép: '" + text + "'.");
+            }
+            return parsed.intValueExact();
+        } catch (NumberFormatException | ArithmeticException e) {
             throw new IllegalArgumentException("Dòng " + rowNum + ": Số lượng không hợp lệ: '" + text + "'.");
         }
     }
@@ -271,8 +308,21 @@ public class ExcelUtil {
         return true;
     }
 
-    private static String defaultString(String value) {
-        return value == null ? "" : value;
+    private static String sanitizeForExcelExport(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        String trimmed = value.stripLeading();
+        char first = value.charAt(0);
+        char firstNonSpace = trimmed.isEmpty() ? 0 : trimmed.charAt(0);
+        if (isFormulaTrigger(first) || isFormulaTrigger(firstNonSpace)) {
+            return "'" + value;
+        }
+        return value;
+    }
+
+    private static boolean isFormulaTrigger(char ch) {
+        return ch == '=' || ch == '+' || ch == '-' || ch == '@' || ch == '\t' || ch == '\r' || ch == '\n';
     }
 
     public static class ExcelBookRow {

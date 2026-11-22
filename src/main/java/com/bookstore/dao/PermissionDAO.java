@@ -78,6 +78,8 @@ public class PermissionDAO {
             if (conn != null) {
                 try {
                     conn.setAutoCommit(true);
+                } catch (Exception ex) { ex.printStackTrace(); }
+                try {
                     conn.close();
                 } catch (Exception ex) { ex.printStackTrace(); }
             }

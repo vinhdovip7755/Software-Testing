@@ -9,6 +9,8 @@ import com.bookstore.api.contract.AccountCreateRequestDTO;
 import com.bookstore.api.contract.AccountUpdateRequestDTO;
 import com.bookstore.api.contract.AccountViewDTO;
 import com.bookstore.dto.EmployeeDTO;
+import com.bookstore.util.AppConstant;
+import com.bookstore.util.SharedData;
 
 import java.awt.*;
 import java.util.List;
@@ -23,13 +25,15 @@ public class AccountFormDialog extends JDialog {
     private JTextField txtUsername, txtRole;
     private JPasswordField txtPassword;
     private JRadioButton radActive, radInactive;
-    private JButton btnCreate, btnSave;
+    private JButton btnCreate, btnSave, btnReset;
     private JPanel statusPanel, bottomPanel;
 
     private AccountViewDTO account;
+    private boolean statusLocked = false;
 
     public AccountFormDialog(Frame parent, AccountPanel panel, AccountViewDTO account) {
         super(parent, account == null ? "Thêm Tài Khoản Mới" : "Chỉnh Sửa Tài Khoản", true);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.parentPanel = panel;
         this.account = account;
 
@@ -77,30 +81,7 @@ public class AccountFormDialog extends JDialog {
         txtRole.setEditable(false);
         txtRole.setBackground(Color.decode("#EEEEEE"));
 
-        cboEmployee.addActionListener(e -> {
-            EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
-            if (selectedEmp != null && selectedEmp.getEmployeeId() != -1) {
-                txtRole.setText(selectedEmp.getRoleName());
-                if (this.account == null) {
-                    if (selectedEmp.getEmail() != null) {
-                        txtUsername.setText(selectedEmp.getEmail());
-                    } else {
-                        txtUsername.setText("");
-                    }
-                    if (selectedEmp.getBirthday() != null) {
-                        txtPassword.setText(new java.text.SimpleDateFormat("ddMMyyyy").format(selectedEmp.getBirthday()));
-                    } else {
-                        txtPassword.setText("123456");
-                    }
-                }
-            } else {
-                txtRole.setText("");
-                if (this.account == null) {
-                    txtUsername.setText("");
-                    txtPassword.setText("");
-                }
-            }
-        });
+        cboEmployee.addActionListener(e -> applySelectedEmployeeAutoFill());
 
         radActive = new JRadioButton("Đang làm việc");
         radInactive = new JRadioButton("Ngưng làm việc");
@@ -150,9 +131,9 @@ public class AccountFormDialog extends JDialog {
         if (this.account == null) {
             autoAdd(mainPanel, txtPassword, 1, 2, 1.0, gbc);
         } else {
-            JButton btnReset = new JButton("Khôi phục mật khẩu (Gửi Email)");
+            btnReset = new JButton("Khôi phục mật khẩu (Gửi Email)");
             btnReset.addActionListener(ev -> {
-                String msg = "Bạn có chắc muốn cấp mật khẩu mới (gồm 6 số ngẫu nhiên) và gửi về Email cho nhân viên này?";
+                String msg = "Bạn có chắc muốn cấp mật khẩu mới ngẫu nhiên và gửi về Email cho nhân viên này?";
                 
                 int cf = JOptionPane.showConfirmDialog(this, msg, "Xác nhận khôi phục", JOptionPane.YES_NO_OPTION);
                 if (cf == JOptionPane.YES_OPTION) {
@@ -240,9 +221,10 @@ public class AccountFormDialog extends JDialog {
             AccountCreateRequestDTO formData = getDataFromForm();
             if (formData == null)
                 return;
+            int targetStatus = statusLocked ? account.status() : formData.status();
             try {
                 String message = accountApiClient.updateAccount(account.employeeId(),
-                        new AccountUpdateRequestDTO(new String(txtPassword.getPassword()).trim(), formData.status()));
+                        new AccountUpdateRequestDTO(new String(txtPassword.getPassword()).trim(), targetStatus));
                 JOptionPane.showMessageDialog(this, message);
                 this.dispose();
             } catch (ApiException ex) {
@@ -255,18 +237,93 @@ public class AccountFormDialog extends JDialog {
         setLocationRelativeTo(parent);
     }
 
+    private void applySelectedEmployeeAutoFill() {
+        EmployeeDTO selectedEmp = (EmployeeDTO) cboEmployee.getSelectedItem();
+        if (selectedEmp != null && selectedEmp.getEmployeeId() != -1) {
+            txtRole.setText(selectedEmp.getRoleName() != null ? selectedEmp.getRoleName() : "");
+            if (this.account == null) {
+                if (selectedEmp.getEmail() != null && !selectedEmp.getEmail().trim().isEmpty()) {
+                    txtUsername.setText(selectedEmp.getEmail().trim());
+                } else {
+                    txtUsername.setText("");
+                }
+                if (selectedEmp.getBirthday() != null) {
+                    txtPassword.setText(new java.text.SimpleDateFormat("ddMMyyyy").format(selectedEmp.getBirthday()));
+                } else {
+                    txtPassword.setText("123456");
+                }
+            }
+        } else {
+            txtRole.setText("");
+            if (this.account == null) {
+                txtUsername.setText("");
+                txtPassword.setText("");
+            }
+        }
+    }
+
     public void setDataToForm(AccountViewDTO acc, EmployeeDTO currentEmp) {
+        cboEmployee.removeAllItems();
+
+        if (acc != null) {
+            this.account = acc;
+            if (currentEmp != null) {
+                cboEmployee.addItem(currentEmp);
+                cboEmployee.setSelectedIndex(0);
+            }
+            cboEmployee.setEnabled(false);
+            txtRole.setText(currentEmp != null && currentEmp.getRoleName() != null
+                    ? currentEmp.getRoleName()
+                    : (acc.roleName() != null ? acc.roleName() : ""));
+            txtUsername.setText(acc.username() != null ? acc.username() : "");
+            txtPassword.setText("");
+            if (acc.status() == 1) {
+                radActive.setSelected(true);
+            } else {
+                radInactive.setSelected(true);
+            }
+
+            boolean isSelf = SharedData.currentUser != null
+                    && acc.employeeId() == SharedData.currentUser.getEmployeeId();
+            boolean isAdminAccount = acc.roleId() == 1
+                    || (currentEmp != null && currentEmp.getRoleId() == 1);
+            statusLocked = isSelf || isAdminAccount;
+            radActive.setEnabled(!statusLocked);
+            radInactive.setEnabled(!statusLocked);
+            if (statusLocked) {
+                String tip = isAdminAccount
+                        ? "Không thể thay đổi trạng thái tài khoản Quản trị viên (Admin)!"
+                        : "Không thể tự khóa tài khoản đang đăng nhập!";
+                radActive.setToolTipText(tip);
+                radInactive.setToolTipText(tip);
+            } else {
+                radActive.setToolTipText(null);
+                radInactive.setToolTipText(null);
+            }
+            if (btnReset != null && isAdminAccount) {
+                btnReset.setEnabled(false);
+                btnReset.setToolTipText("Không thể khôi phục mật khẩu tài khoản Quản trị viên (Admin) tại đây!");
+            }
+            if (btnSave != null) {
+                btnSave.setEnabled(!statusLocked);
+                btnSave.setBackground(statusLocked ? Color.GRAY : Color.BLACK);
+                btnSave.setToolTipText(statusLocked ? radActive.getToolTipText() : null);
+            }
+            return;
+        }
+
+        statusLocked = false;
+        radActive.setEnabled(true);
+        radInactive.setEnabled(true);
+        radActive.setToolTipText(null);
+        radInactive.setToolTipText(null);
+
         List<EmployeeDTO> availableEmps;
         try {
             availableEmps = employeeApiClient.getEmployeesWithoutAccount();
         } catch (ApiException e) {
             availableEmps = List.of();
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
-        }
-        cboEmployee.removeAllItems();
-
-        if (currentEmp != null) {
-            cboEmployee.addItem(currentEmp);
         }
 
         for (EmployeeDTO emp : availableEmps) {
@@ -287,32 +344,15 @@ public class AccountFormDialog extends JDialog {
             }
         } else {
             cboEmployee.setEnabled(true);
+            cboEmployee.setSelectedIndex(0);
             if (btnCreate != null) {
                 btnCreate.setEnabled(true);
                 btnCreate.setBackground(Color.BLACK);
             }
         }
 
-        if (acc != null) {
-            txtUsername.setText(acc.username());
-            txtPassword.setText("");
-            if (acc.status() == 1) {
-                radActive.setSelected(true);
-            } else {
-                radInactive.setSelected(true);
-            }
-        } else {
-            radActive.setSelected(true);
-        }
-
-        if (currentEmp != null) {
-            for (int i = 0; i < cboEmployee.getItemCount(); i++) {
-                if (cboEmployee.getItemAt(i).getEmployeeId() == currentEmp.getEmployeeId()) {
-                    cboEmployee.setSelectedIndex(i);
-                    break;
-                }
-            }
-        }
+        radActive.setSelected(true);
+        applySelectedEmployeeAutoFill();
     }
 
     public AccountCreateRequestDTO getDataFromForm() {
@@ -329,7 +369,12 @@ public class AccountFormDialog extends JDialog {
             txtUsername.requestFocus();
             return null;
         }
-        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+        if (email.length() > 50) {
+            JOptionPane.showMessageDialog(this, "Email không được vượt quá 50 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            txtUsername.requestFocus();
+            return null;
+        }
+        if (!email.matches(AppConstant.REGEX_EMAIL)) {
             JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             txtUsername.requestFocus();
             return null;

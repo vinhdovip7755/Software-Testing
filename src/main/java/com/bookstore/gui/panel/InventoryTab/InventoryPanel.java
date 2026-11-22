@@ -19,14 +19,14 @@ import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class InventoryPanel extends JPanel implements Refreshable {
     private JTable table;
     private DefaultTableModel tableModel;
-    private JTable lotTable;
-    private DefaultTableModel lotTableModel;
     private final InventoryApiClient inventoryApiClient = new InventoryApiClient();
     private List<BookDTO> currentList = new ArrayList<>();
 
@@ -128,12 +128,27 @@ public class InventoryPanel extends JPanel implements Refreshable {
             }
             int modelRow = table.convertRowIndexToModel(row);
             BookDTO selectedBook = (BookDTO) tableModel.getValueAt(modelRow, 0);
-            loadLotData(selectedBook.getBookId());
-            
-            JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Chi tiết lô nhập: " + selectedBook.getBookName(), Dialog.ModalityType.APPLICATION_MODAL);
+            if (selectedBook == null) {
+                return;
+            }
+
+            List<BookLotDTO> lots;
+            try {
+                lots = inventoryApiClient.getBookLots(selectedBook.getBookId());
+            } catch (ApiException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải chi tiết lô",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            JTable detailLotTable = createLotTable(lots);
+            String bookName = selectedBook.getBookName() != null ? selectedBook.getBookName() : "";
+            JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this),
+                    "Chi tiết lô nhập: " + bookName, Dialog.ModalityType.APPLICATION_MODAL);
+            dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
             dialog.setSize(800, 400);
             dialog.setLocationRelativeTo(this);
-            JScrollPane scroll = new JScrollPane(lotTable);
+            JScrollPane scroll = new JScrollPane(detailLotTable);
             scroll.setBorder(BorderFactory.createEmptyBorder());
             scroll.getViewport().setBackground(Color.WHITE);
             dialog.add(scroll);
@@ -247,71 +262,50 @@ public class InventoryPanel extends JPanel implements Refreshable {
         table.getColumnModel().getColumn(4).setCellRenderer(new StatusRenderer());
         table.getColumnModel().getColumn(0).setPreferredWidth(300);
 
-        table.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                int row = table.getSelectedRow();
-                if (row >= 0) {
-                    int modelRow = table.convertRowIndexToModel(row);
-                    BookDTO selectedBook = (BookDTO) tableModel.getValueAt(modelRow, 0);
-                    loadLotData(selectedBook.getBookId());
-                } else {
-                    lotTableModel.setRowCount(0);
-                }
-            }
-        });
-
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getViewport().setBackground(Color.WHITE);
-
-        // Lot Table
-        String[] lotColumns = {"LÔ ID", "NGÀY NHẬP", "GIÁ NHẬP", "GIÁ BÁN", "SỐ LƯỢNG", "HIỆN TẠI", "TRẠNG THÁI"};
-        lotTableModel = new DefaultTableModel(lotColumns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
-        };
-        lotTable = new JTable(lotTableModel);
-        lotTable.setRowHeight(40);
-        lotTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        lotTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-        lotTable.getTableHeader().setForeground(Color.GRAY);
-        lotTable.getTableHeader().setBackground(Color.WHITE);
-        lotTable.setShowVerticalLines(false);
-        lotTable.setSelectionBackground(Color.decode("#E3F2FD"));
-        lotTable.setSelectionForeground(Color.BLACK);
-        lotTable.setFocusable(false);
-        
-        lotTable.getColumnModel().getColumn(6).setCellRenderer(new LotStatusRenderer());
 
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
 
-    private void loadLotData(int bookId) {
-        lotTableModel.setRowCount(0);
-        List<BookLotDTO> lots;
-        try {
-            lots = inventoryApiClient.getBookLots(bookId);
-        } catch (ApiException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải chi tiết lô",
-                    JOptionPane.ERROR_MESSAGE);
-            return;
+    private JTable createLotTable(List<BookLotDTO> lots) {
+        String[] lotColumns = {"LÔ ID", "NGÀY NHẬP", "GIÁ NHẬP", "GIÁ BÁN", "SỐ LƯỢNG", "HIỆN TẠI", "TRẠNG THÁI"};
+        DefaultTableModel lotModel = new DefaultTableModel(lotColumns, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        if (lots != null) {
+            for (BookLotDTO lot : lots) {
+                String status = lot.getQuantityRemain() > 0 ? (lot.getQuantityRemain() < 10 ? "SẮP HẾT" : "ĐỦ HÀNG") : "HẾT HÀNG";
+                lotModel.insertRow(0, new Object[]{
+                        lot.getLotId(),
+                        lot.getImportDate(),
+                        String.format("%,.0f", lot.getImportPrice()),
+                        String.format("%,.0f", lot.getSellingPrice()),
+                        lot.getQuantityInitial(),
+                        lot.getQuantityRemain(),
+                        status
+                });
+            }
         }
-        for (BookLotDTO lot : lots) {
-            String status = lot.getQuantityRemain() > 0 ? (lot.getQuantityRemain() < 10 ? "SẮP HẾT" : "ĐỦ HÀNG") : "HẾT HÀNG";
-            lotTableModel.insertRow(0, new Object[]{
-                    lot.getLotId(),
-                    lot.getImportDate(),
-                    String.format("%,.0f", lot.getImportPrice()),
-                    String.format("%,.0f", lot.getSellingPrice()),
-                    lot.getQuantityInitial(),
-                    lot.getQuantityRemain(),
-                    status
-            });
-        }
+        JTable detailLotTable = new JTable(lotModel);
+        detailLotTable.setRowHeight(40);
+        detailLotTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        detailLotTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        detailLotTable.getTableHeader().setForeground(Color.GRAY);
+        detailLotTable.getTableHeader().setBackground(Color.WHITE);
+        detailLotTable.setShowVerticalLines(false);
+        detailLotTable.setSelectionBackground(Color.decode("#E3F2FD"));
+        detailLotTable.setSelectionForeground(Color.BLACK);
+        detailLotTable.setFocusable(false);
+        detailLotTable.getColumnModel().getColumn(6).setCellRenderer(new LotStatusRenderer());
+        return detailLotTable;
     }
 
     private void loadData() {
         try {
+            BookInfoRenderer.clearCache();
             currentList = inventoryApiClient.getBooks();
             filterData();
         } catch (ApiException ex) {
@@ -330,7 +324,8 @@ public class InventoryPanel extends JPanel implements Refreshable {
         Set<Integer> uniqueCategories = new HashSet<>();
 
         for (BookDTO book : currentList) {
-            boolean matchKey = keyword.isEmpty() || book.getBookName().toLowerCase().contains(keyword);
+            String bookName = book.getBookName() != null ? book.getBookName().toLowerCase() : "";
+            boolean matchKey = keyword.isEmpty() || bookName.contains(keyword);
 
             String statusDisplay = "Đủ hàng";
             if (book.getQuantity() == 0) statusDisplay = "HẾT HÀNG";
@@ -362,6 +357,39 @@ public class InventoryPanel extends JPanel implements Refreshable {
     }
 
     static class BookInfoRenderer extends DefaultTableCellRenderer {
+        private static final int MAX_CACHE_SIZE = 200;
+        private static final ImageIcon MISSING_ICON = new ImageIcon();
+        private static final Map<String, ImageIcon> COVER_CACHE = new LinkedHashMap<>(64, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, ImageIcon> eldest) {
+                return size() > MAX_CACHE_SIZE;
+            }
+        };
+
+        static void clearCache() {
+            COVER_CACHE.clear();
+        }
+
+        private static ImageIcon getScaledCover(String imageName) {
+            if (imageName == null || imageName.isEmpty()) {
+                return null;
+            }
+            ImageIcon cached = COVER_CACHE.get(imageName);
+            if (cached != null) {
+                return cached == MISSING_ICON ? null : cached;
+            }
+            File file = new File("data/book_covers/" + imageName);
+            if (file.exists()) {
+                ImageIcon scaled = new ImageIcon(
+                        new ImageIcon(file.getAbsolutePath()).getImage().getScaledInstance(45, 60, Image.SCALE_SMOOTH)
+                );
+                COVER_CACHE.put(imageName, scaled);
+                return scaled;
+            }
+            COVER_CACHE.put(imageName, MISSING_ICON);
+            return null;
+        }
+
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 5));
@@ -374,14 +402,15 @@ public class InventoryPanel extends JPanel implements Refreshable {
                 lbIcon.setBackground(Color.decode("#EEEEEE"));
                 lbIcon.setHorizontalAlignment(SwingConstants.CENTER);
 
-                if (book.getImage() != null && !book.getImage().isEmpty()) {
-                    File file = new File("data/book_covers/" + book.getImage());
-                    if (file.exists()) {
-                        lbIcon.setIcon(new ImageIcon(new ImageIcon(file.getAbsolutePath()).getImage().getScaledInstance(45, 60, Image.SCALE_SMOOTH)));
-                    } else { lbIcon.setText("Ảnh"); }
-                } else { lbIcon.setText("Ảnh"); }
+                ImageIcon icon = getScaledCover(book.getImage());
+                if (icon != null) {
+                    lbIcon.setIcon(icon);
+                } else {
+                    lbIcon.setText("Ảnh");
+                }
 
-                JLabel lbName = new JLabel("<html><body style='width: 180px'>" + book.getBookName() + "</body></html>");
+                String safeName = book.getBookName() != null ? book.getBookName() : "";
+                JLabel lbName = new JLabel("<html><body style='width: 180px'>" + safeName + "</body></html>");
                 lbName.setFont(new Font("Segoe UI", Font.BOLD, 14));
                 lbName.setForeground(isSelected ? table.getSelectionForeground() : Color.BLACK);
 

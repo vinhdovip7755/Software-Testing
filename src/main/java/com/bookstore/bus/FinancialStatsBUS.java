@@ -3,6 +3,8 @@ package com.bookstore.bus;
 import com.bookstore.dao.FinancialStatsDAO;
 import com.bookstore.dto.FinancialStatsDTO;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 
@@ -15,7 +17,10 @@ public class FinancialStatsBUS {
     }
 
     public List<FinancialStatsDTO> getThongKeTheoNgay(Date tuNgay, Date denNgay) {
-        return financialStatsDAO.getThongKeTheoNgay(tuNgay, denNgay);
+        validateThongKeTheoNgay(tuNgay, denNgay);
+        Date normalizedFrom = java.sql.Date.valueOf(toLocalDate(tuNgay));
+        Date normalizedTo = java.sql.Date.valueOf(toLocalDate(denNgay));
+        return financialStatsDAO.getThongKeTheoNgay(normalizedFrom, normalizedTo);
     }
 
     public List<FinancialStatsDTO> getThongKeTheoThang(int nam) {
@@ -27,13 +32,25 @@ public class FinancialStatsBUS {
             throw new IllegalArgumentException("Vui lòng chọn đầy đủ khoảng thời gian.");
         }
 
-        if (tuNgay.after(denNgay)) {
+        LocalDate fromDate = toLocalDate(tuNgay);
+        LocalDate toDate = toLocalDate(denNgay);
+
+        if (fromDate.isAfter(toDate)) {
             throw new IllegalArgumentException("Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!");
         }
 
-        if (com.bookstore.util.AppConstant.isDateOutOfBounds(tuNgay) || com.bookstore.util.AppConstant.isDateOutOfBounds(denNgay)) {
+        LocalDate minDate = toLocalDate(com.bookstore.util.AppConstant.SYSTEM_MIN_DATE);
+        LocalDate maxDate = toLocalDate(com.bookstore.util.AppConstant.SYSTEM_MAX_DATE);
+        if (fromDate.isBefore(minDate) || toDate.isAfter(maxDate)) {
             throw new IllegalArgumentException("Khoảng ngày thống kê phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!");
         }
+    }
+
+    private LocalDate toLocalDate(Date date) {
+        if (date instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate();
+        }
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
     public void validateThongKeTheoNam(Date ngayChon) {

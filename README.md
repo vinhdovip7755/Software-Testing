@@ -42,17 +42,17 @@ Dự án được tổ chức theo cấu trúc Maven multi-module (`bookstore-pa
 - `desktop-client` (`BookStoreManager`): Ứng dụng giao diện Java Swing kết hợp các tầng `BUS`, `DAO`, `DTO`, `Util` và `ApiClient`.
 - `api-server` (`bookstore-api`): Dịch vụ Spring Boot REST API cung cấp xác thực Bearer Token, khôi phục mật khẩu OTP, phân quyền RBAC và toàn bộ nghiệp vụ nhà sách.
 
-Để chạy toàn bộ bộ kiểm thử tự động (**220 test cases**: `180` test tại `BookStoreManager` + `40` test tại `bookstore-api`, tỷ lệ đạt **100% Pass**):
+Để chạy toàn bộ bộ kiểm thử tự động (**267 test cases**: `192` test tại `BookStoreManager` + `75` test tại `bookstore-api`, tỷ lệ đạt **100% Pass**):
 
 ```powershell
 mvn test
 ```
 
-Các tài liệu kiểm thử chính trong thư mục `docs/` (đồng bộ cả `.md` và `.docx`):
+Các tài liệu kiểm thử chính trong thư mục `docs/` (được gom nhóm theo từng kỹ thuật kiểm thử, đồng bộ cả `.md` và `.docx`):
 
-- `docs/YEU_CAU_KY_THUAT_TECHNICAL_REQUIREMENTS.md` / `.docx`: Đặc tả **524 Yêu cầu Kỹ thuật (`T1 – T524`)** trên **34 phân hệ**.
-- `docs/BANG_BAO_CAO_LOI_DEFECT_REPORT.md` / `.docx` / `_V2.docx`: Báo cáo chi tiết **15 lỗi (`DF01 – DF15`)** đã khắc phục hoàn toàn (`Closed`).
-- `docs/Test_Execution_Report.md` / `.docx` & `docs/BAO_CAO_THUC_THI_KIEM_THU_TEST_EXECUTION_REPORT.docx`: Báo cáo kết quả thực thi kiểm thử tự động (**220/220 Passed**).
+- `docs/00_Tai_Lieu_Dac_Ta_va_Yeu_Cau/YEU_CAU_KY_THUAT_TECHNICAL_REQUIREMENTS.md` / `.docx`: Đặc tả **524 Yêu cầu Kỹ thuật (`T1 – T524`)** trên **34 phân hệ**.
+- `docs/13_Kiem_Thu_Chuc_Nang_He_Thong_va_Tu_Dong_System_Automation/BANG_BAO_CAO_LOI_DEFECT_REPORT.md` / `.docx` / `_V2.docx`: Báo cáo chi tiết **15 lỗi (`DF01 – DF15`)** đã khắc phục hoàn toàn (`Closed`).
+- `docs/13_Kiem_Thu_Chuc_Nang_He_Thong_va_Tu_Dong_System_Automation/Test_Execution_Report.md` / `.docx` & `docs/13_Kiem_Thu_Chuc_Nang_He_Thong_va_Tu_Dong_System_Automation/BAO_CAO_THUC_THI_KIEM_THU_TEST_EXECUTION_REPORT.docx`: Báo cáo kết quả thực thi kiểm thử tự động (**267/267 Passed**).
 
 ## Chạy API (đợt chuyển đổi Swing sang API)
 

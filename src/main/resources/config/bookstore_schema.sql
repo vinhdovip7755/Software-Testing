@@ -94,6 +94,7 @@ create table book (
     book_id int auto_increment primary key,
     book_name varchar(255) not null,
     publication_year int,
+    cover_price decimal(15, 0) not null default 0,
     selling_price decimal(15, 0) default 0,
     quantity int default 0,
     translator text,
@@ -140,32 +141,6 @@ create table inventory_log (
     reference_id int not null,
     created_date datetime default current_timestamp,
     book_id int not null,
-    foreign key (book_id) references book(book_id)
-);
-
-create table bill (
-	bill_id int auto_increment primary key,
-    created_date datetime default current_timestamp,
-    total_bill_price decimal(15, 0),
-    tax decimal(2,2) default 0,
-    employee_id int not null,
-    customer_id int,
-    payment_method_id int not null,
-    earned_points int default 0,
-    foreign key (employee_id) references employee(employee_id),
-    foreign key (customer_id) references customer(customer_id),
-    foreign key (payment_method_id) references payment_method(payment_method_id)
-);
-
-create table bill_detail (
-    detail_id int auto_increment primary key,
-	bill_id int not null,
-    book_id int not null,
-    book_name varchar(255),
-    quantity int not null,
-    unit_price decimal(15, 0),
-    lot_id int,
-    foreign key (bill_id) references bill(bill_id) on delete cascade,
     foreign key (book_id) references book(book_id)
 );
 

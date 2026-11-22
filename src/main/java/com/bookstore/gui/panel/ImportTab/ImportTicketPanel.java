@@ -4,6 +4,7 @@ import com.bookstore.api.client.ApiException;
 import com.bookstore.api.client.ImportApiClient;
 import com.bookstore.dto.ImportTicketDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.ImportApprovalPolicy;
 import com.bookstore.util.MoneyFormatter;
 import com.bookstore.util.Refreshable;
 import com.bookstore.util.SharedData;
@@ -18,11 +19,16 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class ImportTicketPanel extends JPanel implements Refreshable {
@@ -30,22 +36,68 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
     private JTable table;
     private DefaultTableModel tableModel;
     private List<ImportTicketDTO> currentList = new ArrayList<>();
+    private final List<ImportTicketDTO> displayedList = new ArrayList<>();
 
     private JTextField txtSearch;
     private JDateChooser dchDateFrom, dchDateTo;
     private JComboBox<String> cboStatusFilter;
     private JButton btnResetFilter;
     private JCheckBox chkSelectAll;
+    private JButton btnCancelSelected, btnApproveSelected;
+    private boolean isResetting = false;
 
     private JLabel lbTotalCount, lbCompletedCount, lbPendingCount, lbCanceledCount;
 
     public ImportTicketPanel() {
         initUI();
+        applyPermissions();
         loadData();
     }
 
     @Override
-    public void refresh() { loadData(); }
+    public void refresh() {
+        applyPermissions();
+        loadData();
+    }
+
+    private void applyPermissions() {
+        boolean canManageTicket = PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET");
+        if (chkSelectAll != null) {
+            chkSelectAll.setSelected(false);
+            chkSelectAll.setVisible(canManageTicket);
+            chkSelectAll.setEnabled(canManageTicket);
+        }
+        if (btnCancelSelected != null) {
+            btnCancelSelected.setVisible(canManageTicket);
+            btnCancelSelected.setEnabled(canManageTicket);
+        }
+        if (btnApproveSelected != null) {
+            btnApproveSelected.setVisible(canManageTicket);
+            btnApproveSelected.setEnabled(canManageTicket);
+        }
+        if (table != null && table.getColumnModel().getColumnCount() > 0) {
+            TableColumn checkCol = table.getColumnModel().getColumn(0);
+            if (canManageTicket) {
+                checkCol.setMinWidth(40);
+                checkCol.setMaxWidth(40);
+                checkCol.setPreferredWidth(40);
+            } else {
+                checkCol.setMinWidth(0);
+                checkCol.setMaxWidth(0);
+                checkCol.setPreferredWidth(0);
+            }
+        }
+    }
+
+    private boolean canActOnTicket(ImportTicketDTO ticket) {
+        if (ticket == null || !PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
+            return false;
+        }
+        return ImportApprovalPolicy.canAct(
+                SharedData.currentUser,
+                ticket.getEmployeeID(),
+                ticket.getStatus());
+    }
 
     private void initUI() {
         setLayout(new BorderLayout(0, 20));
@@ -132,28 +184,39 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         pFilter.add(btnResetFilter);
 
         DocumentListener dl = new DocumentListener() {
-            public void insertUpdate(DocumentEvent e) { filterData(); }
-            public void removeUpdate(DocumentEvent e) { filterData(); }
-            public void changedUpdate(DocumentEvent e) { filterData(); }
+            public void insertUpdate(DocumentEvent e) { if (!isResetting) filterData(); }
+            public void removeUpdate(DocumentEvent e) { if (!isResetting) filterData(); }
+            public void changedUpdate(DocumentEvent e) { if (!isResetting) filterData(); }
         };
         txtSearch.getDocument().addDocumentListener(dl);
 
-        if (dchDateFrom.getDateEditor().getUiComponent() instanceof JTextField editorFrom) {
-            editorFrom.getDocument().addDocumentListener(dl);
-        }
-        if (dchDateTo.getDateEditor().getUiComponent() instanceof JTextField editorTo) {
-            editorTo.getDocument().addDocumentListener(dl);
-        }
-
-        dchDateFrom.addPropertyChangeListener("date", evt -> filterData());
-        dchDateTo.addPropertyChangeListener("date", evt -> filterData());
-        cboStatusFilter.addActionListener(e -> filterData());
+        dchDateFrom.addPropertyChangeListener("date", evt -> {
+            if (!isResetting) {
+                filterData();
+            }
+        });
+        dchDateTo.addPropertyChangeListener("date", evt -> {
+            if (!isResetting) {
+                filterData();
+            }
+        });
+        cboStatusFilter.addActionListener(e -> {
+            if (!isResetting) {
+                filterData();
+            }
+        });
 
         btnResetFilter.addActionListener(e -> {
-            txtSearch.setText("");
-            dchDateFrom.setDate(null);
-            dchDateTo.setDate(null);
-            cboStatusFilter.setSelectedIndex(0);
+            isResetting = true;
+            try {
+                txtSearch.setText("");
+                dchDateFrom.setDate(null);
+                dchDateTo.setDate(null);
+                cboStatusFilter.setSelectedIndex(0);
+            } finally {
+                isResetting = false;
+            }
+            filterData();
         });
 
         return pFilter;
@@ -228,7 +291,10 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int col) {
-                return col == 0;
+                if (col != 0 || !PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
+                    return false;
+                }
+                return row >= 0 && row < displayedList.size() && canActOnTicket(displayedList.get(row));
             }
             @Override
             public Class<?> getColumnClass(int columnIndex) {
@@ -247,21 +313,28 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
 
         table.getColumnModel().getColumn(0).setMaxWidth(40);
         table.getColumnModel().getColumn(0).setMinWidth(40);
+        table.getColumnModel().getColumn(0).setCellRenderer(new CheckboxRenderer());
 
         table.getColumnModel().getColumn(6).setCellRenderer(new StatusRenderer());
         table.getColumnModel().getColumn(7).setCellRenderer(new ActionRenderer());
 
         table.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
-                if (table.columnAtPoint(e.getPoint()) == 7) {
-                    String idStr = table.getValueAt(table.rowAtPoint(e.getPoint()), 1).toString().replace("PN", "");
-                    int id = Integer.parseInt(idStr);
-                    ImportTicketDTO selected = currentList.stream().filter(t -> t.getImportID() == id).findFirst().orElse(null);
-                    if(selected != null) {
-                        int currentRoleId = 1;
-                        if (SharedData.currentUser != null) {
-                            currentRoleId = SharedData.currentUser.getRoleId();
-                        }
+                int viewRow = table.rowAtPoint(e.getPoint());
+                int viewCol = table.columnAtPoint(e.getPoint());
+                if (viewRow < 0 || viewCol < 0) {
+                    return;
+                }
+                if (table.convertColumnIndexToModel(viewCol) == 7) {
+                    int modelRow = table.convertRowIndexToModel(viewRow);
+                    if (modelRow < 0 || modelRow >= displayedList.size()) {
+                        return;
+                    }
+                    ImportTicketDTO selected = displayedList.get(modelRow);
+                    if (selected != null) {
+                        int currentRoleId = SharedData.currentUser != null
+                                ? SharedData.currentUser.getRoleId()
+                                : 0;
                         new ImportDetailDialog(SwingUtilities.getWindowAncestor(ImportTicketPanel.this), selected, currentRoleId).setVisible(true);
                         refresh();
                     }
@@ -285,10 +358,14 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         chkSelectAll.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 15));
         chkSelectAll.setCursor(new Cursor(Cursor.HAND_CURSOR));
         chkSelectAll.addActionListener(e -> {
+            if (!PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
+                chkSelectAll.setSelected(false);
+                return;
+            }
             boolean isSelected = chkSelectAll.isSelected();
             for (int i = 0; i < tableModel.getRowCount(); i++) {
-                int status = (int) tableModel.getValueAt(i, 6);
-                if (status == 1) {
+                ImportTicketDTO ticket = i < displayedList.size() ? displayedList.get(i) : null;
+                if (canActOnTicket(ticket)) {
                     tableModel.setValueAt(isSelected, i, 0);
                 } else {
                     tableModel.setValueAt(false, i, 0);
@@ -300,24 +377,22 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         JPanel pRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
         pRight.setBackground(Color.WHITE);
 
-        JButton btnCancelSelected = new JButton("Hủy các phiếu đã chọn");
+        btnCancelSelected = new JButton("Hủy các phiếu đã chọn");
         btnCancelSelected.setBackground(Color.decode("#D32F2F"));
         btnCancelSelected.setForeground(Color.WHITE);
         btnCancelSelected.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         btnCancelSelected.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
         btnCancelSelected.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        JButton btnApproveSelected = new JButton("Duyệt các phiếu đã chọn");
+        btnApproveSelected = new JButton("Duyệt các phiếu đã chọn");
         btnApproveSelected.setBackground(Color.decode(AppConstant.GREEN_COLOR_CODE));
         btnApproveSelected.setForeground(Color.WHITE);
         btnApproveSelected.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         btnApproveSelected.putClientProperty(FlatClientProperties.STYLE, "arc: 10; borderWidth: 0;");
         btnApproveSelected.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        if (PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
-            pRight.add(btnCancelSelected);
-            pRight.add(btnApproveSelected);
-        }
+        pRight.add(btnCancelSelected);
+        pRight.add(btnApproveSelected);
 
         panel.add(pLeft, BorderLayout.WEST);
         panel.add(pRight, BorderLayout.EAST);
@@ -334,17 +409,22 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
     }
 
     private void processMultipleTickets(boolean isApproveAction) {
+        if (!PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")) {
+            return;
+        }
         List<Integer> validIds = new ArrayList<>();
         int totalSelected = 0;
+        int skippedOwnOrForbidden = 0;
 
         for (int i = 0; i < tableModel.getRowCount(); i++) {
-            boolean isChecked = (boolean) tableModel.getValueAt(i, 0);
+            boolean isChecked = Boolean.TRUE.equals(tableModel.getValueAt(i, 0));
             if (isChecked) {
                 totalSelected++;
-                int status = (int) tableModel.getValueAt(i, 6);
-                if (status == 1) {
-                    String idStr = tableModel.getValueAt(i, 1).toString().replace("PN", "");
-                    validIds.add(Integer.parseInt(idStr));
+                ImportTicketDTO ticket = i < displayedList.size() ? displayedList.get(i) : null;
+                if (canActOnTicket(ticket)) {
+                    validIds.add(ticket.getImportID());
+                } else if (ticket != null && ticket.getStatus() == 1) {
+                    skippedOwnOrForbidden++;
                 }
             }
         }
@@ -355,12 +435,19 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         }
 
         if (validIds.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Các phiếu bạn chọn đều đã hoàn thành hoặc đã bị hủy. Chỉ có thể xử lý phiếu Đang chờ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            String errMsg = skippedOwnOrForbidden > 0
+                    ? "Bạn không thể tự duyệt hoặc tự hủy phiếu nhập do chính mình lập!"
+                    : "Các phiếu bạn chọn đều đã hoàn thành hoặc đã bị hủy. Chỉ có thể xử lý phiếu Đang chờ!";
+            JOptionPane.showMessageDialog(this, errMsg, "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         String actionName = isApproveAction ? "DUYỆT" : "HỦY";
-        String msg = "Bạn đã chọn " + totalSelected + " phiếu, nhưng chỉ có " + validIds.size() + " phiếu hợp lệ (Đang chờ).\n\nBạn có chắc chắn muốn " + actionName + " " + validIds.size() + " phiếu này?";
+        String msg = (validIds.size() == totalSelected)
+                ? "Bạn có chắc chắn muốn " + actionName + " " + validIds.size() + " phiếu đã chọn?"
+                : "Bạn đã chọn " + totalSelected + " phiếu, nhưng chỉ có " + validIds.size()
+                  + " phiếu hợp lệ (Đang chờ và không do bạn tự lập).\n\nBạn có chắc chắn muốn "
+                  + actionName + " " + validIds.size() + " phiếu này?";
 
         if (JOptionPane.showConfirmDialog(this, msg, "Xác nhận", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
             int successCount = 0;
@@ -404,72 +491,78 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
         }
     }
 
+    private LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private boolean isDateOutOfBounds(LocalDate date) {
+        Date normalized = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return AppConstant.isDateOutOfBounds(normalized);
+    }
+
     private void filterData() {
+        if (isResetting) {
+            return;
+        }
+
+        Date fromDate = dchDateFrom != null ? dchDateFrom.getDate() : null;
+        Date toDate = dchDateTo != null ? dchDateTo.getDate() : null;
+        LocalDate fromLocal = fromDate != null ? toLocalDate(fromDate) : null;
+        LocalDate toLocal = toDate != null ? toLocalDate(toDate) : null;
+
+        if (fromLocal != null && toLocal != null && fromLocal.isAfter(toLocal)) {
+            JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if ((fromLocal != null && isDateOutOfBounds(fromLocal)) || (toLocal != null && isDateOutOfBounds(toLocal))) {
+            JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         if (chkSelectAll != null) chkSelectAll.setSelected(false);
+        displayedList.clear();
         tableModel.setRowCount(0);
 
         String keyword = txtSearch.getText().trim().toLowerCase();
         int statusIdx = cboStatusFilter.getSelectedIndex();
         int targetStatus = (statusIdx == 1) ? 1 : (statusIdx == 2) ? 2 : (statusIdx == 3) ? 0 : -1;
 
-        java.util.Date fromDate = dchDateFrom != null ? dchDateFrom.getDate() : null;
-        java.util.Date toDate = dchDateTo != null ? dchDateTo.getDate() : null;
-
-        if (fromDate != null && toDate != null && fromDate.after(toDate)) {
-            JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        if ((fromDate != null && AppConstant.isDateOutOfBounds(fromDate)) || (toDate != null && AppConstant.isDateOutOfBounds(toDate))) {
-            JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        if (fromDate != null) {
-            java.util.Calendar calFrom = java.util.Calendar.getInstance();
-            calFrom.setTime(fromDate);
-            calFrom.set(java.util.Calendar.HOUR_OF_DAY, 0);
-            calFrom.set(java.util.Calendar.MINUTE, 0);
-            calFrom.set(java.util.Calendar.SECOND, 0);
-            calFrom.set(java.util.Calendar.MILLISECOND, 0);
-            fromDate = calFrom.getTime();
-        }
-
-        if (toDate != null) {
-            java.util.Calendar calTo = java.util.Calendar.getInstance();
-            calTo.setTime(toDate);
-            calTo.set(java.util.Calendar.HOUR_OF_DAY, 23);
-            calTo.set(java.util.Calendar.MINUTE, 59);
-            calTo.set(java.util.Calendar.SECOND, 59);
-            calTo.set(java.util.Calendar.MILLISECOND, 999);
-            toDate = calTo.getTime();
-        }
-
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
 
         int total = 0, completed = 0, pending = 0, canceled = 0;
 
         for (ImportTicketDTO dto : currentList) {
+            if (dto == null) continue;
             String pnStr = "PN" + String.format("%03d", dto.getImportID());
-            String dateStr = dto.getCreatedDate() != null ? sdf.format(dto.getCreatedDate()) : "";
+            Date createdDate = dto.getCreatedDate();
+            String dateStr = createdDate != null ? sdf.format(createdDate) : "-";
+            String supplierName = dto.getSupplierName() != null ? dto.getSupplierName() : "";
+            String employeeName = dto.getEmployeeName() != null ? dto.getEmployeeName() : "";
 
             boolean matchKey = keyword.isEmpty() || pnStr.toLowerCase().contains(keyword)
-                    || dto.getSupplierName().toLowerCase().contains(keyword)
-                    || dto.getEmployeeName().toLowerCase().contains(keyword);
+                    || supplierName.toLowerCase().contains(keyword)
+                    || employeeName.toLowerCase().contains(keyword);
             boolean matchStatus = (targetStatus == -1) || (dto.getStatus() == targetStatus);
 
             boolean matchDate = true;
-            java.util.Date createdDate = dto.getCreatedDate();
-
-            if (fromDate != null && createdDate.before(fromDate)) matchDate = false;
-            if (toDate != null && createdDate.after(toDate)) matchDate = false;
+            if (fromLocal != null || toLocal != null) {
+                if (createdDate == null) {
+                    matchDate = false;
+                } else {
+                    LocalDate createdLocal = toLocalDate(createdDate);
+                    if (fromLocal != null && createdLocal.isBefore(fromLocal)) matchDate = false;
+                    if (toLocal != null && createdLocal.isAfter(toLocal)) matchDate = false;
+                }
+            }
 
             if (matchKey && matchStatus && matchDate) {
+                displayedList.add(dto);
                 tableModel.addRow(new Object[]{
                         false,
                         pnStr,
-                        dto.getSupplierName(),
+                        supplierName.isEmpty() ? "-" : supplierName,
                         dateStr,
-                        dto.getEmployeeName(),
+                        employeeName.isEmpty() ? "-" : employeeName,
                         MoneyFormatter.toVND(dto.getTotalPrice()),
                         dto.getStatus(),
                         "Chi tiết"
@@ -487,6 +580,23 @@ public class ImportTicketPanel extends JPanel implements Refreshable {
             lbCompletedCount.setText(String.valueOf(completed));
             lbPendingCount.setText(String.valueOf(pending));
             lbCanceledCount.setText(String.valueOf(canceled));
+        }
+    }
+
+    class CheckboxRenderer extends JCheckBox implements TableCellRenderer {
+        CheckboxRenderer() {
+            setHorizontalAlignment(SwingConstants.CENTER);
+            setOpaque(true);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+            int modelRow = table.convertRowIndexToModel(row);
+            boolean actionable = modelRow >= 0 && modelRow < displayedList.size() && canActOnTicket(displayedList.get(modelRow));
+            setEnabled(actionable);
+            setSelected(actionable && Boolean.TRUE.equals(value));
+            return this;
         }
     }
 

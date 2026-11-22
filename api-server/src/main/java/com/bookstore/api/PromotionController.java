@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -27,6 +27,8 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/promotions")
 public class PromotionController {
+    private static final Set<String> SEARCH_TYPES = Set.of("Tên", "Phần trăm", "Thời gian");
+
     private final AuthSessionStore sessionStore;
 
     public PromotionController(AuthSessionStore sessionStore) {
@@ -36,9 +38,7 @@ public class PromotionController {
     @GetMapping
     public List<PromotionDTO> getPromotions(@RequestHeader("Authorization") String authorization) {
         sessionStore.requireAnyView(authorization, "MANAGE_PROMOTION");
-        PromotionBUS promotionBUS = new PromotionBUS();
-        promotionBUS.updateAutoStatus();
-        return promotionBUS.selectAllPromotions();
+        return new PromotionBUS().selectAllPromotionsWithEffectiveStatus();
     }
 
     @GetMapping("/search")
@@ -48,9 +48,10 @@ public class PromotionController {
             @RequestParam(name = "type", defaultValue = "Tên") String type
     ) {
         sessionStore.requireAnyView(authorization, "MANAGE_PROMOTION");
-        PromotionBUS promotionBUS = new PromotionBUS();
-        promotionBUS.updateAutoStatus();
-        return promotionBUS.search(keyword, type);
+        if (!SEARCH_TYPES.contains(type)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loại tìm kiếm khuyến mãi không hợp lệ.");
+        }
+        return new PromotionBUS().search(keyword, type);
     }
 
     @GetMapping("/books")
@@ -76,7 +77,6 @@ public class PromotionController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã sách không hợp lệ.");
         }
         PromotionBUS promotionBUS = new PromotionBUS();
-        promotionBUS.updateAutoStatus();
         return new BookPromotionDTO(
                 bookId,
                 promotionBUS.getPromotionNameByBookId(bookId),
@@ -163,6 +163,7 @@ public class PromotionController {
 
     private void validateRequest(PromotionSaveRequestDTO request) {
         if (request == null || request.promotionName() == null || request.promotionName().isBlank()
+                || request.promotionName().trim().length() > PromotionBUS.MAX_NAME_LENGTH
                 || !Double.isFinite(request.percent()) || request.percent() <= 0 || request.percent() > 100
                 || request.startDate() == null || request.endDate() == null
                 || request.status() < 0 || request.status() > 1

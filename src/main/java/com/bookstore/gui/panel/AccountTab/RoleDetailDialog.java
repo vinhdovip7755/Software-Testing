@@ -16,9 +16,11 @@ public class RoleDetailDialog extends JDialog {
     private RoleDTO role;
     private final RoleApiClient roleApiClient = new RoleApiClient();
     private DefaultTableModel tableModel;
+    private boolean loadedSuccessfully = false;
 
     public RoleDetailDialog(Frame owner, RoleDTO role) {
         super(owner, "Chi tiết phân quyền", true);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.role = role;
         initUI();
         loadPermissionData();
@@ -94,8 +96,14 @@ public class RoleDetailDialog extends JDialog {
                         permission.isCanAction()
                 });
             }
+            loadedSuccessfully = true;
         } catch (ApiException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+            loadedSuccessfully = false;
+            JOptionPane.showMessageDialog(getOwner(), e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public boolean isLoadedSuccessfully() {
+        return loadedSuccessfully;
     }
 }

@@ -19,22 +19,22 @@ public class PromotionDAO {
                 "WHERE pd.book_id = ? " +
                 "AND p.status = 1 " +
                 "AND NOW() BETWEEN p.start_date AND p.end_date " +
-                "ORDER BY p.percent DESC LIMIT 1";
+                "ORDER BY p.percent DESC, p.promotion_id ASC LIMIT 1";
 
-        try (java.sql.Connection c = com.bookstore.util.DatabaseConnection.getConnection();
-             java.sql.PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = DatabaseConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, bookId);
-            try (java.sql.ResultSet rs = ps.executeQuery()) {
+            try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     promoName = rs.getString("promotion_name");
                 }
             }
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
         return promoName;
     }
-    
+
     public double getPromotionPercentByBookId(int bookId) {
         double percent = 0;
         String sql = "SELECT p.percent FROM promotion p " +
@@ -42,7 +42,7 @@ public class PromotionDAO {
                 "WHERE pd.book_id = ? " +
                 "AND p.status = 1 " +
                 "AND NOW() BETWEEN p.start_date AND p.end_date " +
-                "ORDER BY p.percent DESC LIMIT 1";
+                "ORDER BY p.percent DESC, p.promotion_id ASC LIMIT 1";
 
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
@@ -104,9 +104,11 @@ public class PromotionDAO {
             ps.setTimestamp(4, p.getEndDate());
             ps.setInt(5, p.getStatus());
             ps.executeUpdate();
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs.next())
-                return rs.getInt(1);
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -117,7 +119,10 @@ public class PromotionDAO {
         String sql = "INSERT IGNORE INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
-            for (int bookId : bookIds) {
+            for (Integer bookId : bookIds) {
+                if (bookId == null || bookId <= 0) {
+                    continue;
+                }
                 ps.setInt(1, promoId);
                 ps.setInt(2, bookId);
                 ps.addBatch();
@@ -136,9 +141,11 @@ public class PromotionDAO {
         try (Connection c = DatabaseConnection.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, promoId);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next())
-                list.add(rs.getInt("book_id"));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(rs.getInt("book_id"));
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -174,6 +181,10 @@ public class PromotionDAO {
     }
 
     public boolean savePromotionTransaction(boolean isEdit, PromotionDTO dto, List<Integer> bookIds) {
+        if (dto == null || bookIds == null || bookIds.isEmpty()) {
+            return false;
+        }
+
         Connection conn = null;
         try {
             conn = DatabaseConnection.getConnection();
@@ -220,29 +231,53 @@ public class PromotionDAO {
                 }
             }
 
-            if (bookIds != null && !bookIds.isEmpty()) {
-                String sqlDetail = "INSERT IGNORE INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
-                try (PreparedStatement psDetail = conn.prepareStatement(sqlDetail)) {
-                    for (int bookId : bookIds) {
-                        psDetail.setInt(1, promoId);
-                        psDetail.setInt(2, bookId);
-                        psDetail.addBatch();
+            if (promoId <= 0) {
+                conn.rollback();
+                return false;
+            }
+
+            String sqlDetail = "INSERT IGNORE INTO promotion_detail (promotion_id, book_id) VALUES (?, ?)";
+            try (PreparedStatement psDetail = conn.prepareStatement(sqlDetail)) {
+                for (Integer bookId : bookIds) {
+                    if (bookId == null || bookId <= 0) {
+                        conn.rollback();
+                        return false;
                     }
-                    psDetail.executeBatch();
+                    psDetail.setInt(1, promoId);
+                    psDetail.setInt(2, bookId);
+                    psDetail.addBatch();
                 }
+                psDetail.executeBatch();
             }
 
             conn.commit();
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
-            if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            }
+            rollbackQuietly(conn);
             return false;
         } finally {
-            if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ex) {}
+            closeTransactionalConnection(conn);
+        }
+    }
+
+    private void rollbackQuietly(Connection conn) {
+        if (conn != null) {
+            try {
+                conn.rollback();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private void closeTransactionalConnection(Connection conn) {
+        if (conn != null) {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException ignored) {
+            } finally {
+                DatabaseConnection.closeConnection(conn);
             }
         }
     }

@@ -6,6 +6,7 @@ import com.bookstore.dto.AuthorDTO;
 import com.bookstore.api.client.BookApiClient;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -41,6 +42,8 @@ public class AuthorPanel extends JPanel implements Refreshable{
     private JButton saveButton;
     private JButton clearButton;
     private JLabel formTitleLabel;
+    private JSplitPane splitPane;
+    private JPanel rightPanel;
 
     private List<AuthorDTO> allAuthors;
     private List<AuthorDTO> filteredAuthors;
@@ -55,12 +58,44 @@ public class AuthorPanel extends JPanel implements Refreshable{
         allBooks = new ArrayList<>();
         loadAuthorData();
         initUI();
+        applyPermissions();
         loadCountriesToCombo();
         applyFilter();
     }
 
+    private void applyPermissions() {
+        boolean hasAction = PermissionUtil.hasActionPermission("MANAGE_AUTHOR");
+        if (rightPanel != null) {
+            rightPanel.setVisible(hasAction);
+        }
+        if (splitPane != null) {
+            splitPane.setDividerSize(hasAction ? 8 : 0);
+        }
+        if (nameField != null) {
+            nameField.setEditable(hasAction);
+        }
+        if (countryField != null) {
+            countryField.setEditable(hasAction);
+        }
+        if (saveButton != null) {
+            saveButton.setVisible(hasAction);
+            saveButton.setEnabled(hasAction);
+        }
+        if (clearButton != null) {
+            clearButton.setVisible(hasAction);
+            clearButton.setEnabled(hasAction);
+        }
+        if (authorTable != null) {
+            if (!hasAction && authorTable.isEditing()) {
+                authorTable.getCellEditor().cancelCellEditing();
+            }
+            authorTable.repaint();
+        }
+    }
+
     @Override
     public void refresh() {
+        applyPermissions();
         loadAuthorData();
         loadCountriesToCombo();
         applyFilter();
@@ -70,13 +105,14 @@ public class AuthorPanel extends JPanel implements Refreshable{
         setLayout(new BorderLayout(0, 0));
         setBackground(Color.WHITE);
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setBorder(null);
         splitPane.setResizeWeight(0.7);
         splitPane.setDividerSize(8);
 
+        rightPanel = createRightPanel();
         splitPane.setLeftComponent(createLeftPanel());
-        splitPane.setRightComponent(createRightPanel());
+        splitPane.setRightComponent(rightPanel);
 
         add(splitPane, BorderLayout.CENTER);
     }
@@ -140,7 +176,7 @@ public class AuthorPanel extends JPanel implements Refreshable{
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 3;
+                return column == 3 && PermissionUtil.hasActionPermission("MANAGE_AUTHOR");
             }
         };
 
@@ -315,6 +351,9 @@ public class AuthorPanel extends JPanel implements Refreshable{
     }
 
     private void saveAuthor() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_AUTHOR")) {
+            return;
+        }
         String name = nameField.getText().trim();
         String country = countryField.getText().trim();
 
@@ -369,6 +408,9 @@ public class AuthorPanel extends JPanel implements Refreshable{
     }
 
     private void selectAuthorForEdit(int row) {
+        if (!PermissionUtil.hasActionPermission("MANAGE_AUTHOR")) {
+            return;
+        }
         if (row < 0 || row >= filteredAuthors.size()) {
             return;
         }
@@ -430,6 +472,8 @@ public class AuthorPanel extends JPanel implements Refreshable{
     }
 
     private class ButtonCellRenderer extends JButton implements javax.swing.table.TableCellRenderer {
+        private final JLabel emptyLabel = new JLabel("", SwingConstants.CENTER);
+
         public ButtonCellRenderer() {
             setText("Sửa");
             setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -437,10 +481,15 @@ public class AuthorPanel extends JPanel implements Refreshable{
             setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
             setForeground(BUTTON_COLOR);
             setBackground(new Color(245, 245, 245));
+            emptyLabel.setOpaque(true);
         }
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            if (!PermissionUtil.hasActionPermission("MANAGE_AUTHOR")) {
+                emptyLabel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+                return emptyLabel;
+            }
             if (isSelected) {
                 setBackground(new Color(220, 237, 200));
             } else {

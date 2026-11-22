@@ -14,7 +14,6 @@ import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,8 +23,8 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
 
     private final JComboBox<String> cboThongKeTheo = new JComboBox<>(new String[]{"Ngày", "Tháng", "Quý", "Năm"});
 
-    private final JDateChooser dchTuNgay = new JDateChooser(new Date());
-    private final JDateChooser dchDenNgay = new JDateChooser(new Date());
+    private final JDateChooser dchTuNgay = new JDateChooser();
+    private final JDateChooser dchDenNgay = new JDateChooser();
 
     private final JButton btnThongKe = new JButton("Thống kê");
 
@@ -50,6 +49,9 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
     public ProductStatsPanel(){
         dchTuNgay.setDateFormatString("dd/MM/yyyy");
         dchDenNgay.setDateFormatString("dd/MM/yyyy");
+        Date today = Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant());
+        dchTuNgay.setDate(today);
+        dchDenNgay.setDate(today);
         initUI();
         bindEvents();
         loadThongKe();
@@ -190,19 +192,20 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
             return;
         }
 
-        if(tuNgay.after(denNgay)){
+        LocalDate from = toLocalDate(tuNgay);
+        LocalDate to = toLocalDate(denNgay);
+
+        if(from.isAfter(to)){
             JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if(AppConstant.isDateOutOfBounds(tuNgay) || AppConstant.isDateOutOfBounds(denNgay)){
+        if(isDateOutOfBounds(from) || isDateOutOfBounds(to)){
             JOptionPane.showMessageDialog(this, "Khoảng ngày thống kê phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        Calendar endCalendar = Calendar.getInstance();
-        endCalendar.setTime(denNgay);
-        int year = endCalendar.get(Calendar.YEAR);
+        int year = to.getYear();
         List<ProductStatsDTO> data;
         try {
             String type = (String) cboThongKeTheo.getSelectedItem();
@@ -213,14 +216,12 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
             } else if ("Năm".equals(type)) {
                 data = statisticsApiClient.getProductStatsByYear();
             } else {
-                data = statisticsApiClient.getProductStatsByDay(toLocalDate(tuNgay), toLocalDate(denNgay));
+                data = statisticsApiClient.getProductStatsByDay(from, to);
             }
 
-            Calendar startCalendar = Calendar.getInstance();
-            startCalendar.setTime(tuNgay);
-            int month = startCalendar.get(Calendar.MONTH) + 1;
+            int month = from.getMonthValue();
             int quarter = (month - 1) / 3 + 1;
-            int selectedYear = startCalendar.get(Calendar.YEAR);
+            int selectedYear = from.getYear();
             List<ProductStatsDTO> topSelling = statisticsApiClient.getTopSellingProducts(selectedYear, quarter);
             List<ProductStatsDTO> topSlow = statisticsApiClient.getTopSlowProducts(selectedYear, quarter);
 
@@ -289,5 +290,10 @@ public class ProductStatsPanel extends JPanel implements Refreshable{
 
     private LocalDate toLocalDate(Date date) {
         return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private boolean isDateOutOfBounds(LocalDate date) {
+        Date normalized = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return AppConstant.isDateOutOfBounds(normalized);
     }
 }

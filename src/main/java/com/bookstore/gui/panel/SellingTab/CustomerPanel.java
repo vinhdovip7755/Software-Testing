@@ -6,6 +6,7 @@ import com.bookstore.api.client.MembershipRankApiClient;
 import com.bookstore.dto.CustomerDTO;
 import com.bookstore.dto.MembershipRankDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -43,12 +44,25 @@ public class CustomerPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
+        applyPermissions();
         try {
             loadCustomerTable();
             loadRanksToComboBox();
             filterCustomers();
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải dữ liệu khách hàng", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void applyPermissions() {
+        boolean hasAction = PermissionUtil.hasActionPermission("MANAGE_CUSTOMER");
+        if (btnAddCustomer != null) {
+            btnAddCustomer.setVisible(hasAction);
+            btnAddCustomer.setEnabled(hasAction);
+        }
+        if (btnEditCustomer != null) {
+            btnEditCustomer.setVisible(hasAction);
+            btnEditCustomer.setEnabled(hasAction);
         }
     }
 
@@ -59,6 +73,7 @@ public class CustomerPanel extends JPanel implements Refreshable {
 
         add(createTopPanel(), BorderLayout.NORTH);
         add(createTablePanel(), BorderLayout.CENTER);
+        applyPermissions();
         addEvents();
     }
 
@@ -335,6 +350,9 @@ public class CustomerPanel extends JPanel implements Refreshable {
     }
 
     private void openCustomerEditDialog() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_CUSTOMER")) {
+            return;
+        }
         int selectedRow = tblCustomer.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn khách hàng cần sửa!");
@@ -387,6 +405,9 @@ public class CustomerPanel extends JPanel implements Refreshable {
     }
 
     private void openCustomerInsertDialog() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_CUSTOMER")) {
+            return;
+        }
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         CustomerEditDialog dialog = new CustomerEditDialog(parentFrame, this, null);
         dialog.setVisible(true);

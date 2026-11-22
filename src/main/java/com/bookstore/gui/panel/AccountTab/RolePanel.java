@@ -4,7 +4,9 @@ import com.bookstore.api.client.ApiException;
 import com.bookstore.api.client.RoleApiClient;
 import com.bookstore.dto.RoleDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
+import com.bookstore.util.SharedData;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
 
@@ -31,7 +33,25 @@ public class RolePanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
+        applyPermissions();
         loadRoleTable();
+    }
+
+    private void applyPermissions() {
+        boolean canManageRole = PermissionUtil.hasActionPermission("MANAGE_ROLE");
+        if (btnAddRole != null) {
+            btnAddRole.setVisible(canManageRole);
+            btnAddRole.setEnabled(canManageRole);
+        }
+        if (btnEditRole != null) {
+            btnEditRole.setVisible(canManageRole);
+            btnEditRole.setEnabled(canManageRole);
+        }
+    }
+
+    private Frame getOwnerFrame() {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        return (window instanceof Frame frame) ? frame : null;
     }
 
     private void initUI() {
@@ -157,9 +177,16 @@ public class RolePanel extends JPanel implements Refreshable {
 
     private void addEvents() {
         btnAddRole.addActionListener(e -> {
+            if (!PermissionUtil.hasActionPermission("MANAGE_ROLE")) {
+                return;
+            }
             RoleDTO newRole = new RoleDTO(0, "");
 
-            RoleFormDialog dialog = new RoleFormDialog((JFrame) SwingUtilities.getWindowAncestor(this), newRole);
+            RoleFormDialog dialog = new RoleFormDialog(getOwnerFrame(), newRole);
+            if (!dialog.isLoadedSuccessfully()) {
+                dialog.dispose();
+                return;
+            }
             dialog.setVisible(true);
 
             if (dialog.isSaved()) {
@@ -168,21 +195,33 @@ public class RolePanel extends JPanel implements Refreshable {
         });
 
         btnEditRole.addActionListener(e -> {
+            if (!PermissionUtil.hasActionPermission("MANAGE_ROLE")) {
+                return;
+            }
             int selectedRow = tblRole.getSelectedRow();
             if (selectedRow == -1) {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn chức vụ cần sửa!", "Thông báo", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
-            int roleId = (int) tblRole.getValueAt(selectedRow, 0);
+            int modelRow = tblRole.convertRowIndexToModel(selectedRow);
+            int roleId = (int) roleModel.getValueAt(modelRow, 0);
             if (roleId == 1) {
                 JOptionPane.showMessageDialog(this, "Chức vụ Quản trị viên (Admin) mặc định của hệ thống được bảo vệ và không thể chỉnh sửa!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            String roleName = (String) tblRole.getValueAt(selectedRow, 1);
+            if (SharedData.currentUser != null && roleId == SharedData.currentUser.getRoleId()) {
+                JOptionPane.showMessageDialog(this, "Bạn không thể tự chỉnh sửa hoặc thu hồi quyền chức vụ hiện tại của chính mình!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            String roleName = (String) roleModel.getValueAt(modelRow, 1);
             RoleDTO selectedRole = new RoleDTO(roleId, roleName);
 
-            RoleFormDialog dialog = new RoleFormDialog((JFrame) SwingUtilities.getWindowAncestor(this), selectedRole);
+            RoleFormDialog dialog = new RoleFormDialog(getOwnerFrame(), selectedRole);
+            if (!dialog.isLoadedSuccessfully()) {
+                dialog.dispose();
+                return;
+            }
             dialog.setVisible(true);
 
             if (dialog.isSaved()) {
@@ -197,11 +236,16 @@ public class RolePanel extends JPanel implements Refreshable {
                 return;
             }
 
-            int roleId = (int) tblRole.getValueAt(selectedRow, 0);
-            String roleName = (String) tblRole.getValueAt(selectedRow, 1);
+            int modelRow = tblRole.convertRowIndexToModel(selectedRow);
+            int roleId = (int) roleModel.getValueAt(modelRow, 0);
+            String roleName = (String) roleModel.getValueAt(modelRow, 1);
             RoleDTO selectedRole = new RoleDTO(roleId, roleName);
 
-            RoleDetailDialog dialog = new RoleDetailDialog((JFrame) SwingUtilities.getWindowAncestor(this), selectedRole);
+            RoleDetailDialog dialog = new RoleDetailDialog(getOwnerFrame(), selectedRole);
+            if (!dialog.isLoadedSuccessfully()) {
+                dialog.dispose();
+                return;
+            }
             dialog.setVisible(true);
         });
     }

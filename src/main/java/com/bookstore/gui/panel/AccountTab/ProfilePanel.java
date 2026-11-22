@@ -18,6 +18,9 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.text.NumberFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.Locale;
 
 public class ProfilePanel extends JPanel implements Refreshable {
@@ -104,6 +107,10 @@ public class ProfilePanel extends JPanel implements Refreshable {
         gbc.gridx = 1;
         dchBirthday = new JDateChooser();
         dchBirthday.setDateFormatString("dd/MM/yyyy");
+        dchBirthday.setMaxSelectableDate(getMaxBirthdayDate());
+        if (dchBirthday.getDateEditor() instanceof com.toedter.calendar.JTextFieldDateEditor editor) {
+            editor.setEditable(false);
+        }
         dchBirthday.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 15));
         dchBirthday.setPreferredSize(new Dimension(300, 40));
         JPanel pnlDate = new JPanel(new BorderLayout(0, 5));
@@ -171,26 +178,38 @@ public class ProfilePanel extends JPanel implements Refreshable {
         return panel;
     }
 
+    private Date getMaxBirthdayDate() {
+        LocalDate maxBirthday = LocalDate.now().minusYears(18);
+        return Date.from(maxBirthday.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
     private void loadData() {
+        if (txtPassword != null) {
+            txtPassword.setText("");
+        }
+        if (dchBirthday != null) {
+            dchBirthday.setMaxSelectableDate(getMaxBirthdayDate());
+        }
         try {
             ProfileDTO profile = profileApiClient.getProfile();
             EmployeeDTO emp = profile.employee();
             SharedData.currentUser = emp;
-            txtName.setText(emp.getEmployeeName());
-            txtPhone.setText(emp.getEmployeePhone());
-            if (emp.getBirthday() != null) {
-                dchBirthday.setDate(emp.getBirthday());
-            }
-            
+            txtName.setText(emp.getEmployeeName() != null ? emp.getEmployeeName() : "");
+            txtPhone.setText(emp.getEmployeePhone() != null ? emp.getEmployeePhone() : "");
+            dchBirthday.setDate(emp.getBirthday());
+
             NumberFormat currencyFormat = NumberFormat.getInstance(new Locale("vi", "VN"));
             txtSalary.setText(currencyFormat.format(emp.getBaseSalary()) + " VNĐ");
-            
+
             if (emp.getDayIn() != null) {
                 txtDayIn.setText(new java.text.SimpleDateFormat("dd/MM/yyyy").format(emp.getDayIn()));
+            } else {
+                txtDayIn.setText("");
             }
-            
-            txtRole.setText(emp.getRoleName());
-            txtUsername.setText(profile.username());
+
+            txtRole.setText(emp.getRoleName() != null ? emp.getRoleName() : "");
+            txtUsername.setText(profile.username() != null ? profile.username() : "");
+            txtPassword.setText("");
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
@@ -200,7 +219,7 @@ public class ProfilePanel extends JPanel implements Refreshable {
         if (SharedData.currentUser != null) {
             String newName = txtName.getText().trim();
             String newPhone = txtPhone.getText().trim();
-            
+
             if (newName.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Tên nhân viên không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 txtName.requestFocus();
@@ -221,21 +240,42 @@ public class ProfilePanel extends JPanel implements Refreshable {
                 txtPhone.requestFocus();
                 return;
             }
-            
+
             String newUsername = txtUsername.getText().trim();
-            if (!newUsername.isEmpty() && !newUsername.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            if (newUsername.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Email không được để trống!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtUsername.requestFocus();
+                return;
+            }
+            if (newUsername.length() > 50) {
+                JOptionPane.showMessageDialog(this, "Email không được vượt quá 50 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtUsername.requestFocus();
+                return;
+            }
+            if (!newUsername.matches(AppConstant.REGEX_EMAIL)) {
                 JOptionPane.showMessageDialog(this, "Email không đúng định dạng!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 txtUsername.requestFocus();
                 return;
             }
 
             String newPass = new String(txtPassword.getPassword()).trim();
-            if (dchBirthday.getDate() != null) {
-                java.sql.Date birthday = new java.sql.Date(dchBirthday.getDate().getTime());
-                updateProfile(newName, newPhone, birthday, newUsername, newPass);
-            } else {
-                updateProfile(newName, newPhone, null, newUsername, newPass);
+            if (!newPass.isEmpty() && newPass.length() < 4) {
+                JOptionPane.showMessageDialog(this, "Mật khẩu mới phải có ít nhất 4 ký tự!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                txtPassword.requestFocus();
+                return;
             }
+
+            java.sql.Date birthday = null;
+            Date selectedBirthday = dchBirthday.getDate();
+            if (selectedBirthday != null) {
+                LocalDate birthLocal = selectedBirthday.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                if (birthLocal.isAfter(LocalDate.now().minusYears(18))) {
+                    JOptionPane.showMessageDialog(this, "Nhân viên phải đủ 18 tuổi trở lên!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                birthday = java.sql.Date.valueOf(birthLocal);
+            }
+            updateProfile(newName, newPhone, birthday, newUsername, newPass);
         }
     }
 
@@ -244,13 +284,17 @@ public class ProfilePanel extends JPanel implements Refreshable {
             ProfileDTO updated = profileApiClient.updateProfile(
                     new ProfileUpdateRequestDTO(name, phone, birthday, username, password)
             );
-            SharedData.currentUser = updated.employee();
+            EmployeeDTO emp = updated.employee();
+            SharedData.currentUser = emp;
             if (MainFrame.getInstance() != null) {
                 MainFrame.getInstance().updateUserInfo();
             }
             JOptionPane.showMessageDialog(this, "Cập nhật thông tin thành công!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
             txtPassword.setText("");
-            txtUsername.setText(updated.username());
+            txtName.setText(emp.getEmployeeName() != null ? emp.getEmployeeName() : "");
+            txtPhone.setText(emp.getEmployeePhone() != null ? emp.getEmployeePhone() : "");
+            dchBirthday.setDate(emp.getBirthday());
+            txtUsername.setText(updated.username() != null ? updated.username() : "");
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }

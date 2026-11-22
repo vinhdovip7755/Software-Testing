@@ -4,6 +4,7 @@ import com.bookstore.api.client.ApiException;
 import com.bookstore.api.client.CustomerApiClient;
 import com.bookstore.dto.CustomerDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
@@ -89,6 +90,9 @@ public class CustomerSearchDialog extends JDialog {
         btnCreateNew.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
         btnCreateNew.setVisible(false);
         btnCreateNew.addActionListener(e -> {
+            if (!PermissionUtil.hasActionPermission("MANAGE_CUSTOMER")) {
+                return;
+            }
             String searchedPhone = txtPhone.getText().trim();
             Window owner = SwingUtilities.getWindowAncestor(this);
             CustomerEditDialog dialog = new CustomerEditDialog(owner, null, null, searchedPhone);
@@ -173,9 +177,16 @@ public class CustomerSearchDialog extends JDialog {
             lbRank.setText("Hạng thành viên: -");
             lbPoints.setText("Điểm tích lũy: -");
             btnSelect.setEnabled(false);
-            if (btnCreateNew != null) btnCreateNew.setVisible(true);
+            boolean canCreateCustomer = PermissionUtil.hasActionPermission("MANAGE_CUSTOMER");
+            if (btnCreateNew != null) {
+                btnCreateNew.setVisible(canCreateCustomer);
+                btnCreateNew.setEnabled(canCreateCustomer);
+            }
             if (showAlert) {
-                JOptionPane.showMessageDialog(this, "Không tìm thấy khách hàng với số điện thoại: " + phone + ".\nBạn có thể nhấn '+ Tạo mới' để thêm khách hàng.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+                String message = canCreateCustomer
+                        ? "Không tìm thấy khách hàng với số điện thoại: " + phone + ".\nBạn có thể nhấn '+ Tạo mới' để thêm khách hàng."
+                        : "Không tìm thấy khách hàng với số điện thoại: " + phone + ".";
+                JOptionPane.showMessageDialog(this, message, "Thông báo", JOptionPane.INFORMATION_MESSAGE);
             }
         }
     }

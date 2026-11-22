@@ -1,17 +1,37 @@
 param(
-    [ValidateSet('all','emptyEmail','invalidEmail','emptyPassword','wrongPassword','validLogin','bookSearch','addToCart','editCartQuantity','removeFromCart','bookFormValidation','logout')]
+    [ValidateSet('all','emptyEmail','invalidEmail','emptyPassword','wrongPassword','forgotPassword','forgotPasswordSuccess','validLogin','bookSearch','addToCart','editCartQuantity','removeFromCart','bookFormValidation','logout')]
     [string]$Case = 'all',
     [string]$Email = 'vinhyt7755@gmail.com',
     [string]$Password = '',
+    [string]$ForgotEmail = 'lowres14@gmail.com',
+    [string]$ForgotPassword = '01082006',
     [ValidateSet('winappdriver','swing','robot')]
     [string]$Driver = 'winappdriver',
     [int]$StepDelayMs = 700,
+    [switch]$ManualOtp,
+    [int]$ManualOtpWaitSec = 120,
     [switch]$Isolated
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $jar = Join-Path $root 'desktop-client\target\BookStoreApp-jar-with-dependencies.jar'
 if (!(Test-Path $jar)) { throw 'Build desktop-client first. See HUONG-DAN.md.' }
+
+$dotEnvPath = Join-Path $root '.env'
+if (Test-Path $dotEnvPath) {
+    foreach ($rawLine in (Get-Content $dotEnvPath -Encoding UTF8)) {
+        $line = $rawLine.Trim()
+        if (!$line -or $line.StartsWith('#')) { continue }
+        $idx = $line.IndexOf('=')
+        if ($idx -le 0) { continue }
+        $k = $line.Substring(0, $idx).Trim()
+        $v = $line.Substring($idx + 1).Trim().Trim('"').Trim("'")
+        if ($k -eq 'BOOKSTORE_SMTP_PASSWORD') { $v = $v -replace '\s+', '' }
+        if ($k -and $v -and ![Environment]::GetEnvironmentVariable($k, 'Process')) {
+            [Environment]::SetEnvironmentVariable($k, $v, 'Process')
+        }
+    }
+}
 
 function Resolve-JdkBin {
     $candidates = @()
@@ -75,26 +95,52 @@ New-Item -ItemType Directory -Path $runDir -Force | Out-Null
 
 $priorEmail = $env:BOOKSTORE_TEST_EMAIL
 $priorPassword = $env:BOOKSTORE_TEST_PASSWORD
+$priorForgotEmail = $env:BOOKSTORE_FORGOT_EMAIL
+$priorForgotPassword = $env:BOOKSTORE_FORGOT_PASSWORD
 $startedWinAppDriver = $null
+$startedApiServer = $null
+$apiBaseUrl = 'http://127.0.0.1:8080'
+$otpFile = Join-Path $runDir 'test-otp.txt'
 $wadOut = Join-Path $env:TEMP 'bookstore_wad.out.log'
 $wadErr = Join-Path $env:TEMP 'bookstore_wad.err.log'
 $rows = @()
 
 $allCases = @(
-    'emptyEmail', 'invalidEmail', 'emptyPassword', 'wrongPassword', 'validLogin',
+    'emptyEmail', 'invalidEmail', 'emptyPassword', 'wrongPassword', 'forgotPassword', 'forgotPasswordSuccess', 'validLogin',
     'bookSearch', 'addToCart', 'editCartQuantity', 'removeFromCart',
     'bookFormValidation', 'logout'
 )
 $noApiCases = @('emptyEmail', 'invalidEmail')
 
+function Get-FreePort {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    $listener.Start()
+    $port = ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port
+    $listener.Stop()
+    return $port
+}
+
+$otpMode = if ($ManualOtp) { 'manual' } else { 'auto' }
+$extraTimeoutMs = if ($ManualOtp) { ($ManualOtpWaitSec + 30) * 1000 } else { 0 }
+
 function Invoke-UiProcess([string]$ArgCase, [string]$LogFile, [int]$TimeoutMs) {
     $proc = Start-Process -FilePath $java `
-        -ArgumentList @('-Dfile.encoding=UTF-8', "-Dui.driver=$Driver", "-Dui.delayMs=$StepDelayMs", '-cp', ('"' + $classes + ';' + $jar + '"'), 'BookstoreUiTest', $ArgCase) `
+        -ArgumentList @(
+            '-Dfile.encoding=UTF-8',
+            "-Dui.driver=$Driver",
+            "-Dui.delayMs=$StepDelayMs",
+            "-Dbookstore.api.base-url=$apiBaseUrl",
+            "-Dbookstore.otp.mode=$otpMode",
+            "-Dbookstore.otp.waitSec=$ManualOtpWaitSec",
+            "-Dbookstore.otp.file=$otpFile",
+            '-cp', ('"' + $classes + ';' + $jar + '"'),
+            'BookstoreUiTest', $ArgCase
+        ) `
         -WorkingDirectory $root -NoNewWindow -PassThru `
         -RedirectStandardOutput $LogFile -RedirectStandardError "$LogFile.err"
     # Cache Handle so PowerShell 5.1 always populates ExitCode after WaitForExit.
     $null = $proc.Handle
-    if (!$proc.WaitForExit($TimeoutMs)) {
+    if (!$proc.WaitForExit($TimeoutMs + $extraTimeoutMs)) {
         $proc.Kill()
         $proc.WaitForExit()
         return @{ Status = 'TIMEOUT'; ExitCode = -1 }
@@ -132,27 +178,44 @@ try {
 
     if ($noApiCases -notcontains $Case) {
         if ($Case -ne 'emptyPassword') {
-            $apiUp = $false
-            try { Invoke-RestMethod 'http://127.0.0.1:8080/api/health' -TimeoutSec 2 | Out-Null; $apiUp = $true } catch {}
-            if (!$apiUp) {
-                $apiJar = Join-Path $root 'api-server\target\bookstore-api-1.0-SNAPSHOT.jar'
-                if (Test-Path $apiJar) {
-                    Write-Host 'Starting BookStore API server on port 8080...'
-                    Start-Process -FilePath $java -ArgumentList @('-jar', $apiJar) -WorkingDirectory $root -WindowStyle Minimized | Out-Null
-                    $apiDeadline = (Get-Date).AddSeconds(20)
-                    while (!$apiUp -and (Get-Date) -lt $apiDeadline) {
-                        Start-Sleep -Milliseconds 300
-                        try { Invoke-RestMethod 'http://127.0.0.1:8080/api/health' -TimeoutSec 2 | Out-Null; $apiUp = $true } catch {}
-                    }
-                }
+            $apiJar = Join-Path $root 'api-server\target\bookstore-api-1.0-SNAPSHOT.jar'
+            if (!(Test-Path $apiJar)) {
+                throw 'Build api-server first (mvn -f api-server/pom.xml package -DskipTests).'
             }
-            if (!$apiUp) { throw 'Start the BookStore API on port 8080 first (start-api.bat).' }
+            if ($ManualOtp -and (!$env:BOOKSTORE_SMTP_USERNAME -or !$env:BOOKSTORE_SMTP_PASSWORD)) {
+                throw 'Che do -ManualOtp can dien BOOKSTORE_SMTP_USERNAME va BOOKSTORE_SMTP_PASSWORD trong file .env (hoac bien moi truong Windows).'
+            }
+            $apiPort = Get-FreePort
+            $apiBaseUrl = "http://127.0.0.1:$apiPort"
+            if ($ManualOtp) {
+                Write-Host "Starting dedicated test BookStore API server on port $apiPort (REAL Gmail SMTP: $($env:BOOKSTORE_SMTP_USERNAME))..."
+                $apiArgs = @("-Dserver.port=$apiPort", '-jar', $apiJar)
+            } else {
+                Write-Host "Starting dedicated test BookStore API server on port $apiPort (OTP capture enabled)..."
+                $apiArgs = @("-Dserver.port=$apiPort", "-Dbookstore.otp.test-out=$otpFile", '-jar', $apiJar)
+            }
+            $startedApiServer = Start-Process -FilePath $java `
+                -ArgumentList $apiArgs `
+                -WorkingDirectory $root -WindowStyle Hidden -PassThru `
+                -RedirectStandardOutput (Join-Path $runDir 'api-server.out.log') `
+                -RedirectStandardError (Join-Path $runDir 'api-server.err.log')
+            $apiUp = $false
+            $apiDeadline = (Get-Date).AddSeconds(25)
+            while (!$apiUp -and !$startedApiServer.HasExited -and (Get-Date) -lt $apiDeadline) {
+                Start-Sleep -Milliseconds 300
+                try { Invoke-RestMethod "$apiBaseUrl/api/health" -TimeoutSec 2 | Out-Null; $apiUp = $true } catch {}
+            }
+            if (!$apiUp) {
+                throw "Test API server failed to start on port $apiPort. See $runDir\api-server.err.log"
+            }
         }
 
+        $env:BOOKSTORE_FORGOT_EMAIL = $ForgotEmail
+        $env:BOOKSTORE_FORGOT_PASSWORD = $ForgotPassword
         if ($Password) {
             $env:BOOKSTORE_TEST_EMAIL = $Email
             $env:BOOKSTORE_TEST_PASSWORD = $Password
-        } elseif ($Case -eq 'emptyPassword') {
+        } elseif ($Case -eq 'emptyPassword' -or $Case -eq 'forgotPassword' -or $Case -eq 'forgotPasswordSuccess') {
             $env:BOOKSTORE_TEST_EMAIL = $Email
             $env:BOOKSTORE_TEST_PASSWORD = 'unused'
         } elseif (!$env:BOOKSTORE_TEST_EMAIL -or !$env:BOOKSTORE_TEST_PASSWORD) {
@@ -204,6 +267,11 @@ try {
 } finally {
     $env:BOOKSTORE_TEST_EMAIL = $priorEmail
     $env:BOOKSTORE_TEST_PASSWORD = $priorPassword
+    $env:BOOKSTORE_FORGOT_EMAIL = $priorForgotEmail
+    $env:BOOKSTORE_FORGOT_PASSWORD = $priorForgotPassword
+    if ($startedApiServer -and !$startedApiServer.HasExited) {
+        Stop-Process -Id $startedApiServer.Id -Force -ErrorAction SilentlyContinue
+    }
     if ($startedWinAppDriver -and !$startedWinAppDriver.HasExited) {
         Stop-Process -Id $startedWinAppDriver.Id -Force -ErrorAction SilentlyContinue
     }

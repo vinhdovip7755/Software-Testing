@@ -7,115 +7,136 @@ import com.bookstore.util.DatabaseConnection;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class BillDAO {
-    static {
-        ensureBillDetailBookNameColumn();
-    }
+    public static final double MAX_AMOUNT = 999_999_999_999_999.0;
+    private static volatile boolean billDetailBookNameEnsured = false;
 
     private static void ensureBillDetailBookNameColumn() {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            if (conn == null) {
-                throw new SQLException("Không thể kết nối cơ sở dữ liệu để kiểm tra chi tiết hóa đơn.");
+        if (billDetailBookNameEnsured) {
+            return;
+        }
+        synchronized (BillDAO.class) {
+            if (billDetailBookNameEnsured) {
+                return;
             }
-
-            DatabaseMetaData meta = conn.getMetaData();
-            boolean exists = false;
-            try (ResultSet rs = meta.getColumns(null, null, "bill_detail", "book_name")) {
-                exists = rs.next();
-            }
-
-            try (Statement stmt = conn.createStatement()) {
-                if (!exists) {
-                    stmt.executeUpdate("ALTER TABLE bill_detail ADD COLUMN book_name VARCHAR(255) NULL AFTER book_id");
+            try (Connection conn = DatabaseConnection.getConnection()) {
+                DatabaseMetaData meta = conn.getMetaData();
+                boolean exists = false;
+                try (ResultSet rs = meta.getColumns(conn.getCatalog(), null, "bill_detail", "book_name")) {
+                    exists = rs.next();
                 }
-                stmt.executeUpdate("UPDATE bill_detail bd JOIN book b ON bd.book_id = b.book_id "
-                        + "SET bd.book_name = b.book_name WHERE bd.book_name IS NULL");
+
+                try (Statement stmt = conn.createStatement()) {
+                    if (!exists) {
+                        try {
+                            stmt.executeUpdate("ALTER TABLE bill_detail ADD COLUMN book_name VARCHAR(255) NULL AFTER book_id");
+                        } catch (SQLException ex) {
+                            if (ex.getErrorCode() != 1060) {
+                                throw ex;
+                            }
+                        }
+                    }
+                    stmt.executeUpdate("UPDATE bill_detail bd JOIN book b ON bd.book_id = b.book_id "
+                            + "SET bd.book_name = b.book_name WHERE bd.book_name IS NULL");
+                }
+                billDetailBookNameEnsured = true;
+            } catch (SQLException e) {
+                throw new IllegalStateException("Không thể bảo đảm tên sách lịch sử trong chi tiết hóa đơn.", e);
             }
-        } catch (SQLException e) {
-            throw new IllegalStateException("Không thể bảo đảm tên sách lịch sử trong chi tiết hóa đơn.", e);
         }
     }
 
     public int createBillTransaction(BillDTO bill, List<BillDetailDTO> details) {
+        if (!isValidBillPayload(bill, details)) {
+            return -1;
+        }
+        ensureBillDetailBookNameColumn();
+
+        Map<Integer, BillDetailDTO> consolidated = new TreeMap<>();
+        for (BillDetailDTO d : details) {
+            if (consolidated.containsKey(d.getBookId())) {
+                BillDetailDTO exist = consolidated.get(d.getBookId());
+                long newQtyLong = (long) exist.getQuantity() + d.getQuantity();
+                if (newQtyLong > Integer.MAX_VALUE) {
+                    return -1;
+                }
+                int newQty = (int) newQtyLong;
+                double totalCost = exist.getQuantity() * exist.getUnitPrice() + d.getQuantity() * d.getUnitPrice();
+                if (!Double.isFinite(totalCost)) {
+                    return -1;
+                }
+                exist.setQuantity(newQty);
+                exist.setUnitPrice(totalCost / newQty);
+                if ((exist.getBookName() == null || exist.getBookName().isEmpty()) && d.getBookName() != null) {
+                    exist.setBookName(d.getBookName());
+                }
+            } else {
+                consolidated.put(d.getBookId(), new BillDetailDTO(d.getBillId(), d.getBookId(), d.getBookName(), d.getQuantity(), d.getUnitPrice()));
+            }
+        }
+
+        int effectiveEarnedPoints = bill.getCustomerId() > 0 ? bill.getEarnedPoints() : 0;
+
         String sqlBill = "INSERT INTO bill(total_bill_price, tax, employee_id, customer_id, payment_method_id, earned_points) VALUES (?, ?, ?, ?, ?, ?)";
         String sqlDetail = "INSERT INTO bill_detail (bill_id, book_id, book_name, quantity, unit_price, lot_id) VALUES (?, ?, ?, ?, ?, ?)";
-        String sqlCheckStock = "SELECT quantity, book_name FROM book WHERE book_id = ? FOR UPDATE";
+        String sqlCheckStock = "SELECT quantity, book_name FROM book WHERE book_id = ? AND status = 1 FOR UPDATE";
         String sqlUpdateStock = "UPDATE book SET quantity = quantity - ? WHERE book_id = ?";
         String sqlLog = "INSERT INTO inventory_log (action, change_quantity, remain_quantity, reference_id, book_id) VALUES (?, ?, ?, ?, ?)";
-        String sqlFindLots = "SELECT lot_id, quantity_remain FROM book_lot WHERE book_id = ? AND quantity_remain > 0 ORDER BY import_date ASC FOR UPDATE";
+        String sqlFindLots = "SELECT lot_id, quantity_remain FROM book_lot WHERE book_id = ? AND quantity_remain > 0 ORDER BY import_date ASC, lot_id ASC FOR UPDATE";
         String sqlUpdateLot = "UPDATE book_lot SET quantity_remain = quantity_remain - ? WHERE lot_id = ?";
 
         Connection c = null;
-        PreparedStatement psBill = null;
-        PreparedStatement psDetail = null;
-        PreparedStatement psCheck = null;
-        PreparedStatement psUpdate = null;
-        PreparedStatement psLog = null;
-        PreparedStatement psFindLots = null;
-        PreparedStatement psUpdateLot = null;
-        ResultSet rs = null;
-        ResultSet rsStock = null;
-        ResultSet rsLots = null;
-
         try {
             c = DatabaseConnection.getConnection();
             c.setAutoCommit(false);
 
-            psBill = c.prepareStatement(sqlBill, Statement.RETURN_GENERATED_KEYS);
-            psBill.setDouble(1, bill.getTotalBillPrice());
-            psBill.setDouble(2, bill.getTax());
-            psBill.setInt(3, bill.getEmployeeId());
-            if (bill.getCustomerId() > 0) {
-                psBill.setInt(4, bill.getCustomerId());
-            } else {
-                psBill.setNull(4, Types.INTEGER);
-            }
-            psBill.setInt(5, bill.getPaymentMethodId());
-            psBill.setInt(6, bill.getEarnedPoints());
-            psBill.executeUpdate();
-
             int generatedBillId = -1;
-            rs = psBill.getGeneratedKeys();
-            if (rs.next()) {
-                generatedBillId = rs.getInt(1);
-            }
+            try (PreparedStatement psBill = c.prepareStatement(sqlBill, Statement.RETURN_GENERATED_KEYS)) {
+                psBill.setDouble(1, bill.getTotalBillPrice());
+                psBill.setDouble(2, bill.getTax());
+                psBill.setInt(3, bill.getEmployeeId());
+                if (bill.getCustomerId() > 0) {
+                    psBill.setInt(4, bill.getCustomerId());
+                } else {
+                    psBill.setNull(4, Types.INTEGER);
+                }
+                psBill.setInt(5, bill.getPaymentMethodId());
+                psBill.setInt(6, effectiveEarnedPoints);
+                psBill.executeUpdate();
 
-            if (generatedBillId > 0) {
-                psDetail = c.prepareStatement(sqlDetail);
-                psCheck = c.prepareStatement(sqlCheckStock);
-                psUpdate = c.prepareStatement(sqlUpdateStock);
-                psLog = c.prepareStatement(sqlLog);
-                psFindLots = c.prepareStatement(sqlFindLots);
-                psUpdateLot = c.prepareStatement(sqlUpdateLot);
-
-                // Gộp các chi tiết trùng mã sách nếu có
-                java.util.Map<Integer, BillDetailDTO> consolidated = new java.util.LinkedHashMap<>();
-                for (BillDetailDTO d : details) {
-                    if (consolidated.containsKey(d.getBookId())) {
-                        BillDetailDTO exist = consolidated.get(d.getBookId());
-                        double totalCost = exist.getQuantity() * exist.getUnitPrice() + d.getQuantity() * d.getUnitPrice();
-                        int newQty = exist.getQuantity() + d.getQuantity();
-                        exist.setQuantity(newQty);
-                        exist.setUnitPrice(newQty > 0 ? totalCost / newQty : exist.getUnitPrice());
-                        if ((exist.getBookName() == null || exist.getBookName().isEmpty()) && d.getBookName() != null) {
-                            exist.setBookName(d.getBookName());
-                        }
-                    } else {
-                        consolidated.put(d.getBookId(), new BillDetailDTO(d.getBillId(), d.getBookId(), d.getBookName(), d.getQuantity(), d.getUnitPrice()));
+                try (ResultSet rs = psBill.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        generatedBillId = rs.getInt(1);
                     }
                 }
+            }
+
+            if (generatedBillId <= 0) {
+                c.rollback();
+                return 0;
+            }
+
+            try (PreparedStatement psDetail = c.prepareStatement(sqlDetail);
+                 PreparedStatement psCheck = c.prepareStatement(sqlCheckStock);
+                 PreparedStatement psUpdate = c.prepareStatement(sqlUpdateStock);
+                 PreparedStatement psLog = c.prepareStatement(sqlLog);
+                 PreparedStatement psFindLots = c.prepareStatement(sqlFindLots);
+                 PreparedStatement psUpdateLot = c.prepareStatement(sqlUpdateLot)) {
 
                 for (BillDetailDTO detail : consolidated.values()) {
+                    int currentStock;
+                    String bookNameFromDb;
                     psCheck.setInt(1, detail.getBookId());
-                    rsStock = psCheck.executeQuery();
-                    int currentStock = 0;
-                    String bookNameFromDb = null;
-                    if (rsStock.next()) {
+                    try (ResultSet rsStock = psCheck.executeQuery()) {
+                        if (!rsStock.next()) {
+                            throw new SQLException("Sách ID " + detail.getBookId() + " không tồn tại hoặc đã ngừng bán!");
+                        }
                         currentStock = rsStock.getInt("quantity");
                         bookNameFromDb = rsStock.getString("book_name");
                     }
-                    rsStock.close();
 
                     String finalBookName = (detail.getBookName() != null && !detail.getBookName().trim().isEmpty())
                             ? detail.getBookName()
@@ -126,32 +147,28 @@ public class BillDAO {
                     }
 
                     int requiredQty = detail.getQuantity();
-
                     psFindLots.setInt(1, detail.getBookId());
-                    rsLots = psFindLots.executeQuery();
+                    try (ResultSet rsLots = psFindLots.executeQuery()) {
+                        while (rsLots.next() && requiredQty > 0) {
+                            int lotId = rsLots.getInt("lot_id");
+                            int remainInLot = rsLots.getInt("quantity_remain");
+                            int deductQty = Math.min(requiredQty, remainInLot);
 
-                    while (rsLots.next() && requiredQty > 0) {
-                        int lotId = rsLots.getInt("lot_id");
-                        int remainInLot = rsLots.getInt("quantity_remain");
+                            psUpdateLot.setInt(1, deductQty);
+                            psUpdateLot.setInt(2, lotId);
+                            psUpdateLot.executeUpdate();
 
-                        int deductQty = Math.min(requiredQty, remainInLot);
+                            psDetail.setInt(1, generatedBillId);
+                            psDetail.setInt(2, detail.getBookId());
+                            psDetail.setString(3, finalBookName);
+                            psDetail.setInt(4, deductQty);
+                            psDetail.setDouble(5, detail.getUnitPrice());
+                            psDetail.setInt(6, lotId);
+                            psDetail.executeUpdate();
 
-                        psUpdateLot.setInt(1, deductQty);
-                        psUpdateLot.setInt(2, lotId);
-                        psUpdateLot.executeUpdate();
-
-                        // Chèn 1 dòng bill_detail cho từng lô tương ứng để theo dõi giá vốn chính xác
-                        psDetail.setInt(1, generatedBillId);
-                        psDetail.setInt(2, detail.getBookId());
-                        psDetail.setString(3, finalBookName);
-                        psDetail.setInt(4, deductQty);
-                        psDetail.setDouble(5, detail.getUnitPrice());
-                        psDetail.setInt(6, lotId);
-                        psDetail.executeUpdate();
-
-                        requiredQty -= deductQty;
+                            requiredQty -= deductQty;
+                        }
                     }
-                    rsLots.close();
 
                     if (requiredQty > 0) {
                         throw new SQLException("Sách ID " + detail.getBookId() + " không đủ tồn kho trong lô!");
@@ -170,50 +187,50 @@ public class BillDAO {
                     psLog.setInt(5, detail.getBookId());
                     psLog.executeUpdate();
                 }
+            }
 
-                if (bill.getCustomerId() > 0 && bill.getEarnedPoints() > 0) {
-                    String sqlUpdatePoint = "UPDATE customer SET point = point + ? WHERE customer_id = ?";
-                    try (PreparedStatement psUpdatePoint = c.prepareStatement(sqlUpdatePoint)) {
-                        psUpdatePoint.setInt(1, bill.getEarnedPoints());
-                        psUpdatePoint.setInt(2, bill.getCustomerId());
-                        psUpdatePoint.executeUpdate();
-                    }
+            if (bill.getCustomerId() > 0 && effectiveEarnedPoints > 0) {
+                String sqlUpdatePoint = "UPDATE customer SET point = point + ? WHERE customer_id = ?";
+                try (PreparedStatement psUpdatePoint = c.prepareStatement(sqlUpdatePoint)) {
+                    psUpdatePoint.setInt(1, effectiveEarnedPoints);
+                    psUpdatePoint.setInt(2, bill.getCustomerId());
+                    psUpdatePoint.executeUpdate();
+                }
 
-                    String sqlCheckRank = "SELECT c.point, c.rank_id, r.min_point " +
-                            "FROM customer c JOIN membership_rank r ON c.rank_id = r.rank_id " +
-                            "WHERE c.customer_id = ?";
-                    int currentPoint = 0;
-                    int currentRankId = 0;
+                String sqlCheckRank = "SELECT c.point, c.rank_id, r.min_point " +
+                        "FROM customer c JOIN membership_rank r ON c.rank_id = r.rank_id " +
+                        "WHERE c.customer_id = ?";
+                int currentPoint = 0;
+                int currentRankId = 0;
 
-                    try (PreparedStatement psCheckRank = c.prepareStatement(sqlCheckRank)) {
-                        psCheckRank.setInt(1, bill.getCustomerId());
-                        ResultSet rsRank = psCheckRank.executeQuery();
+                try (PreparedStatement psCheckRank = c.prepareStatement(sqlCheckRank)) {
+                    psCheckRank.setInt(1, bill.getCustomerId());
+                    try (ResultSet rsRank = psCheckRank.executeQuery()) {
                         if (rsRank.next()) {
                             currentPoint = rsRank.getInt("point");
                             currentRankId = rsRank.getInt("rank_id");
                         }
-                        rsRank.close();
                     }
+                }
 
-                    String sqlFindNewRank = "SELECT rank_id FROM membership_rank WHERE min_point <= ? ORDER BY min_point DESC LIMIT 1";
-                    int newRankId = currentRankId;
+                String sqlFindNewRank = "SELECT rank_id FROM membership_rank WHERE min_point <= ? ORDER BY min_point DESC LIMIT 1";
+                int newRankId = currentRankId;
 
-                    try (PreparedStatement psFindRank = c.prepareStatement(sqlFindNewRank)) {
-                        psFindRank.setInt(1, currentPoint);
-                        ResultSet rsNewRank = psFindRank.executeQuery();
+                try (PreparedStatement psFindRank = c.prepareStatement(sqlFindNewRank)) {
+                    psFindRank.setInt(1, currentPoint);
+                    try (ResultSet rsNewRank = psFindRank.executeQuery()) {
                         if (rsNewRank.next()) {
                             newRankId = rsNewRank.getInt("rank_id");
                         }
-                        rsNewRank.close();
                     }
+                }
 
-                    if (newRankId != currentRankId) {
-                        String sqlUpdateRank = "UPDATE customer SET rank_id = ? WHERE customer_id = ?";
-                        try (PreparedStatement psUpdateRank = c.prepareStatement(sqlUpdateRank)) {
-                            psUpdateRank.setInt(1, newRankId);
-                            psUpdateRank.setInt(2, bill.getCustomerId());
-                            psUpdateRank.executeUpdate();
-                        }
+                if (newRankId != currentRankId) {
+                    String sqlUpdateRank = "UPDATE customer SET rank_id = ? WHERE customer_id = ?";
+                    try (PreparedStatement psUpdateRank = c.prepareStatement(sqlUpdateRank)) {
+                        psUpdateRank.setInt(1, newRankId);
+                        psUpdateRank.setInt(2, bill.getCustomerId());
+                        psUpdateRank.executeUpdate();
                     }
                 }
             }
@@ -223,26 +240,10 @@ public class BillDAO {
 
         } catch (SQLException e) {
             e.printStackTrace();
-            if (c != null) {
-                try {
-                    c.rollback();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
+            rollbackQuietly(c);
             return 0;
         } finally {
-            try { if (rsLots != null) rsLots.close(); } catch (Exception e) {}
-            try { if (rsStock != null) rsStock.close(); } catch (Exception e) {}
-            try { if (rs != null) rs.close(); } catch (Exception e) {}
-            try { if (psLog != null) psLog.close(); } catch (Exception e) {}
-            try { if (psUpdate != null) psUpdate.close(); } catch (Exception e) {}
-            try { if (psCheck != null) psCheck.close(); } catch (Exception e) {}
-            try { if (psDetail != null) psDetail.close(); } catch (Exception e) {}
-            try { if (psFindLots != null) psFindLots.close(); } catch (Exception e) {}
-            try { if (psUpdateLot != null) psUpdateLot.close(); } catch (Exception e) {}
-            try { if (psBill != null) psBill.close(); } catch (Exception e) {}
-            try { if (c != null) { c.setAutoCommit(true); c.close(); } } catch (Exception e) {}
+            closeTransactionalConnection(c);
         }
     }
 
@@ -318,6 +319,7 @@ public class BillDAO {
     }
 
     public List<BillDetailDTO> getBillDetailsByBillId(int billId) {
+        ensureBillDetailBookNameColumn();
         List<BillDetailDTO> list = new ArrayList<>();
         String sql = "SELECT bd.bill_id, bd.book_id, bd.book_name, SUM(bd.quantity) as quantity, bd.unit_price " +
                 "FROM bill_detail bd " +
@@ -345,5 +347,53 @@ public class BillDAO {
         }
 
         return list;
+    }
+
+    private boolean isValidBillPayload(BillDTO bill, List<BillDetailDTO> details) {
+        if (bill == null || details == null || details.isEmpty()) {
+            return false;
+        }
+        if (bill.getEmployeeId() <= 0 || bill.getPaymentMethodId() <= 0 || bill.getCustomerId() < 0) {
+            return false;
+        }
+        if (!Double.isFinite(bill.getTotalBillPrice()) || bill.getTotalBillPrice() < 0 || bill.getTotalBillPrice() > MAX_AMOUNT) {
+            return false;
+        }
+        if (!Double.isFinite(bill.getTax()) || bill.getTax() < 0 || bill.getTax() > 1) {
+            return false;
+        }
+        if (bill.getEarnedPoints() < 0) {
+            return false;
+        }
+        for (BillDetailDTO detail : details) {
+            if (detail == null || detail.getBookId() <= 0 || detail.getQuantity() <= 0) {
+                return false;
+            }
+            if (!Double.isFinite(detail.getUnitPrice()) || detail.getUnitPrice() < 0 || detail.getUnitPrice() > MAX_AMOUNT) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void rollbackQuietly(Connection conn) {
+        if (conn != null) {
+            try {
+                conn.rollback();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private void closeTransactionalConnection(Connection conn) {
+        if (conn != null) {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException ignored) {
+            } finally {
+                DatabaseConnection.closeConnection(conn);
+            }
+        }
     }
 }

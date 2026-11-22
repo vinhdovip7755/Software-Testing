@@ -6,6 +6,7 @@ import com.bookstore.api.client.CategoryApiClient;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.CategoryDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 
 import javax.swing.*;
@@ -32,6 +33,8 @@ public class CategoryPanel extends JPanel implements Refreshable {
     private JLabel formTitleLabel;
     private JButton saveButton;
     private JButton resetButton;
+    private JSplitPane splitPane;
+    private JPanel rightPanel;
 
     private List<CategoryDTO> categories;
     private List<BookDTO> books;
@@ -42,11 +45,40 @@ public class CategoryPanel extends JPanel implements Refreshable {
         bookBUS = new BookApiClient();
 
         initUI();
+        applyPermissions();
         loadData();
+    }
+
+    private void applyPermissions() {
+        boolean hasAction = PermissionUtil.hasActionPermission("MANAGE_CATEGORY");
+        if (rightPanel != null) {
+            rightPanel.setVisible(hasAction);
+        }
+        if (splitPane != null) {
+            splitPane.setDividerSize(hasAction ? 8 : 0);
+        }
+        if (categoryNameField != null) {
+            categoryNameField.setEditable(hasAction);
+        }
+        if (saveButton != null) {
+            saveButton.setVisible(hasAction);
+            saveButton.setEnabled(hasAction);
+        }
+        if (resetButton != null) {
+            resetButton.setVisible(hasAction);
+            resetButton.setEnabled(hasAction);
+        }
+        if (categoryTable != null) {
+            if (!hasAction && categoryTable.isEditing()) {
+                categoryTable.getCellEditor().cancelCellEditing();
+            }
+            categoryTable.repaint();
+        }
     }
 
     @Override
     public void refresh() {
+        applyPermissions();
         loadData();
     }
 
@@ -56,7 +88,8 @@ public class CategoryPanel extends JPanel implements Refreshable {
         JPanel contentPanel = new JPanel(new BorderLayout());
         contentPanel.setBorder(new EmptyBorder(20, 25, 20, 25));
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, createLeftPanel(), createRightPanel());
+        rightPanel = createRightPanel();
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, createLeftPanel(), rightPanel);
         splitPane.setDividerLocation(0.6);
         splitPane.setResizeWeight(0.6);
         splitPane.setBorder(null);
@@ -79,7 +112,7 @@ public class CategoryPanel extends JPanel implements Refreshable {
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 2;
+                return column == 2 && PermissionUtil.hasActionPermission("MANAGE_CATEGORY");
             }
         };
 
@@ -216,6 +249,9 @@ public class CategoryPanel extends JPanel implements Refreshable {
     }
 
     private void onSaveCategory() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_CATEGORY")) {
+            return;
+        }
         String newCategoryName = categoryNameField.getText().trim();
 
         if (newCategoryName.isEmpty()) {
@@ -224,8 +260,8 @@ public class CategoryPanel extends JPanel implements Refreshable {
             return;
         }
 
-        if (!newCategoryName.matches("^(?=.*\\p{L})[\\p{L}\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$")) {
-            JOptionPane.showMessageDialog(this, "Tên thể loại không hợp lệ!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+        if (newCategoryName.length() > com.bookstore.bus.CategoryBUS.MAX_NAME_LENGTH) {
+            JOptionPane.showMessageDialog(this, "Tên thể loại không được vượt quá 100 ký tự!", "Thông báo", JOptionPane.WARNING_MESSAGE);
             categoryNameField.requestFocus();
             return;
         }
@@ -271,6 +307,9 @@ public class CategoryPanel extends JPanel implements Refreshable {
     }
 
     private void startEditCategory(int row) {
+        if (!PermissionUtil.hasActionPermission("MANAGE_CATEGORY")) {
+            return;
+        }
         CategoryDTO category = (CategoryDTO) tableModel.getValueAt(row, 0);
         editingCategoryId = category.getCategoryId();
         categoryNameField.setText(category.getCategoryName());
@@ -288,6 +327,8 @@ public class CategoryPanel extends JPanel implements Refreshable {
     }
 
     private class ActionButtonRenderer extends JButton implements TableCellRenderer {
+        private final JLabel emptyLabel = new JLabel("", SwingConstants.CENTER);
+
         ActionButtonRenderer() {
             setText("Sửa");
             setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -295,10 +336,15 @@ public class CategoryPanel extends JPanel implements Refreshable {
             setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
             setForeground(BUTTON_COLOR);
             setBackground(new Color(245, 245, 245));
+            emptyLabel.setOpaque(true);
         }
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            if (!PermissionUtil.hasActionPermission("MANAGE_CATEGORY")) {
+                emptyLabel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+                return emptyLabel;
+            }
             if (isSelected) {
                 setBackground(new Color(220, 237, 200));
             } else {

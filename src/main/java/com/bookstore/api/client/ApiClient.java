@@ -71,17 +71,17 @@ public final class ApiClient {
                 System.getenv().getOrDefault("BOOKSTORE_API_BASE_URL", "http://127.0.0.1:8080")
         );
 
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl).resolve(path))
-                .timeout(Duration.ofSeconds(20))
-                .header("Accept", "application/json");
-
-        String token = accessToken;
-        if (token != null && !token.isBlank()) {
-            requestBuilder.header("Authorization", "Bearer " + token);
-        }
-
         try {
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl).resolve(path))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("Accept", "application/json");
+
+            String token = accessToken;
+            if (token != null && !token.isBlank()) {
+                requestBuilder.header("Authorization", "Bearer " + token);
+            }
+
             if (body == null) {
                 requestBuilder.method(method, HttpRequest.BodyPublishers.noBody());
             } else {
@@ -106,6 +106,8 @@ public final class ApiClient {
             return OBJECT_MAPPER.readValue(response.body(), responseType);
         } catch (ApiException e) {
             throw e;
+        } catch (IllegalArgumentException e) {
+            throw new ApiException("Đường dẫn yêu cầu API không hợp lệ.", e);
         } catch (JsonProcessingException e) {
             throw new ApiException("Không thể mã hóa hoặc giải mã dữ liệu API.", e);
         } catch (IOException e) {

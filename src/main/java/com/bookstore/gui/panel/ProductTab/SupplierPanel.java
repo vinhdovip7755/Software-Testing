@@ -6,6 +6,7 @@ import com.bookstore.api.client.SupplierApiClient;
 import com.bookstore.dto.BookDTO;
 import com.bookstore.dto.SupplierDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -39,7 +40,10 @@ public class SupplierPanel extends JPanel implements Refreshable {
     private JTextField addressField;
     private JTextField phoneField;
     private JButton saveButton;
+    private JButton clearButton;
     private JLabel formTitleLabel;
+    private JSplitPane splitPane;
+    private JPanel rightPanel;
 
     private List<SupplierDTO> allSuppliers;
     private List<SupplierDTO> filteredSuppliers;
@@ -55,11 +59,46 @@ public class SupplierPanel extends JPanel implements Refreshable {
 
         loadData();
         initUI();
+        applyPermissions();
         applyFilter();
+    }
+
+    private void applyPermissions() {
+        boolean hasAction = PermissionUtil.hasActionPermission("MANAGE_SUPPLIER");
+        if (rightPanel != null) {
+            rightPanel.setVisible(hasAction);
+        }
+        if (splitPane != null) {
+            splitPane.setDividerSize(hasAction ? 8 : 0);
+        }
+        if (nameField != null) {
+            nameField.setEditable(hasAction);
+        }
+        if (addressField != null) {
+            addressField.setEditable(hasAction);
+        }
+        if (phoneField != null) {
+            phoneField.setEditable(hasAction);
+        }
+        if (saveButton != null) {
+            saveButton.setVisible(hasAction);
+            saveButton.setEnabled(hasAction);
+        }
+        if (clearButton != null) {
+            clearButton.setVisible(hasAction);
+            clearButton.setEnabled(hasAction);
+        }
+        if (supplierTable != null) {
+            if (!hasAction && supplierTable.isEditing()) {
+                supplierTable.getCellEditor().cancelCellEditing();
+            }
+            supplierTable.repaint();
+        }
     }
 
     @Override
     public void refresh() {
+        applyPermissions();
         loadData();
         applyFilter();
     }
@@ -68,13 +107,14 @@ public class SupplierPanel extends JPanel implements Refreshable {
         setLayout(new BorderLayout(0, 0));
         setBackground(Color.WHITE);
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setBorder(null);
         splitPane.setResizeWeight(0.7);
         splitPane.setDividerSize(8);
 
+        rightPanel = createRightPanel();
         splitPane.setLeftComponent(createLeftPanel());
-        splitPane.setRightComponent(createRightPanel());
+        splitPane.setRightComponent(rightPanel);
 
         add(splitPane, BorderLayout.CENTER);
     }
@@ -122,7 +162,7 @@ public class SupplierPanel extends JPanel implements Refreshable {
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 4;
+                return column == 4 && PermissionUtil.hasActionPermission("MANAGE_SUPPLIER");
             }
         };
 
@@ -227,7 +267,7 @@ public class SupplierPanel extends JPanel implements Refreshable {
         saveButton.addActionListener(e -> saveSupplier());
         buttonPanel.add(saveButton);
 
-        JButton clearButton = createStyledButton("LÀM MỚI", Color.decode("#757575"));
+        clearButton = createStyledButton("LÀM MỚI", Color.decode("#757575"));
         clearButton.addActionListener(e -> resetForm());
         buttonPanel.add(clearButton);
 
@@ -282,6 +322,9 @@ public class SupplierPanel extends JPanel implements Refreshable {
     }
 
     private void saveSupplier() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SUPPLIER")) {
+            return;
+        }
         String name = nameField.getText().trim();
         String address = addressField.getText().trim();
         String phone = phoneField.getText().trim();
@@ -397,6 +440,9 @@ public class SupplierPanel extends JPanel implements Refreshable {
     }
 
     private void selectSupplierForEdit(int row) {
+        if (!PermissionUtil.hasActionPermission("MANAGE_SUPPLIER")) {
+            return;
+        }
         if (row < 0 || row >= filteredSuppliers.size()) {
             return;
         }
@@ -453,6 +499,8 @@ public class SupplierPanel extends JPanel implements Refreshable {
     }
 
     private class ButtonCellRenderer extends JButton implements javax.swing.table.TableCellRenderer {
+        private final JLabel emptyLabel = new JLabel("", SwingConstants.CENTER);
+
         public ButtonCellRenderer() {
             setText("Sửa");
             setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -460,10 +508,15 @@ public class SupplierPanel extends JPanel implements Refreshable {
             setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
             setForeground(BUTTON_COLOR);
             setBackground(new Color(245, 245, 245));
+            emptyLabel.setOpaque(true);
         }
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            if (!PermissionUtil.hasActionPermission("MANAGE_SUPPLIER")) {
+                emptyLabel.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
+                return emptyLabel;
+            }
             if (isSelected) {
                 setBackground(new Color(220, 237, 200));
             } else {

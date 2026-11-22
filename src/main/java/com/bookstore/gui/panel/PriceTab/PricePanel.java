@@ -1,6 +1,5 @@
 package com.bookstore.gui.panel.PriceTab;
 
-import com.bookstore.util.AppConstant;
 import com.bookstore.api.client.ApiException;
 import com.bookstore.api.client.PriceApiClient;
 import com.bookstore.dto.PriceDTO;
@@ -41,8 +40,10 @@ public class PricePanel extends JPanel implements Refreshable {
     @Override
     public void refresh() {
         try {
-            this.listPrices = priceApiClient.getPrices();
+            List<PriceDTO> fetched = priceApiClient.getPrices();
+            this.listPrices = fetched != null ? fetched : new ArrayList<>();
             this.listHienThi = this.listPrices;
+            this.hasSearched = false;
             capNhatBang(listHienThi);
         } catch (ApiException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải bảng giá",
@@ -309,34 +310,6 @@ public class PricePanel extends JPanel implements Refreshable {
         tableCard = new JPanel(new BorderLayout(0, 15));
         tableCard.setOpaque(false);
 
-        JPanel toolbar = new JPanel(new BorderLayout());
-        toolbar.setOpaque(false);
-        toolbar.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 0));
-
-        JButton btnLoiNhuan = new JButton("Chỉnh lợi nhuận chung");
-        btnLoiNhuan.setVisible(false);
-        btnLoiNhuan.setPreferredSize(new Dimension(220, 45));
-        btnLoiNhuan.setBackground(Color.decode(AppConstant.GREEN_COLOR_CODE));
-        btnLoiNhuan.setForeground(Color.WHITE);
-        btnLoiNhuan.setFocusPainted(false);
-        btnLoiNhuan.setBorderPainted(false);
-        btnLoiNhuan.setContentAreaFilled(false);
-
-        btnLoiNhuan.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
-            @Override
-            public void paint(Graphics g, JComponent c) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(c.getBackground());
-                g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), 25, 25);
-                g2.dispose();
-                super.paint(g, c);
-            }
-        });
-
-        btnLoiNhuan.addActionListener(e -> showEditAllBooksProfitDialog());
-        toolbar.add(btnLoiNhuan, BorderLayout.WEST);
-
         JPanel whiteBox = new JPanel(new BorderLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
@@ -368,27 +341,7 @@ public class PricePanel extends JPanel implements Refreshable {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
         scroll1.getViewport().setBackground(Color.WHITE);
 
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int col = table.columnAtPoint(e.getPoint());
-if(true) return;
-                int row = table.getSelectedRow();
-                if (row == -1)
-                    return;
-
-                if (e.getClickCount() == 2) {
-                    table.clearSelection();
-                    table.repaint();
-                    return;
-                }
-
-                
-            }
-        });
-
         whiteBox.add(scroll1);
-        tableCard.add(toolbar, BorderLayout.NORTH);
         tableCard.add(whiteBox, BorderLayout.CENTER);
 
         add(searchCard, BorderLayout.NORTH);
@@ -449,78 +402,6 @@ if(true) return;
         });
 
         
-    }
-
-    private void showEditPriceDialog(PriceDTO p) {
-        double currentPercent = p.getProfitRate() * 100;
-        String res = JOptionPane.showInputDialog(this,
-                "Mức giá vốn hiện tại: " + String.format("%,.0f", p.getBasePrice()) + " VNĐ\nNhập % lợi nhuận mới:",
-                currentPercent);
-
-        if (res == null || res.trim().isEmpty())
-            return;
-
-        if (!res.trim().matches("^\\d+(\\.\\d+)?$")) {
-            JOptionPane.showMessageDialog(this, "Tỷ suất lợi nhuận phải là số không âm hợp lệ!", "Lỗi nhập liệu", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        try {
-            double newPercent = Double.parseDouble(res.trim());
-            double newProfitRate = newPercent / 100.0;
-            double predictedPrice = p.getBasePrice() * (1 + newProfitRate);
-
-            int confirm = JOptionPane.showConfirmDialog(this,
-                    "Tỷ suất lợi nhuận: " + newPercent + "%\n" +
-                            "Giá bán mới sẽ là: " + String.format("%,.0f", predictedPrice) + " VNĐ\n" +
-                            "Xác nhận áp dụng mức giá này?",
-                    "Chốt giá bán",
-                    JOptionPane.YES_NO_OPTION);
-
-            if (confirm == JOptionPane.YES_OPTION) {
-                try {
-                    priceApiClient.updateBookPrice(p.getBookId(), newProfitRate);
-                    JOptionPane.showMessageDialog(this, "Đã Cập nhật giá bán thành công!");
-                    refresh();
-                } catch (ApiException ex) {
-                    JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể cập nhật giá",
-                            JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chỉ nhập số hợp lệ!");
-        }
-    }
-
-    private void showEditAllBooksProfitDialog() {
-        if (listHienThi == null || listHienThi.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Không có sách nào trong danh sách hiện tại!");
-            return;
-        }
-
-        String res = JOptionPane.showInputDialog(this,
-                "Nhập % lợi nhuận áp dụng chung cho " + listHienThi.size() + " cuốn sách:");
-        if (res != null && !res.trim().isEmpty()) {
-            if (!res.trim().matches("^\\d+(\\.\\d+)?$")) {
-                JOptionPane.showMessageDialog(this, "Tỷ suất lợi nhuận phải là số không âm hợp lệ!", "Lỗi nhập liệu", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            try {
-                double newPercent = Double.parseDouble(res.trim());
-                double newProfitRate = newPercent / 100.0;
-
-                try {
-                    priceApiClient.updateBulkPrices(listHienThi, newProfitRate);
-                    JOptionPane.showMessageDialog(this, "Đã chốt giá hàng loạt thành công!");
-                    refresh();
-                } catch (ApiException ex) {
-                    JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể cập nhật giá hàng loạt",
-                            JOptionPane.ERROR_MESSAGE);
-                }
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(this, "Lỗi: Vui lòng nhập số hợp lệ!");
-            }
-        }
     }
 
     private void setupSearchBorderStyle(JTextField field, String placeholder, boolean showIcon) {

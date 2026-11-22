@@ -14,7 +14,10 @@ import com.bookstore.util.AppConstant;
 import java.awt.*;
 import java.awt.event.*;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class PromotionDialog extends JDialog {
@@ -74,11 +77,12 @@ public class PromotionDialog extends JDialog {
         txtTen = new JTextField();
         txtPercent = new JTextField();
         txtSearchBook = new JTextField();
-        dchStart = new JDateChooser(new java.util.Date());
+        Date defaultDate = Date.from(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant());
+        dchStart = new JDateChooser(defaultDate);
         dchStart.setDateFormatString("dd/MM/yyyy");
         dchStart.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
         dchStart.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
-        dchEnd = new JDateChooser(new java.util.Date());
+        dchEnd = new JDateChooser(defaultDate);
         dchEnd.setDateFormatString("dd/MM/yyyy");
         dchEnd.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
         dchEnd.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
@@ -223,9 +227,13 @@ public class PromotionDialog extends JDialog {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Không thể tải sách khuyến mãi", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        currentlySelectedIds.clear();
+        if (selectedIds != null) {
+            currentlySelectedIds.addAll(selectedIds);
+        }
         for (int i = 0; i < bookModel.getRowCount(); i++) {
             int bookId = (Integer) bookModel.getValueAt(i, 1);
-            if (selectedIds.contains(bookId))
+            if (currentlySelectedIds.contains(bookId))
                 bookModel.setValueAt(true, i, 0);
         }
     }
@@ -247,37 +255,30 @@ public class PromotionDialog extends JDialog {
                 return;
             }
             percent = Double.parseDouble(percentStr);
-            if (percent <= 0 || percent > 100) {
+            if (!Double.isFinite(percent) || percent <= 0 || percent > 100) {
                 JOptionPane.showMessageDialog(this, "Phần trăm giảm giá phải lớn hơn 0 và nhỏ hơn hoặc bằng 100!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 txtPercent.requestFocus();
                 return;
             }
-            java.util.Date startDate = dchStart.getDate();
-            java.util.Date endDate = dchEnd.getDate();
+            Date startDate = dchStart.getDate();
+            Date endDate = dchEnd.getDate();
             if (startDate == null || endDate == null) {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            java.sql.Timestamp start = new java.sql.Timestamp(startDate.getTime());
-            java.sql.Timestamp end = new java.sql.Timestamp(endDate.getTime());
-            int status = cbStatus.getSelectedIndex();
-
-            if (AppConstant.isDateOutOfBounds(startDate) || AppConstant.isDateOutOfBounds(endDate)) {
-                JOptionPane.showMessageDialog(this, "Khoảng ngày khuyến mãi phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            if (start.after(end)) {
+            LocalDate startLocal = startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate endLocal = endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            if (startLocal.isAfter(endLocal)) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu không được lớn hơn ngày kết thúc!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
+            Timestamp start = Timestamp.valueOf(startLocal.atStartOfDay());
+            Timestamp end = Timestamp.valueOf(endLocal.atTime(23, 59, 59));
+            int status = cbStatus.getSelectedIndex();
 
-            if (data != null) {
-                data.setPromotionName(name);
-                data.setPercent(percent);
-                data.setStartDate(start);
-                data.setEndDate(end);
-                data.setStatus(status);
+            if (AppConstant.isDateOutOfBounds(start) || AppConstant.isDateOutOfBounds(end)) {
+                JOptionPane.showMessageDialog(this, "Khoảng ngày khuyến mãi phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
             }
 
             saveCurrentSelection();

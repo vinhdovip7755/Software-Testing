@@ -3,6 +3,7 @@ package com.bookstore.api;
 import com.bookstore.api.contract.PriceBulkUpdateRequestDTO;
 import com.bookstore.api.contract.PriceUpdateRequestDTO;
 import com.bookstore.bus.PriceBUS;
+import com.bookstore.dao.PriceDAO;
 import com.bookstore.dto.PriceDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -69,8 +70,12 @@ public class PriceController {
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Không tìm thấy giá hiện tại của sách."));
-        double newSellingPrice = currentPrice.getBasePrice() * (1 + request.profitRate());
-        if (!Double.isFinite(newSellingPrice)) {
+        if (!Double.isFinite(currentPrice.getBasePrice()) || currentPrice.getBasePrice() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Sách chưa có giá vốn nhập hàng hợp lệ nên không thể cập nhật giá bán.");
+        }
+        double newSellingPrice = PriceDAO.calculateSellingPrice(currentPrice.getBasePrice(), request.profitRate());
+        if (!Double.isFinite(newSellingPrice) || newSellingPrice <= 0 || newSellingPrice > PriceDAO.MAX_PRICE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giá bán mới vượt quá giới hạn hợp lệ.");
         }
         if (!priceBUS.createNewPrice(
@@ -108,13 +113,21 @@ public class PriceController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Danh sách chứa sách không có giá bán đang hoạt động.");
         }
-        for (PriceDTO price : selectedPrices) {
-            if (!Double.isFinite(price.getBasePrice() * (1 + request.profitRate()))) {
+        List<PriceDTO> eligiblePrices = selectedPrices.stream()
+                .filter(price -> Double.isFinite(price.getBasePrice()) && price.getBasePrice() > 0)
+                .toList();
+        if (eligiblePrices.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Không có sách nào trong danh sách có giá vốn nhập hàng hợp lệ để cập nhật giá.");
+        }
+        for (PriceDTO price : eligiblePrices) {
+            double predictedPrice = PriceDAO.calculateSellingPrice(price.getBasePrice(), request.profitRate());
+            if (!Double.isFinite(predictedPrice) || predictedPrice <= 0 || predictedPrice > PriceDAO.MAX_PRICE) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Giá bán mới vượt quá giới hạn hợp lệ.");
             }
         }
-        if (!priceBUS.updateBulkPrice(selectedPrices, request.profitRate())) {
+        if (!priceBUS.updateBulkPrice(eligiblePrices, request.profitRate())) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Không thể cập nhật giá hàng loạt.");
         }
@@ -130,9 +143,9 @@ public class PriceController {
     }
 
     private void validateProfitRate(double profitRate) {
-        if (!Double.isFinite(profitRate) || profitRate < 0) {
+        if (!Double.isFinite(profitRate) || profitRate < 0 || profitRate > PriceDAO.MAX_PROFIT_RATE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Tỷ suất lợi nhuận phải là số không âm hợp lệ.");
+                    "Tỷ suất lợi nhuận phải nằm trong khoảng hợp lệ từ 0% đến 999%.");
         }
     }
 }

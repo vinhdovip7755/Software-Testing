@@ -4,18 +4,25 @@ import com.bookstore.dao.BookAuthorDAO;
 import com.bookstore.dao.BookDAO;
 import com.bookstore.dto.BookDTO;
 
+import java.time.Year;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class BookBUS {
+    public static final double MAX_PRICE = 999_999_999_999_999.0;
+    private static final int MAX_NAME_LENGTH = 255;
+    private static final int MAX_IMAGE_LENGTH = 255;
+
     private final BookDAO bookDAO = new BookDAO();
     private final BookAuthorDAO bookAuthorDAO = new BookAuthorDAO();
 
-            public BookDTO selectById(int bookId) {
-        for (BookDTO b : bookDAO.selectAllBooks()) {
-            if (b.getBookId() == bookId) return b;
-        }
-        return null;
+    public BookDTO selectById(int bookId) {
+        return bookDAO.selectById(bookId);
     }
+
     public List<BookDTO> selectAllBooks() {
         return bookDAO.selectAllBooks();
     }
@@ -27,43 +34,133 @@ public class BookBUS {
     }
 
     public String addBook(BookDTO book) {
-        if (book.getBookName() == null || book.getBookName().trim().isEmpty())
-            return "Tên sách không được để trống!";
-        if (book.getAuthorIdsList() == null || book.getAuthorIdsList().isEmpty())
-            return "Vui lòng chọn ít nhất một tác giả cho sách!";
-        if (book.getCategoryId() <= 0)
-            return "Vui lòng chọn thể loại cho sách!";
-        if (book.getSupplierId() <= 0)
-            return "Vui lòng chọn nhà cung cấp cho sách!";
-        if (book.getSellingPrice() < 0 || book.getCoverPrice() < 0)
-            return "Giá bán của sách không được là số âm!";
+        String validationError = validateBook(book, false);
+        if (validationError != null) {
+            return validationError;
+        }
 
-        String duplicateCheck = validateDuplicate(book, false);
+        BookDTO sanitized = sanitizeBook(book, false);
+        String duplicateCheck = validateDuplicate(sanitized, false);
         if (duplicateCheck != null) {
             return duplicateCheck;
         }
 
-        int generatedId = bookDAO.addBookWithAuthorsTransaction(book, book.getAuthorIdsList());
+        int generatedId = bookDAO.addBookWithAuthorsTransaction(sanitized, sanitized.getAuthorIdsList());
         if (generatedId > 0) {
             book.setBookId(generatedId);
+            book.setQuantity(0);
+            book.setSellingPrice(sanitized.getCoverPrice());
             return "Thêm sách thành công!";
         }
         return "Thêm sách thất bại!";
     }
 
     public String updateBook(BookDTO book) {
-        if (book.getBookName() == null || book.getBookName().trim().isEmpty())
-            return "Tên sách không được để trống!";
+        String validationError = validateBook(book, true);
+        if (validationError != null) {
+            return validationError;
+        }
 
-        String duplicateCheck = validateDuplicate(book, true);
+        BookDTO sanitized = sanitizeBook(book, true);
+        String duplicateCheck = validateDuplicate(sanitized, true);
         if (duplicateCheck != null) {
             return duplicateCheck;
         }
 
-        if (bookDAO.updateBookWithAuthorsTransaction(book, book.getAuthorIdsList())) {
+        if (bookDAO.updateBookWithAuthorsTransaction(sanitized, sanitized.getAuthorIdsList())) {
             return "Cập nhật thành công!";
         }
         return "Cập nhật thất bại!";
+    }
+
+    private String validateBook(BookDTO book, boolean isUpdate) {
+        if (book == null) {
+            return "Thông tin sách không hợp lệ!";
+        }
+        if (isUpdate && book.getBookId() <= 0) {
+            return "Mã sách không hợp lệ!";
+        }
+        if (book.getBookName() == null || book.getBookName().trim().isEmpty()) {
+            return "Tên sách không được để trống!";
+        }
+        if (book.getBookName().trim().length() > MAX_NAME_LENGTH) {
+            return "Tên sách không được vượt quá 255 ký tự!";
+        }
+        if (book.getAuthorIdsList() == null || book.getAuthorIdsList().isEmpty()) {
+            return "Vui lòng chọn ít nhất một tác giả cho sách!";
+        }
+        for (Integer authorId : book.getAuthorIdsList()) {
+            if (authorId == null || authorId <= 0) {
+                return "Danh sách tác giả không hợp lệ!";
+            }
+        }
+        if (book.getCategoryId() <= 0) {
+            return "Vui lòng chọn thể loại cho sách!";
+        }
+        if (book.getSupplierId() <= 0) {
+            return "Vui lòng chọn nhà cung cấp cho sách!";
+        }
+        if (!Double.isFinite(book.getCoverPrice()) || book.getCoverPrice() <= 0 || book.getCoverPrice() > MAX_PRICE) {
+            return "Giá bìa của sách phải là số dương hợp lệ!";
+        }
+        if (book.getStatus() != 0 && book.getStatus() != 1) {
+            return "Trạng thái sách không hợp lệ!";
+        }
+        int publicationYear = book.getPublicationYear();
+        int maxYear = Year.now().getValue() + 1;
+        if (publicationYear != 0 && (publicationYear < 1000 || publicationYear > maxYear)) {
+            return "Năm xuất bản không hợp lệ!";
+        }
+        if (book.getImage() != null && !book.getImage().trim().isEmpty()) {
+            String img = book.getImage().trim();
+            if (!isSafeImageFilename(img)) {
+                return "Tên tệp ảnh bìa không hợp lệ!";
+            }
+        }
+        return null;
+    }
+
+    private boolean isSafeImageFilename(String filename) {
+        if (filename.length() > MAX_IMAGE_LENGTH) {
+            return false;
+        }
+        if (filename.contains("..") || filename.contains("/") || filename.contains("\\")
+                || filename.contains(":") || filename.indexOf('\0') >= 0) {
+            return false;
+        }
+        for (int i = 0; i < filename.length(); i++) {
+            if (Character.isISOControl(filename.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private BookDTO sanitizeBook(BookDTO source, boolean isUpdate) {
+        BookDTO sanitized = new BookDTO();
+        sanitized.setBookId(isUpdate ? source.getBookId() : 0);
+        sanitized.setBookName(source.getBookName().trim());
+        sanitized.setPublicationYear(source.getPublicationYear());
+        sanitized.setCoverPrice(source.getCoverPrice());
+        sanitized.setSellingPrice(isUpdate ? source.getSellingPrice() : source.getCoverPrice());
+        sanitized.setQuantity(0);
+        sanitized.setTranslator(source.getTranslator() == null || source.getTranslator().trim().isEmpty()
+                ? null
+                : source.getTranslator().trim());
+        sanitized.setImage(source.getImage() == null || source.getImage().trim().isEmpty()
+                ? null
+                : source.getImage().trim());
+        sanitized.setDescription(source.getDescription() == null || source.getDescription().trim().isEmpty()
+                ? null
+                : source.getDescription().trim());
+        sanitized.setStatus(source.getStatus());
+        sanitized.setCategoryId(source.getCategoryId());
+        sanitized.setTagDetail(source.getTagDetail() == null || source.getTagDetail().trim().isEmpty()
+                ? null
+                : source.getTagDetail().trim());
+        sanitized.setSupplierId(source.getSupplierId());
+        sanitized.setAuthorIdsList(new ArrayList<>(new LinkedHashSet<>(source.getAuthorIdsList())));
+        return sanitized;
     }
 
     private String validateDuplicate(BookDTO candidate, boolean isUpdate) {
@@ -89,19 +186,9 @@ public class BookBUS {
     }
 
     private boolean sameAuthorIds(List<Integer> firstAuthors, List<Integer> secondAuthors) {
-        if (firstAuthors == null && secondAuthors == null) return true;
-        if (firstAuthors == null || secondAuthors == null) return false;
-
-        if (firstAuthors.size() != secondAuthors.size()) {
-            return false;
-        }
-
-        for (Integer id : firstAuthors) {
-            if (!secondAuthors.contains(id)) {
-                return false;
-            }
-        }
-        return true;
+        Set<Integer> firstSet = firstAuthors == null ? Set.of() : new HashSet<>(firstAuthors);
+        Set<Integer> secondSet = secondAuthors == null ? Set.of() : new HashSet<>(secondAuthors);
+        return firstSet.equals(secondSet);
     }
 
     private String normalizeText(String value) {

@@ -156,4 +156,34 @@ class BillHttpTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Dữ liệu JSON không hợp lệ hoặc sai kiểu dữ liệu."));
     }
+
+    @Test
+    void guestCheckoutReturnsZeroEarnedPointsAndDoesNotMutatePromotions() throws Exception {
+        com.bookstore.dto.BookDTO book = new com.bookstore.dto.BookDTO();
+        book.setBookId(1);
+        book.setBookName("Mắt Biếc");
+        book.setSellingPrice(100_000);
+        book.setStatus(1);
+
+        try (var books = mockConstruction(BookBUS.class,
+                (mock, context) -> when(mock.selectActiveBooks()).thenReturn(List.of(book)));
+             var promotions = mockConstruction(PromotionBUS.class,
+                     (mock, context) -> when(mock.getPromotionPercentByBookId(1)).thenReturn(0.0));
+             var params = mockConstruction(com.bookstore.bus.SystemParameterBUS.class, (mock, context) -> {
+                 when(mock.getVAT()).thenReturn(0.08);
+                 when(mock.getEarnedPointsPer10K()).thenReturn(100);
+             });
+             var bills = mockConstruction(com.bookstore.bus.BillBUS.class,
+                     (mock, context) -> when(mock.createBill(
+                             org.mockito.ArgumentMatchers.any(),
+                             org.mockito.ArgumentMatchers.anyList()
+                     )).thenReturn(99))) {
+            mvc.perform(post("/api/bills").header("Authorization", authorization)
+                            .contentType(MediaType.APPLICATION_JSON).content(VALID_BILL))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.billId").value(99))
+                    .andExpect(jsonPath("$.earnedPoints").value(0));
+            org.mockito.Mockito.verify(promotions.constructed().get(0), org.mockito.Mockito.never()).updateAutoStatus();
+        }
+    }
 }

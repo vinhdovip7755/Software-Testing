@@ -10,6 +10,7 @@ import com.bookstore.bus.CustomerBUS;
 import com.bookstore.bus.MembershipRankBUS;
 import com.bookstore.bus.PromotionBUS;
 import com.bookstore.bus.SystemParameterBUS;
+import com.bookstore.dao.BillDAO;
 import com.bookstore.dto.BillDTO;
 import com.bookstore.dto.BillDetailDTO;
 import com.bookstore.dto.BookDTO;
@@ -86,9 +87,8 @@ public class BillController {
 
         List<BookDTO> activeBooks = new BookBUS().selectActiveBooks();
         Map<Integer, BookDTO> booksById = activeBooks.stream()
-                .collect(Collectors.toMap(BookDTO::getBookId, book -> book));
+                .collect(Collectors.toMap(BookDTO::getBookId, book -> book, (existing, replacement) -> existing));
         PromotionBUS promotionBUS = new PromotionBUS();
-        promotionBUS.updateAutoStatus();
         List<BillDetailDTO> billDetails = new ArrayList<>();
         List<BillReceiptLineDTO> receiptDetails = new ArrayList<>();
         double subtotalAfterPromotion = 0;
@@ -109,12 +109,12 @@ public class BillController {
 
             double unitPrice = book.getSellingPrice() * (1 - promotionPercent / 100.0);
             double rawLineTotal = unitPrice * requestedLine.quantity();
-            if (!Double.isFinite(rawLineTotal)) {
+            if (!Double.isFinite(rawLineTotal) || rawLineTotal < 0 || rawLineTotal > BillDAO.MAX_AMOUNT) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thành tiền của sách không hợp lệ.");
             }
             double lineTotal = roundVnd(rawLineTotal);
             subtotalAfterPromotion += lineTotal;
-            if (!Double.isFinite(subtotalAfterPromotion)) {
+            if (!Double.isFinite(subtotalAfterPromotion) || subtotalAfterPromotion > BillDAO.MAX_AMOUNT) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổng hóa đơn không hợp lệ.");
             }
             billDetails.add(new BillDetailDTO(
@@ -160,15 +160,22 @@ public class BillController {
 
         double totalAfterMemberDiscount = subtotalAfterPromotion * (1 - memberDiscountPercent / 100.0);
         double rawTotalBillPrice = totalAfterMemberDiscount * (1 + taxRate);
-        if (!Double.isFinite(rawTotalBillPrice)) {
+        if (!Double.isFinite(rawTotalBillPrice) || rawTotalBillPrice < 0 || rawTotalBillPrice > BillDAO.MAX_AMOUNT) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổng hóa đơn không hợp lệ.");
         }
         double totalBillPrice = roundVnd(rawTotalBillPrice);
-        double earnedPointsValue = Math.floor(totalBillPrice / 10000) * pointsPer10K;
-        if (!Double.isFinite(earnedPointsValue) || earnedPointsValue > Integer.MAX_VALUE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điểm thưởng vượt giới hạn.");
+        if (totalBillPrice > BillDAO.MAX_AMOUNT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tổng hóa đơn vượt giới hạn hợp lệ.");
         }
-        int earnedPoints = (int) earnedPointsValue;
+
+        int earnedPoints = 0;
+        if (request.customerId() > 0) {
+            double earnedPointsValue = Math.floor(totalBillPrice / 10000) * pointsPer10K;
+            if (!Double.isFinite(earnedPointsValue) || earnedPointsValue > Integer.MAX_VALUE) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điểm thưởng vượt giới hạn.");
+            }
+            earnedPoints = (int) earnedPointsValue;
+        }
 
         BillDTO bill = new BillDTO(
                 0,

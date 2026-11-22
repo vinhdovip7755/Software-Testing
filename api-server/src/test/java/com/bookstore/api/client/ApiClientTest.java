@@ -131,6 +131,37 @@ class ApiClientTest {
         });
     }
 
+    @Test
+    void encodesCustomerPhonePathSegmentAndPreventsPathTraversal() throws Exception {
+        java.util.concurrent.atomic.AtomicReference<String> capturedRawPath = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicBoolean accountsHit = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+        withMockServer(server -> {
+            server.createContext("/api/accounts", exchange -> {
+                accountsHit.set(true);
+                respond(exchange, 200, "application/json; charset=UTF-8", "[]");
+            });
+            server.createContext("/api/customers/phone/", exchange -> {
+                capturedRawPath.set(exchange.getRequestURI().getRawPath());
+                respond(exchange, 404, "application/json; charset=UTF-8", "{\"message\":\"Không tìm thấy khách hàng.\"}");
+            });
+        }, () -> {
+            assertNull(new CustomerApiClient().selectByPhone("090 123"));
+            assertEquals("/api/customers/phone/090%20123", capturedRawPath.get());
+
+            assertNull(new CustomerApiClient().selectByPhone("../../accounts"));
+            assertFalse(accountsHit.get());
+            assertEquals("/api/customers/phone/..%2F..%2Faccounts", capturedRawPath.get());
+
+            ApiException badPathError = assertThrows(
+                    ApiException.class,
+                    () -> ApiClient.get("/api/customers/phone/bad path with spaces", new TypeReference<String>() {
+                    })
+            );
+            assertEquals("Đường dẫn yêu cầu API không hợp lệ.", badPathError.getMessage());
+        });
+    }
+
     private static void withMockServer(Consumer<HttpServer> configurator, ThrowingRunnable assertions) throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         configurator.accept(server);

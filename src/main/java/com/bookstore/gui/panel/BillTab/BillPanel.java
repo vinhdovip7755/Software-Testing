@@ -11,9 +11,9 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 import com.bookstore.dto.BillDTO;
 import com.bookstore.util.Refreshable;
@@ -26,6 +26,7 @@ public class BillPanel extends JPanel implements Refreshable {
     private DefaultTableModel model;
     private JDateChooser dchFrom;
     private JDateChooser dchTo;
+    private JTextField txtSearch;
     private final BillApiClient billApiClient = new BillApiClient();
 
     private final Color MAIN_GREEN = Color.decode(AppConstant.GREEN_COLOR_CODE);
@@ -44,8 +45,30 @@ public class BillPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh(){
+        if (txtSearch != null) {
+            txtSearch.setText("");
+        }
+        Date startOfToday = toStartOfDay(LocalDate.now());
+        if (dchFrom != null) {
+            dchFrom.setDate(startOfToday);
+        }
+        if (dchTo != null) {
+            dchTo.setDate(startOfToday);
+        }
         loadBillTable();
         applyTodayFilter();
+    }
+
+    private static LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private static Date toStartOfDay(LocalDate date) {
+        return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
+    private static Date toEndOfDay(LocalDate date) {
+        return Date.from(date.atTime(23, 59, 59, 999_000_000).atZone(ZoneId.systemDefault()).toInstant());
     }
 
     private JPanel createStatisticPanel(){
@@ -95,9 +118,10 @@ public class BillPanel extends JPanel implements Refreshable {
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT,15,5));
         filterPanel.setBackground(Color.WHITE);
 
+        Date initialToday = toStartOfDay(LocalDate.now());
         JLabel lbFrom = new JLabel("Từ:");
         lbFrom.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
-        dchFrom = new JDateChooser(new Date());
+        dchFrom = new JDateChooser(initialToday);
         dchFrom.setDateFormatString("dd/MM/yyyy");
         dchFrom.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
         dchFrom.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
@@ -106,14 +130,14 @@ public class BillPanel extends JPanel implements Refreshable {
 
         JLabel lbTo = new JLabel("Đến:");
         lbTo.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 16));
-        dchTo = new JDateChooser(new Date());
+        dchTo = new JDateChooser(initialToday);
         dchTo.setDateFormatString("dd/MM/yyyy");
         dchTo.setMinSelectableDate(AppConstant.SYSTEM_MIN_DATE);
         dchTo.setMaxSelectableDate(AppConstant.SYSTEM_MAX_DATE);
         dchTo.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
         dchTo.setPreferredSize(new Dimension(140, 30));
 
-        JTextField txtSearch = new JTextField(20);
+        txtSearch = new JTextField(20);
         txtSearch.setFont(new Font(AppConstant.FONT_NAME, Font.PLAIN, 16));
         txtSearch.setBorder(BorderFactory.createTitledBorder("Tìm Kiếm theo mã hóa đơn, tên khách hàng, tên nhân viên"));
 
@@ -149,6 +173,16 @@ public class BillPanel extends JPanel implements Refreshable {
             public boolean isCellEditable(int row, int columm){
                 return false;
             }
+
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                return switch (columnIndex) {
+                    case 0 -> Integer.class;
+                    case 1 -> Date.class;
+                    case 4 -> Double.class;
+                    default -> String.class;
+                };
+            }
         };
         table = new JTable(model);
 
@@ -157,6 +191,19 @@ public class BillPanel extends JPanel implements Refreshable {
         for(int i = 0; i < table.getColumnCount(); i++){
             table.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
+
+        SimpleDateFormat dateCellFormat = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
+        table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            protected void setValue(Object value) {
+                setHorizontalAlignment(JLabel.CENTER);
+                if (value instanceof Date d) {
+                    setText(dateCellFormat.format(d));
+                } else {
+                    setText(value == null ? "" : value.toString());
+                }
+            }
+        });
 
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
@@ -229,14 +276,18 @@ public class BillPanel extends JPanel implements Refreshable {
             int billId = (int) model.getValueAt(modelRow, 0);
 
             BillDetailDialog dialog = new BillDetailDialog(billId);
-            dialog.setLocationRelativeTo(this);
-            dialog.setVisible(true);
+            if (dialog.isLoadedSuccessfully()) {
+                dialog.setLocationRelativeTo(this);
+                dialog.setVisible(true);
+            }
         });
 
         btnReset.addActionListener(e->{
-            Date today = new Date();
-            dchFrom.setDate(today);
-            dchTo.setDate(today);
+            txtSearch.setText("");
+            Date startOfToday = toStartOfDay(LocalDate.now());
+            dchFrom.setDate(startOfToday);
+            dchTo.setDate(startOfToday);
+            loadBillTable();
             applyTodayFilter();
         });
 
@@ -251,51 +302,35 @@ public class BillPanel extends JPanel implements Refreshable {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            if (rawFromDate.after(rawToDate)) {
+            LocalDate fromLocal = toLocalDate(rawFromDate);
+            LocalDate toLocal = toLocalDate(rawToDate);
+            if (fromLocal.isAfter(toLocal)) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            if (AppConstant.isDateOutOfBounds(rawFromDate) || AppConstant.isDateOutOfBounds(rawToDate)) {
+            Date fromDate = toStartOfDay(fromLocal);
+            Date toDate = toEndOfDay(toLocal);
+            if (AppConstant.isDateOutOfBounds(fromDate) || AppConstant.isDateOutOfBounds(toDate)) {
                 JOptionPane.showMessageDialog(this, "Khoảng ngày hợp lệ phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             String keyword = txtSearch.getText().trim().toLowerCase();
 
-            Calendar calFrom = Calendar.getInstance();
-            calFrom.setTime(rawFromDate);
-            calFrom.set(Calendar.HOUR_OF_DAY, 0);
-            calFrom.set(Calendar.MINUTE, 0);
-            calFrom.set(Calendar.SECOND, 0);
-            calFrom.set(Calendar.MILLISECOND, 0);
-            Date fromDate = calFrom.getTime();
-
-            Calendar calTo = Calendar.getInstance();
-            calTo.setTime(rawToDate);
-            calTo.set(Calendar.HOUR_OF_DAY, 23);
-            calTo.set(Calendar.MINUTE, 59);
-            calTo.set(Calendar.SECOND, 59);
-            calTo.set(Calendar.MILLISECOND, 999);
-            Date toDate = calTo.getTime();
-
-            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
-
             sorter.setRowFilter(new RowFilter<>() {
                 @Override
                 public boolean include(Entry<? extends DefaultTableModel, ? extends Integer> entry) {
-                    try {
-                        String dateStr = entry.getStringValue(1);
-                        Date billDate = sdf.parse(dateStr);
-
-                        boolean matchDate = !billDate.before(fromDate) && !billDate.after(toDate);
-                        boolean matchSearch = keyword.isEmpty()
-                                || entry.getStringValue(0).toLowerCase().contains(keyword)
-                                || entry.getStringValue(2).toLowerCase().contains(keyword)
-                                || entry.getStringValue(3).toLowerCase().contains(keyword);
-
-                        return matchDate && matchSearch;
-                    } catch (ParseException ex) {
-                        return true;
+                    Object dateVal = entry.getValue(1);
+                    if (!(dateVal instanceof Date billDate)) {
+                        return false;
                     }
+
+                    boolean matchDate = !billDate.before(fromDate) && !billDate.after(toDate);
+                    boolean matchSearch = keyword.isEmpty()
+                            || entry.getStringValue(0).toLowerCase().contains(keyword)
+                            || entry.getStringValue(2).toLowerCase().contains(keyword)
+                            || entry.getStringValue(3).toLowerCase().contains(keyword);
+
+                    return matchDate && matchSearch;
                 }
             });
 
@@ -311,7 +346,10 @@ public class BillPanel extends JPanel implements Refreshable {
 
         for (int i = 0; i < count; i++){
             int modelRow = table.convertRowIndexToModel(i);
-            total += (double) model.getValueAt(modelRow, 4);
+            Object val = model.getValueAt(modelRow, 4);
+            if (val instanceof Number number) {
+                total += number.doubleValue();
+            }
         }
 
         lbTotalQuantity.setText(String.valueOf(count));
@@ -337,17 +375,12 @@ public class BillPanel extends JPanel implements Refreshable {
             }
             return Integer.compare(b2.getBillId(), b1.getBillId());
         });
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
 
         for (BillDTO bill : list){
-            String formattedDate = "";
-            if(bill.getCreatedDate() != null){
-                formattedDate = sdf.format(bill.getCreatedDate());
-            }
-
+            Date createdDate = bill.getCreatedDate();
             String customerName = bill.getCustomerName() == null ? "Khách lẻ" : bill.getCustomerName();
             model.addRow(new Object[]{
-                    bill.getBillId(), formattedDate, bill.getEmployeeName(), customerName, bill.getTotalBillPrice()
+                    bill.getBillId(), createdDate, bill.getEmployeeName(), customerName, bill.getTotalBillPrice()
             });
         }
         updateStatistics();
@@ -356,26 +389,16 @@ public class BillPanel extends JPanel implements Refreshable {
     @SuppressWarnings("unchecked")
     private void applyTodayFilter(){
         TableRowSorter<DefaultTableModel> sorter = (TableRowSorter<DefaultTableModel>) table.getRowSorter();
-        Date today = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss - dd/MM/yyyy");
+        LocalDate today = LocalDate.now();
 
         sorter.setRowFilter(new RowFilter<>(){
             @Override
             public boolean include (Entry<? extends DefaultTableModel, ? extends Integer> entry){
-                try{
-
-                    String dateStr = entry.getStringValue(1);
-                    Date billDate = sdf.parse(dateStr);
-                    Calendar c1 = Calendar.getInstance();
-                    Calendar c2 = Calendar.getInstance();
-
-                    c1.setTime(today);
-                    c2.setTime(billDate);
-
-                    return c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR) && c1.get(Calendar.DAY_OF_YEAR) == c2.get(Calendar.DAY_OF_YEAR);
-                }catch (Exception e){
+                Object dateVal = entry.getValue(1);
+                if (!(dateVal instanceof Date billDate)) {
                     return false;
                 }
+                return toLocalDate(billDate).equals(today);
             }
         });
         updateStatistics();

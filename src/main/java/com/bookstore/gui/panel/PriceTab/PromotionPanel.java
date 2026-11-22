@@ -5,13 +5,19 @@ import javax.swing.border.TitledBorder;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.beans.PropertyChangeListener;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 
 import com.bookstore.dto.*;
 import com.bookstore.api.client.ApiException;
 import com.bookstore.api.client.PromotionApiClient;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 
 public class PromotionPanel extends JPanel implements Refreshable {
@@ -26,6 +32,8 @@ public class PromotionPanel extends JPanel implements Refreshable {
     private DefaultTableModel model;
     private JTextField txtSearch;
     private com.toedter.calendar.JDateChooser dchDateMin, dchDateMax;
+    private JButton btnAdd;
+    private JButton btnSearch;
     private JScrollPane scroll;
     private boolean hasSearched = false;
     private CardLayout searchCard = new CardLayout();
@@ -114,7 +122,7 @@ public class PromotionPanel extends JPanel implements Refreshable {
         filterBox.add(rbPhanTram);
         filterBox.add(rbThoiGian);
 
-        JButton btnAdd = new JButton("+ Thêm Khuyến Mãi") {
+        btnAdd = new JButton("+ Thêm Khuyến Mãi") {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -140,6 +148,9 @@ public class PromotionPanel extends JPanel implements Refreshable {
             }
         };
         btnAdd.addActionListener(e -> {
+            if (!PermissionUtil.hasActionPermission("MANAGE_PROMOTION")) {
+                return;
+            }
             JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(PromotionPanel.this);
             PromotionDialog dialog = new PromotionDialog(parentFrame, "Thêm Khuyến Mãi Mới", null);
             dialog.setVisible(true);
@@ -162,7 +173,7 @@ public class PromotionPanel extends JPanel implements Refreshable {
         gbc.gridx = 0; gbc.gridy = 0;
         gbc.weightx = 0.0;
         gbc.fill = GridBagConstraints.NONE;
-        gbc.insets = new Insets(0, 0, 0, 60);
+        gbc.insets = new Insets(0, 0, 0, 20);
         controlPanel.add(filterBox, gbc);
 
 
@@ -192,15 +203,30 @@ public class PromotionPanel extends JPanel implements Refreshable {
         whiteBox.add(controlPanel, BorderLayout.NORTH);
 
         initTable();
+        applyPermissions();
 
         add(whiteBox, BorderLayout.CENTER);
 
 
     }
 
+    private void applyPermissions() {
+        boolean canManagePromotion = PermissionUtil.hasActionPermission("MANAGE_PROMOTION");
+        if (btnAdd != null) {
+            btnAdd.setVisible(canManagePromotion);
+            btnAdd.setEnabled(canManagePromotion);
+        }
+        if (table != null) {
+            table.repaint();
+        }
+    }
+
     private JPanel createSearchWrapper() {
-        JPanel wrapper = new JPanel(new BorderLayout());
+        JPanel wrapper = new JPanel(new BorderLayout(8, 0));
         wrapper.setOpaque(false);
+
+        JPanel searchInputContainer = new JPanel(new BorderLayout());
+        searchInputContainer.setOpaque(false);
 
         JPanel iconBox = new JPanel(new GridBagLayout()) {
             @Override
@@ -223,6 +249,7 @@ public class PromotionPanel extends JPanel implements Refreshable {
         cardPanel.setOpaque(false);
 
         txtSearch = new JTextField();
+        txtSearch.setPreferredSize(new Dimension(240, 36));
         setupTextFieldStyle(txtSearch, "Tìm kiếm chương trình...");
         cardPanel.add(txtSearch, "NORMAL");
 
@@ -242,8 +269,16 @@ public class PromotionPanel extends JPanel implements Refreshable {
         dchDateMin.setPreferredSize(dateSize);
         dchDateMax.setPreferredSize(dateSize);
 
+        PropertyChangeListener dateChangeListener = evt -> {
+            if ("date".equals(evt.getPropertyName()) && rbThoiGian.isSelected()) {
+                triggerAutoDateSearchIfValid();
+            }
+        };
+        dchDateMin.addPropertyChangeListener("date", dateChangeListener);
+        dchDateMax.addPropertyChangeListener("date", dateChangeListener);
+
         dateGroup.add(dchDateMin);
-        dateGroup.add(javax.swing.Box.createRigidArea(new java.awt.Dimension(20, 0)));
+        dateGroup.add(javax.swing.Box.createRigidArea(new java.awt.Dimension(12, 0)));
         dateGroup.add(dchDateMax);
 
         cardPanel.add(dateGroup, "DATE");
@@ -263,9 +298,69 @@ public class PromotionPanel extends JPanel implements Refreshable {
 
         inputBackground.add(cardPanel, BorderLayout.CENTER);
 
-        wrapper.add(iconBox, BorderLayout.WEST);
-        wrapper.add(inputBackground, BorderLayout.CENTER);
+        searchInputContainer.add(iconBox, BorderLayout.WEST);
+        searchInputContainer.add(inputBackground, BorderLayout.CENTER);
+
+        btnSearch = new JButton("Tìm kiếm") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isArmed()) {
+                    g2.setColor(getBackground().darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(getBackground().brighter());
+                } else {
+                    g2.setColor(getBackground());
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+                g2.setColor(getForeground());
+                g2.setFont(getFont());
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        btnSearch.setContentAreaFilled(false);
+        btnSearch.setBorderPainted(false);
+        btnSearch.setFocusPainted(false);
+        btnSearch.setOpaque(false);
+        btnSearch.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnSearch.setPreferredSize(new Dimension(100, 42));
+        btnSearch.setBackground(new Color(17, 71, 50));
+        btnSearch.setForeground(Color.WHITE);
+        btnSearch.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnSearch.addActionListener(e -> SearchProcessing());
+
+        wrapper.add(searchInputContainer, BorderLayout.CENTER);
+        wrapper.add(btnSearch, BorderLayout.EAST);
         return wrapper;
+    }
+
+    private void triggerAutoDateSearchIfValid() {
+        Date minDate = dchDateMin.getDate();
+        Date maxDate = dchDateMax.getDate();
+        if (minDate == null && maxDate == null) {
+            if (hasSearched) {
+                loadData();
+                hasSearched = false;
+            }
+            return;
+        }
+        LocalDate minLocal = minDate != null ? toLocalDate(minDate) : null;
+        LocalDate maxLocal = maxDate != null ? toLocalDate(maxDate) : null;
+        if (minLocal != null && maxLocal != null && minLocal.isAfter(maxLocal)) {
+            return;
+        }
+        Date normMin = minLocal != null ? toStartOfDay(minLocal) : null;
+        Date normMax = maxLocal != null ? toEndOfDay(maxLocal) : null;
+        if ((normMin != null && AppConstant.isDateOutOfBounds(normMin))
+                || (normMax != null && AppConstant.isDateOutOfBounds(normMax))) {
+            return;
+        }
+        SearchProcessing();
     }
 
     private void initTable() {
@@ -305,9 +400,9 @@ public class PromotionPanel extends JPanel implements Refreshable {
                 }
 
                 int column = table.columnAtPoint(e.getPoint());
-                if (column == 6 && row != -1) {
-
-                    String idStr = table.getValueAt(row, 0).toString().substring(2);
+                if (column == 6 && row != -1 && PermissionUtil.hasActionPermission("MANAGE_PROMOTION")) {
+                    int modelRow = table.convertRowIndexToModel(row);
+                    String idStr = model.getValueAt(modelRow, 0).toString().substring(2);
                     int id = Integer.parseInt(idStr);
 
                     PromotionDTO p = null;
@@ -385,15 +480,13 @@ public class PromotionPanel extends JPanel implements Refreshable {
                     }
                 }
 
-                JButton btnEdit = new JButton("Sửa");
-
-                btnEdit.setBackground(new Color(240, 173, 78));
-
-                for (JButton b : new JButton[] { btnEdit }) {
-                    b.setForeground(Color.WHITE);
-                    b.setPreferredSize(new Dimension(50, 30));
-                    b.setFont(new Font("Segoe UI", Font.BOLD, 9));
-                    p.add(b);
+                if (PermissionUtil.hasActionPermission("MANAGE_PROMOTION")) {
+                    JButton btnEdit = new JButton("Sửa");
+                    btnEdit.setBackground(new Color(240, 173, 78));
+                    btnEdit.setForeground(Color.WHITE);
+                    btnEdit.setPreferredSize(new Dimension(50, 30));
+                    btnEdit.setFont(new Font("Segoe UI", Font.BOLD, 9));
+                    p.add(btnEdit);
                 }
                 return p;
             }
@@ -418,7 +511,20 @@ public class PromotionPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
+        applyPermissions();
         loadData();
+    }
+
+    private static LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private static Date toStartOfDay(LocalDate date) {
+        return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
+    private static Date toEndOfDay(LocalDate date) {
+        return Date.from(date.atTime(23, 59, 59, 999_000_000).atZone(ZoneId.systemDefault()).toInstant());
     }
 
     private void SearchProcessing() {
@@ -433,19 +539,24 @@ public class PromotionPanel extends JPanel implements Refreshable {
             }
         } else if (rbThoiGian.isSelected()) {
             type = "Thời gian";
-            java.util.Date minDate = dchDateMin.getDate();
-            java.util.Date maxDate = dchDateMax.getDate();
-            if (minDate != null && maxDate != null && minDate.after(maxDate)) {
+            Date minDate = dchDateMin.getDate();
+            Date maxDate = dchDateMax.getDate();
+            LocalDate minLocal = minDate != null ? toLocalDate(minDate) : null;
+            LocalDate maxLocal = maxDate != null ? toLocalDate(maxDate) : null;
+            if (minLocal != null && maxLocal != null && minLocal.isAfter(maxLocal)) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            if ((minDate != null && AppConstant.isDateOutOfBounds(minDate)) || (maxDate != null && AppConstant.isDateOutOfBounds(maxDate))) {
+            Date normMin = minLocal != null ? toStartOfDay(minLocal) : null;
+            Date normMax = maxLocal != null ? toEndOfDay(maxLocal) : null;
+            if ((normMin != null && AppConstant.isDateOutOfBounds(normMin))
+                    || (normMax != null && AppConstant.isDateOutOfBounds(normMax))) {
                 JOptionPane.showMessageDialog(this, "Khoảng ngày tìm kiếm phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-            String startStr = minDate != null ? sdf.format(minDate) : "";
-            String endStr = maxDate != null ? sdf.format(maxDate) : "";
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            String startStr = minLocal != null ? minLocal.format(dtf) : "";
+            String endStr = maxLocal != null ? maxLocal.format(dtf) : "";
             input = startStr + "|" + endStr;
         } else {
             input = txtSearch.getText().trim();

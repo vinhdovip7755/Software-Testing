@@ -33,6 +33,8 @@ public class BillDetailDialog extends JDialog{
     private JLabel lbGrandTotal;
 
     private final BillApiClient billApiClient = new BillApiClient();
+    private boolean loadedSuccessfully = false;
+
     public BillDetailDialog(int billId){
         setTitle("Chi tiết hóa đơn #" + billId);
         setSize(850, 550);
@@ -45,6 +47,10 @@ public class BillDetailDialog extends JDialog{
         add(createBottomPanel(), BorderLayout.SOUTH);
 
         loadData(billId);
+    }
+
+    public boolean isLoadedSuccessfully() {
+        return loadedSuccessfully;
     }
 
     private JPanel createInfoPanel() {
@@ -144,6 +150,7 @@ public class BillDetailDialog extends JDialog{
 
     private void loadData(int billId) {
         model.setRowCount(0);
+        loadedSuccessfully = false;
 
         BillDTO bill;
         List<BillDetailDTO> details;
@@ -155,9 +162,16 @@ public class BillDetailDialog extends JDialog{
             dispose();
             return;
         }
+        if (bill == null) {
+            JOptionPane.showMessageDialog(this, "Không tìm thấy thông tin hóa đơn.", "Không thể tải hóa đơn",
+                    JOptionPane.ERROR_MESSAGE);
+            dispose();
+            return;
+        }
 
         fillBillInfo(bill);
-        fillBillDetails(details, bill);
+        fillBillDetails(details != null ? details : java.util.Collections.emptyList(), bill);
+        loadedSuccessfully = true;
     }
 
     private void fillBillInfo(BillDTO bill) {
@@ -188,12 +202,20 @@ public class BillDetailDialog extends JDialog{
             });
         }
 
-        double taxRate = (bill != null && bill.getTax() >= 0) ? bill.getTax() : VAT_RATE;
-        double tax = subtotal * taxRate;
-        double grandTotal = (bill != null && bill.getTotalBillPrice() > 0) ? bill.getTotalBillPrice() : subtotal + tax;
+        double taxRate = (bill != null && Double.isFinite(bill.getTax()) && bill.getTax() >= 0)
+                ? bill.getTax()
+                : VAT_RATE;
+        double grandTotal = (bill != null && Double.isFinite(bill.getTotalBillPrice()) && bill.getTotalBillPrice() >= 0)
+                ? bill.getTotalBillPrice()
+                : subtotal * (1 + taxRate);
 
-        double discount = (subtotal + tax) - grandTotal;
-        if (discount < 0) discount = 0;
+        double afterDiscount = (1 + taxRate) > 0 ? grandTotal / (1 + taxRate) : grandTotal;
+        double tax = grandTotal - afterDiscount;
+        double discount = Math.max(0, subtotal - afterDiscount);
+        if (discount < 0.5) {
+            discount = 0;
+        }
+
         lbSubtotal.setText("Tạm tính: " + MoneyFormatter.toVND(subtotal));
         int taxPercent = (int) Math.round(taxRate * 100);
         lbTax.setText("VAT (" + taxPercent + "%): " + MoneyFormatter.toVND(tax));

@@ -14,14 +14,18 @@ public class PriceBUS {
     }
 
     public boolean createNewPrice(int bookId, double basePrice, double profitRate, double predictedPrice) {
-        if (basePrice < 0 || profitRate < 0) {
+        if (bookId <= 0
+                || !Double.isFinite(basePrice) || basePrice <= 0 || basePrice > PriceDAO.MAX_PRICE
+                || !Double.isFinite(profitRate) || profitRate < 0 || profitRate > PriceDAO.MAX_PROFIT_RATE
+                || !Double.isFinite(predictedPrice) || predictedPrice <= 0 || predictedPrice > PriceDAO.MAX_PRICE) {
             return false;
         }
         return priceDAO.createNewPrice(bookId, basePrice, profitRate, predictedPrice);
     }
 
     public boolean updateBulkPrice(List<PriceDTO> listHienThi, double newProfitRate) {
-        if (listHienThi == null || listHienThi.isEmpty() || newProfitRate < 0) {
+        if (listHienThi == null || listHienThi.isEmpty()
+                || !Double.isFinite(newProfitRate) || newProfitRate < 0 || newProfitRate > PriceDAO.MAX_PROFIT_RATE) {
             return false;
         }
         return priceDAO.updateBulkPrice(listHienThi, newProfitRate);
@@ -37,7 +41,7 @@ public class PriceBUS {
         return currentList.stream().filter(p -> {
             switch (type) {
                 case "Tên":
-                    return p.getBookName().toLowerCase().contains(lowerKeyword);
+                    return p.getBookName() != null && p.getBookName().toLowerCase().contains(lowerKeyword);
                 case "Tác giả":
                     return p.getAuthorName() != null && p.getAuthorName().toLowerCase().contains(lowerKeyword);
                 case "Thể loại":

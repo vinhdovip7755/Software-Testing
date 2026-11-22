@@ -249,4 +249,53 @@ class ApiContractTest {
         assertNull(decodedNullDates.getEndDate());
         assertEquals("", decodedNullDates.getFormattedDateRange());
     }
+
+    @Test
+    void financialStatsBusNormalizesSameDayTimestampsBeforeComparison() {
+        com.bookstore.bus.FinancialStatsBUS bus = new com.bookstore.bus.FinancialStatsBUS();
+        java.util.Date fromAfternoon = Timestamp.valueOf("2026-09-25 18:30:00");
+        java.util.Date toMorningSameDay = Timestamp.valueOf("2026-09-25 08:00:00");
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+                () -> bus.validateThongKeTheoNgay(fromAfternoon, toMorningSameDay)
+        );
+    }
+
+    @Test
+    void importBusRejectsInvalidDetailsAndDuplicateBooksBeforeDatabaseAccess() {
+        com.bookstore.bus.ImportBUS bus = new com.bookstore.bus.ImportBUS();
+        ImportTicketDTO ticket = new ImportTicketDTO(2, 1, 100_000);
+
+        assertFalse(bus.importBooks(ticket, new ImportDetailDTO[0]));
+        assertFalse(bus.importBooks(ticket, new ImportDetailDTO[]{
+                new ImportDetailDTO(0, 1, 10, 50_000, 90_000, 40),
+                new ImportDetailDTO(0, 1, 5, 45_000, 90_000, 50)
+        }));
+        assertFalse(bus.importBooks(ticket, new ImportDetailDTO[]{
+                new ImportDetailDTO(0, 1, Integer.MAX_VALUE, 1, 10, 0),
+                new ImportDetailDTO(0, 2, 1, 1, 10, 0)
+        }));
+        assertFalse(bus.importBooks(ticket, new ImportDetailDTO[]{
+                new ImportDetailDTO(0, 1, -1, 50_000, 90_000, 40)
+        }));
+    }
+
+    @Test
+    void databaseConnectionThrowsIllegalStateExceptionInsteadOfReturningNull() {
+        String previousUrl = System.getProperty("bookstore.db.url");
+        System.setProperty("bookstore.db.url", "jdbc:invalid://127.0.0.1:1/nonexistent");
+        try {
+            IllegalStateException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                    IllegalStateException.class,
+                    com.bookstore.util.DatabaseConnection::getConnection
+            );
+            assertEquals("Không thể kết nối cơ sở dữ liệu.", ex.getMessage());
+        } finally {
+            if (previousUrl == null) {
+                System.clearProperty("bookstore.db.url");
+            } else {
+                System.setProperty("bookstore.db.url", previousUrl);
+            }
+        }
+    }
 }

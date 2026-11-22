@@ -47,6 +47,9 @@ public class BookController {
         sessionStore.requireAnyView(authorization,
                 "MANAGE_PRODUCT", "MANAGE_AUTHOR", "MANAGE_CATEGORY", "MANAGE_SUPPLIER", "MANAGE_IMPORT",
                 "MANAGE_SELLING");
+        if (id <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã sách không hợp lệ.");
+        }
         BookDTO book = bookBUS.selectById(id);
         if (book == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy sách.");
@@ -60,7 +63,11 @@ public class BookController {
             @RequestBody BookDTO book
     ) {
         sessionStore.requireAction(authorization, "MANAGE_PRODUCT");
-        return ApiResponses.fromBusinessMessage(bookBUS.addBook(book));
+        if (book == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin sách không hợp lệ.");
+        }
+        BookDTO sanitized = copyAllowedMetadata(book, 0, true);
+        return ApiResponses.fromBusinessMessage(bookBUS.addBook(sanitized));
     }
 
     @PutMapping("/{id}")
@@ -70,7 +77,30 @@ public class BookController {
             @RequestBody BookDTO book
     ) {
         sessionStore.requireAction(authorization, "MANAGE_PRODUCT");
-        book.setBookId(id);
-        return ApiResponses.fromBusinessMessage(bookBUS.updateBook(book));
+        if (id <= 0 || book == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin cập nhật sách không hợp lệ.");
+        }
+        BookDTO sanitized = copyAllowedMetadata(book, id, false);
+        return ApiResponses.fromBusinessMessage(bookBUS.updateBook(sanitized));
+    }
+
+    static BookDTO copyAllowedMetadata(BookDTO source, int bookId, boolean isCreate) {
+        BookDTO copy = new BookDTO();
+        copy.setBookId(isCreate ? 0 : bookId);
+        copy.setBookName(source.getBookName());
+        copy.setPublicationYear(source.getPublicationYear());
+        copy.setCoverPrice(source.getCoverPrice());
+        copy.setSellingPrice(isCreate ? source.getCoverPrice() : 0);
+        // Never allow client-supplied quantity mass assignment.
+        copy.setQuantity(0);
+        copy.setTranslator(source.getTranslator());
+        copy.setImage(source.getImage());
+        copy.setDescription(source.getDescription());
+        copy.setStatus(source.getStatus());
+        copy.setCategoryId(source.getCategoryId());
+        copy.setTagDetail(source.getTagDetail());
+        copy.setSupplierId(source.getSupplierId());
+        copy.setAuthorIdsList(source.getAuthorIdsList());
+        return copy;
     }
 }

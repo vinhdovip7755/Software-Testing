@@ -28,6 +28,7 @@ public class ImportDetailDialog extends JDialog {
 
     public ImportDetailDialog(Window parent, ImportTicketDTO ticket, int roleId) {
         super(parent, "Chi Tiết Phiếu Nhập Hàng", ModalityType.APPLICATION_MODAL);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.currentTicket = ticket;
         this.roleId = roleId;
         setSize(850, 600);
@@ -60,10 +61,20 @@ public class ImportDetailDialog extends JDialog {
             approver = "Hệ thống / Admin";
         }
 
+        String createdDateStr = currentTicket.getCreatedDate() != null
+                ? sdf.format(currentTicket.getCreatedDate())
+                : "-";
+        String supplierName = currentTicket.getSupplierName() != null
+                ? currentTicket.getSupplierName()
+                : "-";
+        String employeeName = currentTicket.getEmployeeName() != null
+                ? currentTicket.getEmployeeName()
+                : "-";
+
         topPanel.add(createLabelInfo("Mã Phiếu:", "PN" + String.format("%03d", currentTicket.getImportID())));
-        topPanel.add(createLabelInfo("Ngày Tạo:", sdf.format(currentTicket.getCreatedDate())));
-        topPanel.add(createLabelInfo("Nhà Cung Cấp:", currentTicket.getSupplierName()));
-        topPanel.add(createLabelInfo("Người Lập:", currentTicket.getEmployeeName()));
+        topPanel.add(createLabelInfo("Ngày Tạo:", createdDateStr));
+        topPanel.add(createLabelInfo("Nhà Cung Cấp:", supplierName));
+        topPanel.add(createLabelInfo("Người Lập:", employeeName));
         topPanel.add(createLabelInfo("Trạng Thái:", statusStr));
         topPanel.add(createLabelInfo("Người Duyệt:", approver));
 
@@ -116,9 +127,9 @@ public class ImportDetailDialog extends JDialog {
                 && roleId == SharedData.currentUser.getRoleId()
                 && PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET")
                 && ImportApprovalPolicy.canAct(
-                        roleId,
-                        SharedData.currentUser.getEmployeeId(),
-                        currentTicket.getEmployeeID());
+                        SharedData.currentUser,
+                        currentTicket.getEmployeeID(),
+                        currentTicket.getStatus());
         if (currentTicket.getStatus() == 1) {
             if (canReviewTicket) {
                 JButton btnCancel = new JButton("Hủy Phiếu");
@@ -180,7 +191,7 @@ public class ImportDetailDialog extends JDialog {
                 double lineTotal = d.getQuantity() * d.getPrice();
                 tableModel.insertRow(0, new Object[]{
                         d.getBookID(),
-                        d.getBookName(),
+                        d.getBookName() != null ? d.getBookName() : "-",
                         MoneyFormatter.toVND(d.getPrice()),
                         d.getQuantity(),
                         MoneyFormatter.toVND(lineTotal)

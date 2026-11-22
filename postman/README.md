@@ -10,11 +10,11 @@ Thư mục này chứa trọn bộ cấu hình kiểm thử tự động RESTful
 | :--- | :--- |
 | `BookStore_API.postman_collection.json` | **Postman Collection v2.1.0** gồm **21 Folder nghiệp vụ** và **107 Request**, bao phủ **100% toàn bộ 84 endpoint** hiện có trong `api-server` (`49 GET`, `20 POST`, `14 PUT`, `1 DELETE`), kèm kịch bản âm tính, phân quyền RBAC và chuỗi liên hoàn E2E. Đã test **100% PASS (377/377 assertions)**. |
 | `BookStore_API_Local.postman_environment.json` | **Postman Environment** chứa biến môi trường `baseUrl`, tài khoản theo từng vai trò RBAC (`Quản lý`, `Admin`, `Nhân viên Nhập hàng`, `Nhân viên Bán hàng`), các biến Bearer Token động và tham số ID mẫu. |
-| `docs/API_Test_Cases_Specification.md` | **Đặc tả chi tiết 188 Test Cases** chuẩn IEEE 829 phân loại theo 20 phân hệ và 5 mức nghiệp vụ. |
-| `docs/BookStore_API_TestCases_Specification.xlsx` | **File bảng tính Excel 3 Sheets** (Dashboard, Chi tiết 188 Test Cases có màu sắc và AutoFilter, E2E Workflows) tiện nộp bài và in ấn. |
-| `docs/BookStore_API_Test_Report.html` | **Báo cáo HTML Dashboard tương tác** mở xem ngay trên trình duyệt (có KPI cards, thanh tìm kiếm, bộ lọc động). |
-| `docs/Performance_Testing_Report.md` | Báo cáo kiểm thử hiệu năng và tải (Response time, p90, p99, throughput, khuyến nghị tối ưu). |
-| `docs/OWASP_API_Security_Report.md` | Báo cáo kiểm thử bảo mật API theo chuẩn quốc tế **OWASP API Security Top 10 (2023)**. |
+| `docs/10_Kiem_Thu_API_RESTful_API_Testing/API_Test_Cases_Specification.md` | **Đặc tả chi tiết 188 Test Cases** chuẩn IEEE 829 phân loại theo 20 phân hệ và 5 mức nghiệp vụ. |
+| `docs/10_Kiem_Thu_API_RESTful_API_Testing/BookStore_API_TestCases_Specification.xlsx` | **File bảng tính Excel 3 Sheets** (Dashboard, Chi tiết 188 Test Cases có màu sắc và AutoFilter, E2E Workflows) tiện nộp bài và in ấn. |
+| `docs/10_Kiem_Thu_API_RESTful_API_Testing/BookStore_API_Test_Report.html` | **Báo cáo HTML Dashboard tương tác** mở xem ngay trên trình duyệt (có KPI cards, thanh tìm kiếm, bộ lọc động). |
+| `docs/12_Kiem_Thu_Hieu_Nang_Performance_Testing/Performance_Testing_Report.md` | Báo cáo kiểm thử hiệu năng và tải (Response time, p90, p99, throughput, khuyến nghị tối ưu). |
+| `docs/11_Kiem_Thu_Bao_Mat_Security_Testing_OWASP/OWASP_API_Security_Report.md` | Báo cáo kiểm thử bảo mật API theo chuẩn quốc tế **OWASP API Security Top 10 (2023)**. |
 | `start-api.bat` | Phím tắt 1-click nhấp đúp chuột khởi động API Server trực tiếp từ file JAR siêu tốc (~1.5 giây). |
 | `stop-api.bat` | Phím tắt 1-click giải phóng cổng 8080 nếu bị kẹt. |
 | `.github/workflows/api-testing.yml` | Pipeline CI/CD tự động build, test và chạy Newman trên GitHub Actions. |

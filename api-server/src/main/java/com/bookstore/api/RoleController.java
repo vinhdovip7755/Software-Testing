@@ -4,14 +4,11 @@ import com.bookstore.api.contract.RoleActionPermissionDTO;
 import com.bookstore.bus.ActionBUS;
 import com.bookstore.bus.PermissionBUS;
 import com.bookstore.bus.RoleBUS;
+import com.bookstore.dao.RoleDAO;
 import com.bookstore.dto.ActionDTO;
 import com.bookstore.dto.PermissionDTO;
 import com.bookstore.dto.RoleDTO;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,20 +27,38 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/roles")
 public class RoleController {
-    private static final String ROLE_NAME_PATTERN =
-            "^(?=.*\\p{L})[\\p{L}0-9\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$";
+    private static final Pattern ROLE_NAME_PATTERN =
+            Pattern.compile("^(?=.*\\p{L})[\\p{L}0-9\\s.'\\u2019\\u2018\\u0060\\u02BB\\u2013-]+$");
+    private static final int MAX_ROLE_NAME_LENGTH = 50;
 
-    private final RoleBUS roleBUS = new RoleBUS();
-    private final ActionBUS actionBUS = new ActionBUS();
-    private final PermissionBUS permissionBUS = new PermissionBUS();
+    private final RoleBUS roleBUS;
+    private final ActionBUS actionBUS;
+    private final PermissionBUS permissionBUS;
+    private final RoleDAO roleDAO;
     private final AuthSessionStore sessionStore;
 
+    @Autowired
     public RoleController(AuthSessionStore sessionStore) {
+        this(sessionStore, new RoleBUS(), new ActionBUS(), new PermissionBUS(), new RoleDAO());
+    }
+
+    RoleController(
+            AuthSessionStore sessionStore,
+            RoleBUS roleBUS,
+            ActionBUS actionBUS,
+            PermissionBUS permissionBUS,
+            RoleDAO roleDAO
+    ) {
         this.sessionStore = sessionStore;
+        this.roleBUS = roleBUS;
+        this.actionBUS = actionBUS;
+        this.permissionBUS = permissionBUS;
+        this.roleDAO = roleDAO;
     }
 
     @GetMapping
@@ -79,16 +94,16 @@ public class RoleController {
     @PostMapping
     public ResponseEntity<String> createRole(
             @RequestHeader("Authorization") String authorization,
-            @Valid @RequestBody RoleSaveRequest request
+            @RequestBody(required = false) RoleSaveRequest request
     ) {
         sessionStore.requireAction(authorization, "MANAGE_ROLE");
+        String trimmedName = validateRoleRequest(request);
         PreparedPermissions permissions = preparePermissions(request.permissions());
-        RoleDTO role = new RoleDTO(0, request.roleName().trim());
-        int roleId = roleBUS.insertRole(role);
+        RoleDTO role = new RoleDTO(0, trimmedName);
+        int roleId = roleDAO.insertRoleWithPermissions(role, permissions.permissions(), permissions.actionIds());
         if (roleId <= 0) {
             return ApiResponses.fromBusinessMessage("Thêm thất bại! Tên chức vụ có thể đã tồn tại.");
         }
-        persistPermissions(roleId, permissions);
         return ApiResponses.fromBusinessMessage("Thêm chức vụ mới thành công!");
     }
 
@@ -96,19 +111,41 @@ public class RoleController {
     public ResponseEntity<String> updateRole(
             @RequestHeader("Authorization") String authorization,
             @PathVariable("roleId") int roleId,
-            @Valid @RequestBody RoleSaveRequest request
+            @RequestBody(required = false) RoleSaveRequest request
     ) {
-        sessionStore.requireAction(authorization, "MANAGE_ROLE");
+        AuthSessionStore.Session session = sessionStore.requireAction(authorization, "MANAGE_ROLE");
         if (roleId <= 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chức vụ mặc định không thể chỉnh sửa.");
         }
-        PreparedPermissions permissions = preparePermissions(request.permissions());
-        RoleDTO role = new RoleDTO(roleId, request.roleName().trim());
-        if (!roleBUS.updateRole(role)) {
-            return ApiResponses.fromBusinessMessage("Cập nhật tên chức vụ thất bại!");
+        if (session.employee() != null && session.employee().getRoleId() == roleId) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Không thể tự chỉnh sửa phân quyền chức vụ của chính mình.");
         }
-        persistPermissions(roleId, permissions);
+        String trimmedName = validateRoleRequest(request);
+        PreparedPermissions permissions = preparePermissions(request.permissions());
+        RoleDTO role = new RoleDTO(roleId, trimmedName);
+        if (!roleDAO.updateRoleWithPermissions(role, permissions.permissions(), permissions.actionIds())) {
+            return ApiResponses.fromBusinessMessage("Cập nhật tên chức vụ hoặc phân quyền thất bại!");
+        }
+        sessionStore.revokeByRoleId(roleId);
         return ApiResponses.fromBusinessMessage("Cập nhật phân quyền thành công!");
+    }
+
+    private String validateRoleRequest(RoleSaveRequest request) {
+        if (request == null || request.roleName() == null || request.roleName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên chức vụ không được để trống.");
+        }
+        String trimmedName = request.roleName().trim();
+        if (trimmedName.length() > MAX_ROLE_NAME_LENGTH || !ROLE_NAME_PATTERN.matcher(trimmedName).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên chức vụ không hợp lệ.");
+        }
+        if ("admin".equalsIgnoreCase(trimmedName)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể sử dụng tên chức vụ Admin.");
+        }
+        if (request.permissions() == null || request.permissions().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danh sách quyền không được để trống.");
+        }
+        return trimmedName;
     }
 
     private PreparedPermissions preparePermissions(List<RoleActionPermissionDTO> requestedPermissions) {
@@ -145,22 +182,12 @@ public class RoleController {
         return new PreparedPermissions(permissions, actionIds);
     }
 
-    private void persistPermissions(int roleId, PreparedPermissions prepared) {
-        if (!permissionBUS.saveRolePermissions(roleId, prepared.permissions(), prepared.actionIds())) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu phân quyền.");
-        }
-    }
-
     private record PreparedPermissions(List<PermissionDTO> permissions, List<Integer> actionIds) {
     }
 
     public record RoleSaveRequest(
-            @NotBlank(message = "Tên chức vụ không được để trống.")
-            @Pattern(regexp = ROLE_NAME_PATTERN, message = "Tên chức vụ không hợp lệ.")
             String roleName,
-            @NotNull(message = "Danh sách quyền không được để trống.")
-            @Size(min = 1, message = "Danh sách quyền không được để trống.")
-            List<@Valid RoleActionPermissionDTO> permissions
+            List<RoleActionPermissionDTO> permissions
     ) {
     }
 }

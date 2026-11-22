@@ -8,12 +8,8 @@ import com.bookstore.dao.EmployeeDAO;
 import com.bookstore.dto.AccountDTO;
 import com.bookstore.dto.EmployeeDTO;
 import com.bookstore.util.EmailUtil;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import com.bookstore.util.PasswordUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,18 +24,47 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.function.BiPredicate;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/accounts")
 public class AccountController {
-    private final AccountBUS accountBUS = new AccountBUS();
-    private final AccountDAO accountDAO = new AccountDAO();
-    private final EmployeeDAO employeeDAO = new EmployeeDAO();
-    private final EmployeeBUS employeeBUS = new EmployeeBUS();
-    private final AuthSessionStore sessionStore;
+    private static final Pattern EMAIL_PATTERN =
+            Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
 
+    private final AccountBUS accountBUS;
+    private final AccountDAO accountDAO;
+    private final EmployeeDAO employeeDAO;
+    private final EmployeeBUS employeeBUS;
+    private final AuthSessionStore sessionStore;
+    private final BiPredicate<String, String> passwordEmailSender;
+    private final Supplier<String> temporaryPasswordGenerator;
+
+    @Autowired
     public AccountController(AuthSessionStore sessionStore) {
+        this(sessionStore, new AccountBUS(), new AccountDAO(), new EmployeeDAO(), new EmployeeBUS(),
+                EmailUtil::sendNewPassword, EmailUtil::generateTemporaryPassword);
+    }
+
+    AccountController(
+            AuthSessionStore sessionStore,
+            AccountBUS accountBUS,
+            AccountDAO accountDAO,
+            EmployeeDAO employeeDAO,
+            EmployeeBUS employeeBUS,
+            BiPredicate<String, String> passwordEmailSender,
+            Supplier<String> temporaryPasswordGenerator
+    ) {
         this.sessionStore = sessionStore;
+        this.accountBUS = accountBUS;
+        this.accountDAO = accountDAO;
+        this.employeeDAO = employeeDAO;
+        this.employeeBUS = employeeBUS;
+        this.passwordEmailSender = passwordEmailSender;
+        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
     }
 
     @GetMapping
@@ -56,12 +81,38 @@ public class AccountController {
     @PostMapping
     public ResponseEntity<String> createAccount(
             @RequestHeader("Authorization") String authorization,
-            @Valid @RequestBody CreateAccountRequest request
+            @RequestBody(required = false) CreateAccountRequest request
     ) {
         sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
+        if (request == null || request.username() == null || request.username().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email không được để trống.");
+        }
+        String username = request.username().trim();
+        if (!EMAIL_PATTERN.matcher(username).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email không đúng định dạng.");
+        }
+        if (username.length() > AccountBUS.MAX_USERNAME_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email không được vượt quá 50 ký tự.");
+        }
+        if (request.password() == null || request.password().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu không được để trống.");
+        }
+        if (request.password().length() < 4) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu phải có ít nhất 4 ký tự.");
+        }
+        if (request.employeeId() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã nhân viên không hợp lệ.");
+        }
         if (request.status() != 0 && request.status() != 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái tài khoản không hợp lệ.");
         }
+
+        EmployeeDTO targetEmployee = employeeDAO.selectById(request.employeeId());
+        if (targetEmployee != null && targetEmployee.getRoleId() == 1) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Không thể tạo hoặc thay đổi tài khoản Admin tại đây.");
+        }
+
         boolean eligibleEmployee = employeeBUS.getEmployeesWithoutAccount().stream()
                 .anyMatch(employee -> employee.getEmployeeId() == request.employeeId());
         if (!eligibleEmployee) {
@@ -69,7 +120,7 @@ public class AccountController {
         }
 
         AccountDTO account = new AccountDTO(
-                request.username().trim(),
+                username,
                 request.password(),
                 request.employeeId(),
                 request.status()
@@ -81,34 +132,88 @@ public class AccountController {
     public ResponseEntity<String> updateAccount(
             @RequestHeader("Authorization") String authorization,
             @PathVariable("employeeId") int employeeId,
-            @Valid @RequestBody UpdateAccountRequest request
+            @RequestBody(required = false) UpdateAccountRequest request
     ) {
-        sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
-        if (employeeId <= 0 || (request.status() != 0 && request.status() != 1)) {
+        AuthSessionStore.Session session = sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
+        if (employeeId <= 0 || request == null || (request.status() != 0 && request.status() != 1)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin tài khoản không hợp lệ.");
         }
-        AccountDTO account = findAccountByEmployeeId(employeeId);
+        if (session.employee() != null && session.employee().getEmployeeId() == employeeId) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Không thể tự chỉnh sửa hoặc khóa tài khoản của chính mình tại đây.");
+        }
+
+        boolean changePassword = false;
+        String newPassword = request.newPassword();
+        if (newPassword != null && !newPassword.isEmpty()) {
+            if (newPassword.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới không được chỉ chứa khoảng trắng.");
+            }
+            if (newPassword.length() < 4) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 4 ký tự.");
+            }
+            changePassword = true;
+        }
+
+        AccountDTO account = accountDAO.selectByEmployeeId(employeeId);
         if (account == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản nhân viên.");
         }
-        boolean changePassword = request.newPassword() != null && !request.newPassword().isBlank();
+        EmployeeDTO targetEmployee = employeeDAO.selectById(employeeId);
+        if (targetEmployee != null && targetEmployee.getRoleId() == 1) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Không thể khóa hoặc chỉnh sửa tài khoản Admin tại đây.");
+        }
+
         if (changePassword) {
-            if (request.newPassword().length() < 4) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 4 ký tự.");
-            }
-            account.setPassword(request.newPassword());
+            account.setPassword(newPassword);
         }
         account.setStatus(request.status());
-        return ApiResponses.fromBusinessMessage(accountBUS.updateAccount(account, changePassword));
+        String result = accountBUS.updateAccount(account, changePassword);
+        if (isSuccess(result) && (request.status() == 0 || changePassword)) {
+            sessionStore.revokeByEmployeeId(employeeId);
+        }
+        return ApiResponses.fromBusinessMessage(result);
     }
 
     @PutMapping("/admin")
     public ResponseEntity<String> updateAdminAccount(
             @RequestHeader("Authorization") String authorization,
-            @Valid @RequestBody AdminUpdateRequest request
+            @RequestBody(required = false) AdminUpdateRequest request
     ) {
-        sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
-        AccountDTO account = accountBUS.selectByUsername(request.oldUsername());
+        AuthSessionStore.Session session = sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
+        if (session.employee() == null || session.employee().getRoleId() != 1) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Chỉ Admin mới có quyền cập nhật tài khoản Admin.");
+        }
+        if (request == null || request.oldUsername() == null || request.oldUsername().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email hiện tại không được để trống.");
+        }
+        if (request.newUsername() == null || request.newUsername().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email mới không được để trống.");
+        }
+        String oldUsername = request.oldUsername().trim();
+        String newUsername = request.newUsername().trim();
+        if (!EMAIL_PATTERN.matcher(newUsername).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email mới không đúng định dạng.");
+        }
+        if (newUsername.length() > AccountBUS.MAX_USERNAME_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email mới không được vượt quá 50 ký tự.");
+        }
+
+        boolean changePassword = false;
+        String newPassword = request.newPassword();
+        if (newPassword != null && !newPassword.isEmpty()) {
+            if (newPassword.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới không được chỉ chứa khoảng trắng.");
+            }
+            if (newPassword.length() < 4) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 4 ký tự.");
+            }
+            changePassword = true;
+        }
+
+        AccountDTO account = accountBUS.selectByUsername(oldUsername);
         if (account == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản Admin.");
         }
@@ -116,20 +221,38 @@ public class AccountController {
         if (employee == null || employee.getRoleId() != 1) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản Admin.");
         }
-        boolean changePassword = request.newPassword() != null && !request.newPassword().isBlank();
-        if (changePassword && request.newPassword().length() < 4) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mật khẩu mới phải có ít nhất 4 ký tự.");
+        if (session.employee().getEmployeeId() > 0 && employee.getEmployeeId() != session.employee().getEmployeeId()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Không thể cập nhật tài khoản Admin khác.");
         }
 
-        String usernameResult = accountBUS.updateUsername(request.oldUsername(), request.newUsername().trim());
-        if (!"OK".equals(usernameResult)) {
-            return ApiResponses.fromBusinessMessage(usernameResult);
+        if (changePassword && PasswordUtil.isSamePassword(newPassword, account.getPassword())) {
+            return ApiResponses.fromBusinessMessage("Mật khẩu mới không được trùng với mật khẩu cũ!");
         }
-        account.setUsername(request.newUsername().trim());
-        if (changePassword) {
-            account.setPassword(request.newPassword());
+        if (!oldUsername.equalsIgnoreCase(newUsername)) {
+            AccountDTO duplicateAccount = accountDAO.selectByUsername(newUsername);
+            if (duplicateAccount != null && duplicateAccount.getEmployeeId() != employee.getEmployeeId()) {
+                return ApiResponses.fromBusinessMessage("Email này đã được sử dụng bởi người khác!");
+            }
+            if (employeeDAO.isEmailExist(newUsername, employee.getEmployeeId())) {
+                return ApiResponses.fromBusinessMessage("Email này đã được sử dụng bởi người khác!");
+            }
         }
-        return ApiResponses.fromBusinessMessage(accountBUS.updateAccount(account, changePassword));
+
+        String hashedPassword = changePassword ? PasswordUtil.hash(newPassword) : null;
+        boolean updated = accountDAO.updateAdminCredentialsAtomic(
+                employee.getEmployeeId(),
+                account.getUsername(),
+                newUsername,
+                hashedPassword
+        );
+        if (!updated) {
+            return ApiResponses.fromBusinessMessage("Cập nhật thất bại. Vui lòng kiểm tra lại hệ thống!");
+        }
+        if (changePassword || !oldUsername.equals(newUsername)) {
+            sessionStore.revokeByEmployeeIdExcept(employee.getEmployeeId(), AuthSessionStore.extractToken(authorization));
+        }
+        return ApiResponses.fromBusinessMessage("Cập nhật tài khoản thành công!");
     }
 
     @PostMapping("/{employeeId}/reset-password")
@@ -137,30 +260,55 @@ public class AccountController {
             @RequestHeader("Authorization") String authorization,
             @PathVariable("employeeId") int employeeId
     ) {
-        sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
-        AccountDTO account = findAccountByEmployeeId(employeeId);
+        AuthSessionStore.Session session = sessionStore.requireAction(authorization, "MANAGE_ACCOUNT");
+        if (employeeId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã nhân viên không hợp lệ.");
+        }
+        if (session.employee() != null && session.employee().getEmployeeId() == employeeId) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Không thể tự đặt lại mật khẩu của chính mình tại đây.");
+        }
+
+        AccountDTO account = accountDAO.selectByEmployeeId(employeeId);
         if (account == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tài khoản nhân viên.");
         }
+        EmployeeDTO targetEmployee = employeeDAO.selectById(employeeId);
+        if (targetEmployee != null && targetEmployee.getRoleId() == 1) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Không thể đặt lại mật khẩu tài khoản Admin tại đây.");
+        }
 
-        String temporaryPassword = EmailUtil.generateOTP();
+        String previousPasswordHash = account.getPassword();
+        String temporaryPassword = temporaryPasswordGenerator.get();
+        account.setPassword(temporaryPassword);
+        String updateResult = accountBUS.updateAccount(account, true);
+        if (!isSuccess(updateResult)) {
+            return ApiResponses.fromBusinessMessage(updateResult);
+        }
+
         try {
-            if (!EmailUtil.sendNewPassword(account.getUsername(), temporaryPassword)) {
+            if (!passwordEmailSender.test(account.getUsername(), temporaryPassword)) {
+                accountDAO.restorePasswordHash(account.getUsername(), previousPasswordHash);
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Không thể gửi email.");
             }
         } catch (IllegalStateException e) {
+            accountDAO.restorePasswordHash(account.getUsername(), previousPasswordHash);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), e);
+        } catch (RuntimeException e) {
+            if (e instanceof ResponseStatusException rse) {
+                throw rse;
+            }
+            accountDAO.restorePasswordHash(account.getUsername(), previousPasswordHash);
+            throw e;
         }
 
-        account.setPassword(temporaryPassword);
-        return ApiResponses.fromBusinessMessage(accountBUS.updateAccount(account, true));
+        sessionStore.revokeByEmployeeId(employeeId);
+        return ApiResponses.fromBusinessMessage(updateResult);
     }
 
-    private AccountDTO findAccountByEmployeeId(int employeeId) {
-        return accountDAO.selectAllAccounts().stream()
-                .filter(account -> account.getEmployeeId() == employeeId)
-                .findFirst()
-                .orElse(null);
+    private boolean isSuccess(String message) {
+        return message != null && ("ok".equalsIgnoreCase(message) || message.toLowerCase(Locale.ROOT).contains("thành công"));
     }
 
     private AccountViewDTO toView(AccountDTO account, EmployeeDTO employee) {
@@ -175,15 +323,8 @@ public class AccountController {
     }
 
     public record CreateAccountRequest(
-            @NotBlank(message = "Email không được để trống.")
-            @Email(message = "Email không đúng định dạng.")
-            @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
-                    message = "Email không đúng định dạng.")
             String username,
-            @NotBlank(message = "Mật khẩu không được để trống.")
-            @Size(min = 4, message = "Mật khẩu phải có ít nhất 4 ký tự.")
             String password,
-            @Positive(message = "Mã nhân viên không hợp lệ.")
             int employeeId,
             int status
     ) { }
@@ -194,12 +335,7 @@ public class AccountController {
     ) { }
 
     public record AdminUpdateRequest(
-            @NotBlank(message = "Email hiện tại không được để trống.")
             String oldUsername,
-            @NotBlank(message = "Email mới không được để trống.")
-            @Email(message = "Email mới không đúng định dạng.")
-            @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
-                    message = "Email mới không đúng định dạng.")
             String newUsername,
             String newPassword
     ) { }

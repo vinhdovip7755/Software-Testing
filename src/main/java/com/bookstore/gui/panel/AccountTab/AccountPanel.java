@@ -9,7 +9,9 @@ import com.bookstore.api.client.ApiException;
 import com.bookstore.api.contract.AccountViewDTO;
 import com.bookstore.api.contract.AdminAccountUpdateRequestDTO;
 import com.bookstore.dto.EmployeeDTO;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
+import com.bookstore.util.SharedData;
 
 import java.awt.*;
 
@@ -18,6 +20,7 @@ public class AccountPanel extends JPanel implements Refreshable {
     private DefaultTableModel model;
     private JTable table;
     private JTextField txtSearch;
+    private JButton btnAdd;
     private final AccountApiClient accountApiClient = new AccountApiClient();
     private DefaultTableModel adminModel;
     private String currentAdminUsername = "";
@@ -57,7 +60,33 @@ public class AccountPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
+        applyPermissions();
         reloadAccounts();
+    }
+
+    private void applyPermissions() {
+        boolean canManageAccount = PermissionUtil.hasActionPermission("MANAGE_ACCOUNT");
+        if (btnAdd != null) {
+            btnAdd.setVisible(canManageAccount);
+            btnAdd.setEnabled(canManageAccount);
+        }
+        if (table != null && table.getColumnModel().getColumnCount() > 5) {
+            TableColumn actionCol = table.getColumnModel().getColumn(5);
+            if (canManageAccount) {
+                actionCol.setMinWidth(60);
+                actionCol.setMaxWidth(140);
+                actionCol.setPreferredWidth(90);
+            } else {
+                actionCol.setMinWidth(0);
+                actionCol.setMaxWidth(0);
+                actionCol.setPreferredWidth(0);
+            }
+        }
+    }
+
+    private Frame getOwnerFrame() {
+        Window window = SwingUtilities.getWindowAncestor(this);
+        return (window instanceof Frame frame) ? frame : null;
     }
 
     private void initAdminSection(WhiteBoxPanel box) {
@@ -146,15 +175,18 @@ public class AccountPanel extends JPanel implements Refreshable {
         gbc.insets = new Insets(0, 0, 0, 20);
         searchPanel.add(txtSearch, gbc);
 
-        JButton btnAdd = new JButton("Thêm tài khoản");
+        btnAdd = new JButton("Thêm tài khoản");
         btnAdd.setBackground(new Color(17, 71, 50));
         btnAdd.setForeground(Color.WHITE);
         btnAdd.setPreferredSize(new Dimension(140, 35));
         btnAdd.setFocusPainted(false);
 
         btnAdd.addActionListener(e -> {
+            if (!PermissionUtil.hasActionPermission("MANAGE_ACCOUNT")) {
+                return;
+            }
             AccountFormDialog dialog = new AccountFormDialog(
-                    (Frame) SwingUtilities.getWindowAncestor(this), this, null);
+                    getOwnerFrame(), this, null);
             dialog.setDataToForm(null, null);
             dialog.setVisible(true);
             reloadAccounts();
@@ -171,7 +203,7 @@ public class AccountPanel extends JPanel implements Refreshable {
         model = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 5;
+                return false;
             }
         };
         table = new JTable(model);
@@ -209,13 +241,18 @@ public class AccountPanel extends JPanel implements Refreshable {
         table.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (!PermissionUtil.hasActionPermission("MANAGE_ACCOUNT")) {
+                    return;
+                }
                 int row = table.rowAtPoint(e.getPoint());
                 int col = table.columnAtPoint(e.getPoint());
-                if (col == 5 && row != -1) {
+                if (row >= 0 && col >= 0 && table.convertColumnIndexToModel(col) == 5) {
                     openEditDialog(row);
                 }
             }
         });
+
+        applyPermissions();
 
         txtSearch.addActionListener(e -> filterAccountTable());
         txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
@@ -345,7 +382,12 @@ public class AccountPanel extends JPanel implements Refreshable {
     }
 
     private void showEditAdminDialog() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Sửa Admin", true);
+        if (!PermissionUtil.hasActionPermission("MANAGE_ACCOUNT")
+                || SharedData.currentUser == null
+                || SharedData.currentUser.getRoleId() != 1) {
+            return;
+        }
+        JDialog dialog = new JDialog(getOwnerFrame(), "Sửa Admin", true);
         dialog.setLayout(new BorderLayout(10, 10));
 
         JPanel form = new JPanel(new GridLayout(2, 2, 10, 10));
@@ -463,14 +505,21 @@ public class AccountPanel extends JPanel implements Refreshable {
     }
 
     private void openEditDialog(int row) {
+        if (!PermissionUtil.hasActionPermission("MANAGE_ACCOUNT")) {
+            return;
+        }
         if (table.isEditing()) {
             table.getCellEditor().stopCellEditing();
         }
-        if (listAccountGoc == null) {
+        if (listAccountGoc == null || row < 0) {
             return;
         }
 
-        String user = table.getValueAt(row, 1).toString();
+        int modelRow = table.convertRowIndexToModel(row);
+        if (modelRow < 0 || modelRow >= model.getRowCount()) {
+            return;
+        }
+        String user = model.getValueAt(modelRow, 1).toString();
         AccountViewDTO account = listAccountGoc.stream()
                 .filter(item -> item.username().equals(user))
                 .findFirst()
@@ -485,7 +534,7 @@ public class AccountPanel extends JPanel implements Refreshable {
         employee.setRoleId(account.roleId());
         employee.setRoleName(account.roleName());
 
-        AccountFormDialog dialog = new AccountFormDialog((Frame) SwingUtilities.getWindowAncestor(this), this, account);
+        AccountFormDialog dialog = new AccountFormDialog(getOwnerFrame(), this, account);
         dialog.setDataToForm(account, employee);
         dialog.setVisible(true);
         reloadAccounts();

@@ -4,6 +4,7 @@ import com.bookstore.api.client.ApiException;
 import com.bookstore.api.client.MembershipRankApiClient;
 import com.bookstore.dto.MembershipRankDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.PermissionUtil;
 import com.bookstore.util.Refreshable;
 import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.extras.FlatSVGIcon;
@@ -30,10 +31,27 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
 
     @Override
     public void refresh() {
+        applyPermissions();
         try {
             loadRankTable();
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tải hạng thành viên", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void applyPermissions() {
+        boolean hasAction = PermissionUtil.hasActionPermission("MANAGE_CUSTOMER");
+        if (btnAddRank != null) {
+            btnAddRank.setVisible(hasAction);
+            btnAddRank.setEnabled(hasAction);
+        }
+        if (btnEditRank != null) {
+            btnEditRank.setVisible(hasAction);
+            btnEditRank.setEnabled(hasAction);
+        }
+        if (btnDeleteRank != null) {
+            btnDeleteRank.setVisible(hasAction);
+            btnDeleteRank.setEnabled(hasAction);
         }
     }
 
@@ -45,6 +63,7 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
         add(createTopPanel(), BorderLayout.NORTH);
         add(createTablePanel(), BorderLayout.CENTER);
 
+        applyPermissions();
         refresh();
         addEvents();
     }
@@ -155,6 +174,9 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
     }
 
     private void openRankEditDialog() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_CUSTOMER")) {
+            return;
+        }
         int selectedRow = tblRank.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn hạng thành viên cần sửa!", "Thông báo", JOptionPane.WARNING_MESSAGE);
@@ -183,6 +205,9 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
         }
     }
     private void openRankInsertDialog() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_CUSTOMER")) {
+            return;
+        }
         JFrame parentFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
         MembershipRankDialog dialog = new MembershipRankDialog(parentFrame, null);
         dialog.setVisible(true);
@@ -190,6 +215,9 @@ public class MembershipRankPanel extends JPanel implements Refreshable {
     }
 
     private void deleteSelectedRank() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_CUSTOMER")) {
+            return;
+        }
         int selectedRow = tblRank.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn hạng thành viên cần xóa!", "Thông báo", JOptionPane.WARNING_MESSAGE);

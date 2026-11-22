@@ -7,39 +7,67 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ImportApprovalPolicyTest {
     @Test
-    void allowsOnlyManagersAndAdminsWhoDidNotCreateTheTicket() {
-        assertTrue(ImportApprovalPolicy.canAct(1, 10, 20));
-        assertTrue(ImportApprovalPolicy.canAct(2, 10, 20));
-        assertFalse(ImportApprovalPolicy.canAct(4, 10, 20));
-        assertFalse(ImportApprovalPolicy.canAct(2, 10, 10));
-        assertFalse(ImportApprovalPolicy.canAct(2, 0, 20));
+    void fourArgOverloadEnforcesDynamicPermissionsActiveStatusPendingTicketAndMakerChecker() {
+        Map<String, PermissionDTO> withAction = Map.of(
+                "MANAGE_IMPORT_TICKET", new PermissionDTO("MANAGE_IMPORT_TICKET", true, true)
+        );
+        Map<String, PermissionDTO> viewOnly = Map.of(
+                "MANAGE_IMPORT_TICKET", new PermissionDTO("MANAGE_IMPORT_TICKET", true, false)
+        );
+
+        EmployeeDTO activeRole4 = employee(10, 4, 1);
+        assertTrue(ImportApprovalPolicy.canAct(activeRole4, withAction, 20, 1));
+        assertFalse(ImportApprovalPolicy.canAct(activeRole4, viewOnly, 20, 1));
+        assertFalse(ImportApprovalPolicy.canAct(activeRole4, withAction, 10, 1)); // creator == actor
+        assertFalse(ImportApprovalPolicy.canAct(activeRole4, withAction, 20, 2)); // already approved
+        assertFalse(ImportApprovalPolicy.canAct(activeRole4, withAction, 20, 0)); // already canceled
+        assertFalse(ImportApprovalPolicy.canAct(employee(10, 4, 0), withAction, 20, 1)); // inactive actor
+        assertFalse(ImportApprovalPolicy.canAct(activeRole4, null, 20, 1));
     }
 
     @Test
-    void deniesImportActionsToWarehouseStaffEvenWithStalePermissionData() {
+    void threeArgOverloadUsesSharedDataPermissionsAndFallsBackWhenNull() {
         EmployeeDTO previousUser = SharedData.currentUser;
         Map<String, PermissionDTO> previousPermissions = SharedData.userPermissions;
         try {
-            Map<String, PermissionDTO> permissions = new HashMap<>();
-            permissions.put("MANAGE_IMPORT_TICKET", new PermissionDTO("MANAGE_IMPORT_TICKET", true, true));
-            SharedData.userPermissions = permissions;
+            // Dynamic RBAC when SharedData.userPermissions is populated
+            Map<String, PermissionDTO> granted = new HashMap<>();
+            granted.put("MANAGE_IMPORT_TICKET", new PermissionDTO("MANAGE_IMPORT_TICKET", true, true));
+            SharedData.userPermissions = granted;
 
-            EmployeeDTO warehouseStaff = new EmployeeDTO();
-            warehouseStaff.setRoleId(4);
+            EmployeeDTO warehouseStaff = employee(10, 4, 1);
             SharedData.currentUser = warehouseStaff;
-            assertFalse(PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET"));
-
-            EmployeeDTO manager = new EmployeeDTO();
-            manager.setRoleId(2);
-            SharedData.currentUser = manager;
             assertTrue(PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET"));
+            assertTrue(ImportApprovalPolicy.canAct(warehouseStaff, 20, 1));
+            assertFalse(ImportApprovalPolicy.canAct(warehouseStaff, 10, 1));
+            assertFalse(ImportApprovalPolicy.canAct(warehouseStaff, 20, 2));
+
+            granted.put("MANAGE_IMPORT_TICKET", new PermissionDTO("MANAGE_IMPORT_TICKET", true, false));
+            assertFalse(PermissionUtil.hasActionPermission("MANAGE_IMPORT_TICKET"));
+            assertFalse(ImportApprovalPolicy.canAct(warehouseStaff, 20, 1));
+
+            // Headless unit test fallback when SharedData.userPermissions is null
+            SharedData.userPermissions = null;
+            assertTrue(ImportApprovalPolicy.canAct(employee(1, 1, 1), 20, 1));
+            assertTrue(ImportApprovalPolicy.canAct(employee(2, 2, 1), 20, 1));
+            assertFalse(ImportApprovalPolicy.canAct(employee(10, 4, 1), 20, 1));
+            assertFalse(ImportApprovalPolicy.canAct(employee(2, 2, 0), 20, 1));
         } finally {
             SharedData.currentUser = previousUser;
             SharedData.userPermissions = previousPermissions;
         }
+    }
+
+    private static EmployeeDTO employee(int employeeId, int roleId, int status) {
+        EmployeeDTO emp = new EmployeeDTO();
+        emp.setEmployeeId(employeeId);
+        emp.setRoleId(roleId);
+        emp.setStatus(status);
+        return emp;
     }
 }

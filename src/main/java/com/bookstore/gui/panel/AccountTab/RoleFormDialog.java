@@ -6,6 +6,7 @@ import com.bookstore.api.contract.RoleActionPermissionDTO;
 import com.bookstore.api.contract.RoleSaveRequestDTO;
 import com.bookstore.dto.RoleDTO;
 import com.bookstore.util.AppConstant;
+import com.bookstore.util.SharedData;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
@@ -27,6 +28,7 @@ public class RoleFormDialog extends JDialog {
 
     public RoleFormDialog(Frame owner, RoleDTO role) {
         super(owner, role.getRoleId() == 0 ? "Thêm mới Chức vụ" : "Chỉnh sửa Chức vụ", true);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.role = role;
         this.isAddMode = (role.getRoleId() == 0);
 
@@ -106,7 +108,20 @@ public class RoleFormDialog extends JDialog {
         add(pBottom, BorderLayout.SOUTH);
     }
 
+    private boolean isProtectedRole() {
+        return !isAddMode && (role.getRoleId() == 1
+                || (SharedData.currentUser != null && role.getRoleId() == SharedData.currentUser.getRoleId()));
+    }
+
     private void loadData() {
+        if (isProtectedRole()) {
+            permissionRows = List.of();
+            permissionsLoaded = false;
+            JOptionPane.showMessageDialog(getOwner(),
+                    "Không thể chỉnh sửa chức vụ Quản trị viên hoặc chức vụ hiện tại của chính bạn!",
+                    "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         try {
             permissionRows = roleApiClient.getPermissions(role.getRoleId());
             permissionsLoaded = true;
@@ -121,11 +136,17 @@ public class RoleFormDialog extends JDialog {
         } catch (ApiException e) {
             permissionRows = List.of();
             permissionsLoaded = false;
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(getOwner(), e.getMessage(), "Lỗi API", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void saveRole() {
+        if (isProtectedRole()) {
+            JOptionPane.showMessageDialog(this,
+                    "Không thể chỉnh sửa chức vụ Quản trị viên hoặc chức vụ hiện tại của chính bạn!",
+                    "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         if (!permissionsLoaded) {
             JOptionPane.showMessageDialog(this, "Không thể tải danh sách quyền từ API.", "Lỗi API", JOptionPane.ERROR_MESSAGE);
             return;
@@ -176,4 +197,6 @@ public class RoleFormDialog extends JDialog {
     }
 
     public boolean isSaved() { return isSaved; }
+
+    public boolean isLoadedSuccessfully() { return permissionsLoaded; }
 }

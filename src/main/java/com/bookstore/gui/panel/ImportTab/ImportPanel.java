@@ -43,15 +43,77 @@ public class ImportPanel extends JPanel implements Refreshable {
     private final AuthorApiClient authorApiClient = new AuthorApiClient();
     private final ImportApiClient importApiClient = new ImportApiClient();
 
+    private static final String DEFAULT_SUPPLIER_ITEM = "0 - Chọn Nhà Cung Cấp...";
+    private static final String DEFAULT_CATEGORY_ITEM = "0 - Tất cả thể loại";
+
+    private static class CartItem {
+        final int bookId;
+        final String bookName;
+        int quantity;
+        double coverPrice;
+        double discountPercent;
+        double importPrice;
+
+        CartItem(int bookId, String bookName, int quantity, double coverPrice, double discountPercent) {
+            this.bookId = bookId;
+            this.bookName = bookName;
+            update(quantity, coverPrice, discountPercent);
+        }
+
+        void update(int quantity, double coverPrice, double discountPercent) {
+            this.quantity = quantity;
+            this.coverPrice = coverPrice;
+            this.discountPercent = discountPercent;
+            this.importPrice = coverPrice * (1.0 - discountPercent / 100.0);
+        }
+
+        double getLineTotal() {
+            return quantity * importPrice;
+        }
+    }
+
     private List<BookDTO> listBooks = new ArrayList<>();
+    private final List<CartItem> cartItems = new ArrayList<>();
+    private List<String> supplierItems = new ArrayList<>();
     private double finalTotal = 0;
+    private String previousSupplierItem = DEFAULT_SUPPLIER_ITEM;
+    private boolean isUpdatingCombos = false;
 
     public ImportPanel() {
         initUI();
     }
 
+    private void applyPermissions() {
+        boolean canManageImport = PermissionUtil.hasActionPermission("MANAGE_IMPORT");
+        if (btnQuickAddBook != null) {
+            btnQuickAddBook.setVisible(canManageImport);
+            btnQuickAddBook.setEnabled(canManageImport);
+        }
+        if (btnAddToImport != null) {
+            btnAddToImport.setVisible(canManageImport);
+            btnAddToImport.setEnabled(canManageImport);
+        }
+        if (btnRefresh != null) {
+            btnRefresh.setVisible(canManageImport);
+            btnRefresh.setEnabled(canManageImport);
+        }
+        if (btnDelete != null) {
+            btnDelete.setVisible(canManageImport);
+            btnDelete.setEnabled(canManageImport);
+        }
+        if (btnEdit != null) {
+            btnEdit.setVisible(canManageImport);
+            btnEdit.setEnabled(canManageImport);
+        }
+        if (btnComplete != null) {
+            btnComplete.setVisible(canManageImport);
+            btnComplete.setEnabled(canManageImport);
+        }
+    }
+
     @Override
     public void refresh() {
+        applyPermissions();
         if (SharedData.currentUser != null && txtEmployee != null) {
             txtEmployee.setText(SharedData.currentUser.getEmployeeName());
         }
@@ -59,10 +121,27 @@ public class ImportPanel extends JPanel implements Refreshable {
             txtDate.setText(new java.text.SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date()));
         }
         try {
-            loadSuppliersToComboBox();
-            loadCategoriesToComBoBox();
-            if (cboCategory != null) {
-                cboCategory.setEnabled(false);
+            String preservedSupplier = previousSupplierItem;
+            if (cboTicketSupplier != null && cboTicketSupplier.getSelectedItem() != null) {
+                String currentSel = cboTicketSupplier.getSelectedItem().toString();
+                if (parseLeadingId(currentSel) > 0) {
+                    preservedSupplier = currentSel;
+                }
+            }
+            String preservedCategory = (cboCategory != null && cboCategory.getSelectedItem() != null)
+                    ? cboCategory.getSelectedItem().toString()
+                    : DEFAULT_CATEGORY_ITEM;
+
+            isUpdatingCombos = true;
+            try {
+                loadSuppliersToComboBox(preservedSupplier);
+                loadCategoriesToComBoBox(preservedCategory);
+                int currentSupId = parseLeadingId(previousSupplierItem);
+                if (cboCategory != null) {
+                    cboCategory.setEnabled(currentSupId > 0);
+                }
+            } finally {
+                isUpdatingCombos = false;
             }
             loadBookTable();
         } catch (ApiException e) {
@@ -282,22 +361,81 @@ public class ImportPanel extends JPanel implements Refreshable {
         table.getColumnModel().getColumn(colIndex).setPreferredWidth(width);
     }
 
-    private void loadCategoriesToComBoBox() {
-        List<String> list = new ArrayList<>(); 
-        list.add("0 - Tất cả thể loại");
-        for (CategoryDTO c : categoryApiClient.selectAllCategories()) {
-            list.add(c.getCategoryId() + " - " + c.getCategoryName());
+    private int parseLeadingId(String item) {
+        if (item == null || item.isBlank()) {
+            return 0;
         }
-        cboCategory.updateData(list);
+        try {
+            return Integer.parseInt(item.split(" - ")[0].trim());
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
-    private void loadSuppliersToComboBox() {
-        List<String> ticketList = new ArrayList<>();
-        ticketList.add("0 - Chọn Nhà Cung Cấp...");
-        for (SupplierDTO s : supplierApiClient.selectAll()) {
-            ticketList.add(s.getSupplierId() + " - " + s.getSupplierName());
+    private void selectComboItemSilently(SearchableComboBox<String> combo, String item) {
+        combo.setSelectedItem(item);
+        if (combo.getEditor() != null && combo.getEditor().getEditorComponent() instanceof JTextField tf) {
+            tf.setText(item != null ? item : "");
         }
+    }
+
+    private void loadCategoriesToComBoBox(String preservedCategory) {
+        List<String> list = new ArrayList<>();
+        list.add(DEFAULT_CATEGORY_ITEM);
+        int preservedId = parseLeadingId(preservedCategory);
+        String matched = DEFAULT_CATEGORY_ITEM;
+        for (CategoryDTO c : categoryApiClient.selectAllCategories()) {
+            String entry = c.getCategoryId() + " - " + c.getCategoryName();
+            list.add(entry);
+            if (preservedId > 0 && c.getCategoryId() == preservedId) {
+                matched = entry;
+            }
+        }
+        cboCategory.updateData(list);
+        selectComboItemSilently(cboCategory, matched);
+    }
+
+    private void loadSuppliersToComboBox(String preservedSupplier) {
+        List<String> ticketList = new ArrayList<>();
+        ticketList.add(DEFAULT_SUPPLIER_ITEM);
+        int preservedId = parseLeadingId(preservedSupplier);
+        String matched = DEFAULT_SUPPLIER_ITEM;
+        for (SupplierDTO s : supplierApiClient.selectAll()) {
+            String entry = s.getSupplierId() + " - " + s.getSupplierName();
+            ticketList.add(entry);
+            if (preservedId > 0 && s.getSupplierId() == preservedId) {
+                matched = entry;
+            }
+        }
+        supplierItems = ticketList;
         cboTicketSupplier.updateData(ticketList);
+        selectComboItemSilently(cboTicketSupplier, matched);
+        previousSupplierItem = matched;
+    }
+
+    private void revertSupplierSelection() {
+        isUpdatingCombos = true;
+        try {
+            if (!supplierItems.isEmpty()) {
+                cboTicketSupplier.updateData(supplierItems);
+            }
+            selectComboItemSilently(cboTicketSupplier, previousSupplierItem);
+        } finally {
+            isUpdatingCombos = false;
+        }
+        if (!previousSupplierItem.equals(String.valueOf(cboTicketSupplier.getSelectedItem()))) {
+            SwingUtilities.invokeLater(() -> {
+                isUpdatingCombos = true;
+                try {
+                    if (!supplierItems.isEmpty()) {
+                        cboTicketSupplier.updateData(supplierItems);
+                    }
+                    selectComboItemSilently(cboTicketSupplier, previousSupplierItem);
+                } finally {
+                    isUpdatingCombos = false;
+                }
+            });
+        }
     }
 
     private void loadBookTable() {
@@ -376,7 +514,9 @@ public class ImportPanel extends JPanel implements Refreshable {
         clearProductDetail();
 
         for (BookDTO book : listBooks) {
-            boolean matchKey = keyword.isEmpty() || book.getBookName().toLowerCase().contains(keyword);
+            String bookName = book.getBookName() != null ? book.getBookName().toLowerCase() : "";
+            boolean matchKey = keyword.isEmpty() || bookName.contains(keyword)
+                    || String.valueOf(book.getBookId()).contains(keyword);
             boolean matchCate = (cateId == 0) || (book.getCategoryId() == cateId);
             boolean matchSupplier = (book.getSupplierId() == supId);
 
@@ -404,7 +544,25 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
     }
 
+    private int findCartItemIndex(int bookId) {
+        for (int i = 0; i < cartItems.size(); i++) {
+            if (cartItems.get(i).bookId == bookId) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void clearCart() {
+        cartItems.clear();
+        cartModel.setRowCount(0);
+        calculateTotal();
+    }
+
     private void addToImport() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_IMPORT")) {
+            return;
+        }
         int selectedRow = tblProduct.getSelectedRow();
         if (selectedRow == -1) { JOptionPane.showMessageDialog(this, "Vui lòng chọn sách cần nhập!"); return; }
 
@@ -412,37 +570,75 @@ public class ImportPanel extends JPanel implements Refreshable {
         BookDTO book = listBooks.stream().filter(b -> b.getBookId() == bookId).findFirst().orElse(null);
         if (book == null) return;
 
-        if (book.getCoverPrice() <= 0) {
+        if (!Double.isFinite(book.getCoverPrice()) || book.getCoverPrice() <= 0) {
             JOptionPane.showMessageDialog(this, "Sách '" + book.getBookName() + "' chưa có giá bìa hợp lệ! Vui lòng kiểm tra lại thông tin sách.", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
+        int existingIndex = findCartItemIndex(bookId);
+        double initialDiscount = existingIndex != -1 ? cartItems.get(existingIndex).discountPercent : 0;
+
         Window parentWindow = SwingUtilities.getWindowAncestor(this);
-        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(parentWindow, "Nhập số lượng và chiết khấu", 0, 0);
+        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(parentWindow, "Nhập số lượng và chiết khấu", 0, initialDiscount);
         dialog.setVisible(true);
 
         if (dialog.isConfirmed()) {
             int qty = dialog.getQuantity();
             double discount = dialog.getDiscount();
-            double price = book.getCoverPrice() * (1 - discount / 100.0);
 
-            boolean exists = false;
-            for (int i = 0; i < cartModel.getRowCount(); i++) {
-                if (Integer.parseInt(cartModel.getValueAt(i, 0).toString()) == bookId) {
-                    int newQty = Integer.parseInt(cartModel.getValueAt(i, 2).toString()) + qty;
-                    cartModel.setValueAt(newQty, i, 2);
-                    cartModel.setValueAt(MoneyFormatter.toVND(price), i, 3);
-                    cartModel.setValueAt(MoneyFormatter.toVND(newQty * price), i, 4);
-                    cartModel.setValueAt(discount, i, 5);
-                    exists = true; break;
+            if (existingIndex != -1) {
+                CartItem existing = cartItems.get(existingIndex);
+                int newQty;
+                try {
+                    newQty = Math.addExact(existing.quantity, qty);
+                } catch (ArithmeticException ex) {
+                    JOptionPane.showMessageDialog(this,
+                            "Tổng số lượng nhập vượt quá giới hạn cho phép (" + Integer.MAX_VALUE + ")!",
+                            "Lỗi số lượng", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+
+                double effectiveDiscount = existing.discountPercent;
+                if (Double.compare(discount, existing.discountPercent) != 0) {
+                    int choice = JOptionPane.showConfirmDialog(this,
+                            String.format("Sách '%s' đã có trong phiếu với chiết khấu %.2f%%.\n"
+                                    + "Bạn có muốn áp dụng chiết khấu mới (%.2f%%) cho toàn bộ %d cuốn không?\n"
+                                    + "Chọn 'No' để giữ nguyên chiết khấu cũ (%.2f%%).",
+                                    book.getBookName(), existing.discountPercent, discount, newQty, existing.discountPercent),
+                            "Xác nhận chiết khấu", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+                    if (choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION) {
+                        return;
+                    }
+                    if (choice == JOptionPane.YES_OPTION) {
+                        effectiveDiscount = discount;
+                    }
+                }
+
+                existing.update(newQty, book.getCoverPrice(), effectiveDiscount);
+                cartModel.setValueAt(existing.quantity, existingIndex, 2);
+                cartModel.setValueAt(MoneyFormatter.toVND(existing.importPrice), existingIndex, 3);
+                cartModel.setValueAt(MoneyFormatter.toVND(existing.getLineTotal()), existingIndex, 4);
+                cartModel.setValueAt(existing.discountPercent, existingIndex, 5);
+            } else {
+                CartItem item = new CartItem(bookId, book.getBookName(), qty, book.getCoverPrice(), discount);
+                cartItems.add(0, item);
+                cartModel.insertRow(0, new Object[]{
+                        item.bookId,
+                        item.bookName,
+                        item.quantity,
+                        MoneyFormatter.toVND(item.importPrice),
+                        MoneyFormatter.toVND(item.getLineTotal()),
+                        item.discountPercent
+                });
             }
-            if (!exists) cartModel.insertRow(0, new Object[]{ bookId, book.getBookName(), qty, MoneyFormatter.toVND(price), MoneyFormatter.toVND(qty * price), discount });
             calculateTotal();
         }
     }
 
     private void editImportRow() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_IMPORT")) {
+            return;
+        }
         int selectedRow = tblCart.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sách cần sửa!");
@@ -450,85 +646,114 @@ public class ImportPanel extends JPanel implements Refreshable {
         }
 
         int modelRow = tblCart.convertRowIndexToModel(selectedRow);
-        int bookId = Integer.parseInt(cartModel.getValueAt(modelRow, 0).toString());
-        BookDTO book = listBooks.stream().filter(b -> b.getBookId() == bookId).findFirst().orElse(null);
-        if (book == null) return;
-
-        int currentQty = Integer.parseInt(cartModel.getValueAt(modelRow, 2).toString());
-        double currentDiscount = Double.parseDouble(cartModel.getValueAt(modelRow, 5).toString());
+        if (modelRow < 0 || modelRow >= cartItems.size()) {
+            return;
+        }
+        CartItem item = cartItems.get(modelRow);
+        BookDTO book = listBooks.stream().filter(b -> b.getBookId() == item.bookId).findFirst().orElse(null);
+        double coverPrice = (book != null && Double.isFinite(book.getCoverPrice()) && book.getCoverPrice() > 0)
+                ? book.getCoverPrice()
+                : item.coverPrice;
 
         Window parentWindow = SwingUtilities.getWindowAncestor(this);
-        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(parentWindow, "Sửa số lượng và chiết khấu", currentQty, currentDiscount);
+        ImportQuantityDiscountDialog dialog = new ImportQuantityDiscountDialog(
+                parentWindow, "Sửa số lượng và chiết khấu", item.quantity, item.discountPercent);
         dialog.setVisible(true);
 
         if (dialog.isConfirmed()) {
-            int qty = dialog.getQuantity();
-            double discount = dialog.getDiscount();
-            double price = book.getCoverPrice() * (1 - discount / 100.0);
-
-            cartModel.setValueAt(qty, modelRow, 2);
-            cartModel.setValueAt(MoneyFormatter.toVND(price), modelRow, 3);
-            cartModel.setValueAt(MoneyFormatter.toVND(qty * price), modelRow, 4);
-            cartModel.setValueAt(discount, modelRow, 5);
+            item.update(dialog.getQuantity(), coverPrice, dialog.getDiscount());
+            cartModel.setValueAt(item.quantity, modelRow, 2);
+            cartModel.setValueAt(MoneyFormatter.toVND(item.importPrice), modelRow, 3);
+            cartModel.setValueAt(MoneyFormatter.toVND(item.getLineTotal()), modelRow, 4);
+            cartModel.setValueAt(item.discountPercent, modelRow, 5);
             calculateTotal();
         }
     }
 
     private void calculateTotal() {
         finalTotal = 0;
-        for (int i = 0; i < cartModel.getRowCount(); i++) finalTotal += MoneyFormatter.toDouble(cartModel.getValueAt(i, 4).toString());
+        for (CartItem item : cartItems) {
+            finalTotal += item.getLineTotal();
+        }
         lbFinalTotal.setText("TỔNG TIỀN: " + MoneyFormatter.toVND(finalTotal));
     }
 
     private void deleteRow() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_IMPORT")) {
+            return;
+        }
         int row = tblCart.getSelectedRow();
-        if (row != -1) { cartModel.removeRow(row); calculateTotal(); }
+        if (row != -1) {
+            int modelRow = tblCart.convertRowIndexToModel(row);
+            if (modelRow >= 0 && modelRow < cartItems.size()) {
+                cartItems.remove(modelRow);
+                cartModel.removeRow(modelRow);
+                calculateTotal();
+            }
+        }
     }
 
     private void createTicket() {
-        if (cartModel.getRowCount() == 0) { JOptionPane.showMessageDialog(this, "Phiếu nhập đang trống!"); return; }
-        if (cboTicketSupplier.getSelectedItem() == null || cboTicketSupplier.getSelectedItem().toString().isEmpty()
-            || cboTicketSupplier.getSelectedItem().toString().startsWith("0 -")) {
+        if (!PermissionUtil.hasActionPermission("MANAGE_IMPORT")) {
+            return;
+        }
+        if (cartItems.isEmpty()) { JOptionPane.showMessageDialog(this, "Phiếu nhập đang trống!"); return; }
+        int supplierId = parseLeadingId(cboTicketSupplier.getSelectedItem() != null
+                ? cboTicketSupplier.getSelectedItem().toString()
+                : null);
+        if (supplierId <= 0) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn Nhà cung cấp!"); return;
         }
 
-        try {
-            int supplierId = Integer.parseInt(cboTicketSupplier.getSelectedItem().toString().split(" - ")[0]);
+        long totalQty = 0;
+        for (CartItem item : cartItems) {
+            totalQty += item.quantity;
+            if (totalQty > Integer.MAX_VALUE) {
+                JOptionPane.showMessageDialog(this, "Tổng số lượng sách trong phiếu vượt quá giới hạn cho phép!", "Lỗi tạo phiếu nhập", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
 
+        try {
             ImportTicketDTO ticket = new ImportTicketDTO();
             ticket.setSupplierID(supplierId);
             ticket.setStatus(1);
             ticket.setCreatedDate(new java.sql.Timestamp(System.currentTimeMillis()));
 
-            ImportDetailDTO[] details = new ImportDetailDTO[cartModel.getRowCount()];
-            for (int i = 0; i < cartModel.getRowCount(); i++) {
-                int bookId = Integer.parseInt(cartModel.getValueAt(i, 0).toString());
-                int qty = Integer.parseInt(cartModel.getValueAt(i, 2).toString());
-                double importPrice = MoneyFormatter.toDouble(cartModel.getValueAt(i, 3).toString());
-                
-                BookDTO book = bookApiClient.selectById(bookId);
-                double discount = Double.parseDouble(cartModel.getValueAt(i, 5).toString());
-                details[i] = new ImportDetailDTO(0, bookId, qty, importPrice, book.getCoverPrice(), discount);
+            ImportDetailDTO[] details = new ImportDetailDTO[cartItems.size()];
+            for (int i = 0; i < cartItems.size(); i++) {
+                CartItem item = cartItems.get(i);
+                BookDTO book = bookApiClient.selectById(item.bookId);
+                double coverPrice = (book != null && Double.isFinite(book.getCoverPrice()) && book.getCoverPrice() > 0)
+                        ? book.getCoverPrice()
+                        : item.coverPrice;
+                double importPrice = coverPrice * (1.0 - item.discountPercent / 100.0);
+                details[i] = new ImportDetailDTO(0, item.bookId, item.quantity, importPrice, coverPrice, item.discountPercent);
             }
 
             importApiClient.createImport(ticket, details);
             JOptionPane.showMessageDialog(this, "Tạo phiếu nhập thành công! Phiếu đang ở trạng thái chờ duyệt.");
-            cartModel.setRowCount(0); calculateTotal();
+            clearCart();
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi tạo phiếu nhập", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void quickAddBook() {
+        if (!PermissionUtil.hasActionPermission("MANAGE_IMPORT")) {
+            return;
+        }
         try {
             List<AuthorDTO> authors = authorApiClient.selectAllAuthors();
             List<CategoryDTO> categories = categoryApiClient.selectAllCategories();
             List<SupplierDTO> suppliers = supplierApiClient.selectAll();
             java.util.Set<String> allTags = new java.util.HashSet<>();
 
+            Window owner = SwingUtilities.getWindowAncestor(this);
+            JFrame ownerFrame = (owner instanceof JFrame frame) ? frame : null;
             com.bookstore.gui.panel.ProductTab.BookFormDialog dialog =
                     new com.bookstore.gui.panel.ProductTab.BookFormDialog(
-                            (JFrame) SwingUtilities.getWindowAncestor(this),
+                            ownerFrame,
                             "Thêm Sách Mới", null, authors, categories, suppliers, allTags
                     );
             dialog.setVisible(true);
@@ -537,18 +762,22 @@ public class ImportPanel extends JPanel implements Refreshable {
                 String result = bookApiClient.addBookForImport(dialog.getBook());
                 if ("OK".equals(result) || result.toLowerCase().contains("thành công") || result.toLowerCase().contains("công")) {
                     JOptionPane.showMessageDialog(this, result, "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                    refresh();
                 } else {
                     JOptionPane.showMessageDialog(this, result, "Lỗi", JOptionPane.ERROR_MESSAGE);
                 }
             }
-            refresh();
         } catch (ApiException e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Lỗi kết nối API", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void addEvents() {
-        cboCategory.addActionListener(e -> filterBooks());
+        cboCategory.addActionListener(e -> {
+            if (!isUpdatingCombos) {
+                filterBooks();
+            }
+        });
         txtSearch.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { filterBooks(); }
             public void removeUpdate(DocumentEvent e) { filterBooks(); }
@@ -556,50 +785,79 @@ public class ImportPanel extends JPanel implements Refreshable {
         });
 
         btnResetFilter.addActionListener(e -> {
-            txtSearch.setText("");
-            cboTicketSupplier.resetSelection();
-            cboCategory.resetSelection();
-            if (cboCategory != null) cboCategory.setEnabled(false);
+            if (!cartItems.isEmpty()) {
+                int confirm = JOptionPane.showConfirmDialog(this,
+                        "Làm mới bộ lọc sẽ bỏ chọn Nhà Cung Cấp và làm trống danh sách sách hiện tại trong phiếu. Bạn đồng ý chứ?",
+                        "Cảnh báo đổi NCC", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (confirm != JOptionPane.YES_OPTION) {
+                    return;
+                }
+                clearCart();
+            }
+            isUpdatingCombos = true;
+            try {
+                txtSearch.setText("");
+                cboTicketSupplier.resetSelection();
+                cboCategory.resetSelection();
+                previousSupplierItem = cboTicketSupplier.getSelectedItem() != null
+                        ? cboTicketSupplier.getSelectedItem().toString()
+                        : DEFAULT_SUPPLIER_ITEM;
+                if (cboCategory != null) cboCategory.setEnabled(false);
+            } finally {
+                isUpdatingCombos = false;
+            }
             filterBooks();
         });
 
         btnAddToImport.addActionListener(e -> addToImport());
         btnQuickAddBook.addActionListener(e -> quickAddBook());
-        btnRefresh.addActionListener(e -> { cartModel.setRowCount(0); calculateTotal(); });
+        btnRefresh.addActionListener(e -> {
+            if (PermissionUtil.hasActionPermission("MANAGE_IMPORT")) {
+                clearCart();
+            }
+        });
         btnDelete.addActionListener(e -> deleteRow());
         btnEdit.addActionListener(e -> editImportRow());
         btnComplete.addActionListener(e -> createTicket());
 
         cboTicketSupplier.addActionListener(e -> {
-            if (cboTicketSupplier.getSelectedItem() != null) {
-                if (cartModel.getRowCount() > 0) {
-                    int confirm = JOptionPane.showConfirmDialog(this,
-                            "Bạn đã đổi Nhà Cung Cấp. Hệ thống sẽ làm trống danh sách sách hiện tại trong phiếu. Bạn đồng ý chứ?",
-                            "Cảnh báo đổi NCC", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (isUpdatingCombos || cboTicketSupplier.getSelectedItem() == null) {
+                return;
+            }
+            String supStr = cboTicketSupplier.getSelectedItem().toString();
+            int supId = parseLeadingId(supStr);
+            int prevSupId = parseLeadingId(previousSupplierItem);
 
-                    if (confirm == JOptionPane.YES_OPTION) {
-                        cartModel.setRowCount(0);
-                        calculateTotal();
-                    } else {
-                        return;
-                    }
+            if (supId == prevSupId && supStr.equals(previousSupplierItem)) {
+                return;
+            }
+
+            if (!cartItems.isEmpty() && supId != prevSupId) {
+                int confirm = JOptionPane.showConfirmDialog(this,
+                        "Bạn đã đổi Nhà Cung Cấp. Hệ thống sẽ làm trống danh sách sách hiện tại trong phiếu. Bạn đồng ý chứ?",
+                        "Cảnh báo đổi NCC", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+                if (confirm == JOptionPane.YES_OPTION) {
+                    clearCart();
+                } else {
+                    revertSupplierSelection();
+                    return;
                 }
+            }
 
-                String supStr = cboTicketSupplier.getSelectedItem().toString();
-                int supId = 0;
+            previousSupplierItem = supStr;
+            if (supId == 0) {
+                isUpdatingCombos = true;
                 try {
-                    supId = Integer.parseInt(supStr.split(" - ")[0]);
-                } catch (Exception ex) {
-                    supId = 0;
-                }
-                if (supId == 0) {
                     cboCategory.resetSelection();
                     cboCategory.setEnabled(false);
-                } else {
-                    cboCategory.setEnabled(true);
+                } finally {
+                    isUpdatingCombos = false;
                 }
-                filterBooks();
+            } else {
+                cboCategory.setEnabled(true);
             }
+            filterBooks();
         });
     }
 }

@@ -18,7 +18,6 @@ import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -41,13 +40,13 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
     }
 
     private void setDefaultDates() {
-        if (dcTo != null && dcTo.getDate() == null) {
-            dcTo.setDate(new Date());
-        }
+        LocalDate today = LocalDate.now();
+        LocalDate firstOfMonth = today.withDayOfMonth(1);
         if (dcFrom != null && dcFrom.getDate() == null) {
-            Calendar cal = Calendar.getInstance();
-            cal.set(Calendar.DAY_OF_MONTH, 1);
-            dcFrom.setDate(cal.getTime());
+            dcFrom.setDate(Date.from(firstOfMonth.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        }
+        if (dcTo != null && dcTo.getDate() == null) {
+            dcTo.setDate(Date.from(today.atStartOfDay(ZoneId.systemDefault()).toInstant()));
         }
     }
 
@@ -133,7 +132,8 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof CustomerStatsDTO stat) {
-                    setText("- " + stat.getCustomerName() + " - " + stat.getRankName() + " - " + stat.getTotalQuantity() + " sách");
+                    String rank = stat.getRankName() != null ? stat.getRankName() : "Chưa có hạng";
+                    setText("- " + stat.getCustomerName() + " - " + rank + " - " + stat.getTotalQuantity() + " sách");
                 }
                 return this;
             }
@@ -144,7 +144,8 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof CustomerStatsDTO stat) {
-                    setText("- " + stat.getCustomerName() + " - " + stat.getRankName() + " - " + MoneyFormatter.toVND(stat.getTotalSpent()));
+                    String rank = stat.getRankName() != null ? stat.getRankName() : "Chưa có hạng";
+                    setText("- " + stat.getCustomerName() + " - " + rank + " - " + MoneyFormatter.toVND(stat.getTotalSpent()));
                 }
                 return this;
             }
@@ -260,8 +261,14 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
                 JOptionPane.showMessageDialog(this, "Vui lòng chọn đầy đủ ngày 'Từ' và 'Đến'!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            if (dFrom.after(dTo)) {
+            LocalDate from = toLocalDate(dFrom);
+            LocalDate to = toLocalDate(dTo);
+            if (from.isAfter(to)) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (isDateOutOfBounds(from) || isDateOutOfBounds(to)) {
+                JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
@@ -269,8 +276,8 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
             try {
                 historyList = statisticsApiClient.getCustomerHistory(
                         selectedCustomer.getCustomerId(),
-                        toLocalDate(dFrom),
-                        toLocalDate(dTo)
+                        from,
+                        to
                 );
             } catch (ApiException ex) {
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "Không thể tải lịch sử mua hàng",
@@ -284,7 +291,7 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
             for (CustomerHistoryDTO h : historyList) {
                 modelHistory.addRow(new Object[]{
                         h.getBillId(),
-                        sdf.format(h.getCreatedDate()),
+                        h.getCreatedDate() != null ? sdf.format(h.getCreatedDate()) : "-",
                         h.getCustomerName(),
                         h.getCustomerPhone(),
                         h.getTotalQuantity(),
@@ -308,13 +315,15 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
             }
             return;
         }
-        if (dFrom.after(dTo)) {
+        LocalDate from = toLocalDate(dFrom);
+        LocalDate to = toLocalDate(dTo);
+        if (from.isAfter(to)) {
             if (showMessage) {
                 JOptionPane.showMessageDialog(this, "Ngày bắt đầu (Từ ngày) không được lớn hơn ngày kết thúc (Đến ngày)!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
             return;
         }
-        if (AppConstant.isDateOutOfBounds(dFrom) || AppConstant.isDateOutOfBounds(dTo)) {
+        if (isDateOutOfBounds(from) || isDateOutOfBounds(to)) {
             if (showMessage) {
                 JOptionPane.showMessageDialog(this, "Khoảng ngày lọc phải nằm trong khoảng từ 01/01/2026 đến 31/12/2099!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
@@ -324,8 +333,6 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
         List<CustomerStatsDTO> topQtyList;
         List<CustomerStatsDTO> topSpentList;
         try {
-            LocalDate from = toLocalDate(dFrom);
-            LocalDate to = toLocalDate(dTo);
             topQtyList = statisticsApiClient.getTopCustomersByQuantity(from, to);
             topSpentList = statisticsApiClient.getTopCustomersBySpending(from, to);
         } catch (ApiException ex) {
@@ -353,5 +360,10 @@ public class CustomerStatsPanel extends JPanel implements Refreshable {
 
     private LocalDate toLocalDate(Date date) {
         return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    private boolean isDateOutOfBounds(LocalDate date) {
+        Date normalized = Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return AppConstant.isDateOutOfBounds(normalized);
     }
 }

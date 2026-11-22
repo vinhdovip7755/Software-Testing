@@ -120,11 +120,11 @@ INSERT INTO employee (employee_id, employee_name, employee_phone, email, birthda
 (5, 'Nguyễn Hữu Nghĩa', '0998929485', 'lowres14@gmail.com', '2001-08-01', 8000000, 1.00, '2025-01-10', 1, 3);
 
 INSERT INTO account (username, password, employee_id, status) VALUES
-('hotro.adminhethong@gmail.com', 'admin', 1, 1),
-('vinhyt7755@gmail.com', '07072006', 2, 1),
-('quy.ngoc@bookstore.com', '18062004', 3, 1),
-('nhan15042006@gmail.com', '15042006', 4, 1),
-('lowres14@gmail.com', '01082006', 5, 1);
+('hotro.adminhethong@gmail.com', '$2a$10$6w6sYPnDrRPLvg2buYPA1e8x24iLqj1MlSbvM8GXPIfjLcZbf4cFe', 1, 1), -- admin
+('vinhyt7755@gmail.com', '$2a$10$MJ1zpMVd.9nGDpOr/343T.e6MMKrASY.b.BbdiwDl9rfsVJTHX1eS', 2, 1),         -- 07072006
+('quy.ngoc@bookstore.com', '$2a$10$7wUaf/ZjTkoA.hz0AeaylO/ue1vou.WGLhO4Hk7s74DkAYcEdDtBO', 3, 1),       -- 18062004
+('nhan15042006@gmail.com', '$2a$10$s9X/v50LYGUkr/2lXV3N9OvQhYXtuONbeN1GZBzyOs2wLBbLJPHeS', 4, 1),       -- 15042006
+('lowres14@gmail.com', '$2a$10$mI18Kj15DPau9qOtgxLO4en1n.J0enHWLgAsDqDM/8JyFHofSZg/i', 5, 1);           -- 01082006
 
 -- 8. NHÀ CUNG CẤP / NHÀ XUẤT BẢN
 INSERT INTO supplier (supplier_id, supplier_name, supplier_address, supplier_phone, status) VALUES
@@ -181,42 +181,42 @@ INSERT INTO author (author_id, author_name, nationality) VALUES
 (30, 'Thomas H. Cormen', 'Mỹ');
 
 -- 11. DANH SÁCH SÁCH (SẢN PHẨM)
-INSERT INTO book (book_id, book_name, publication_year, selling_price, quantity, translator, image, description, status, category_id, tag_detail, supplier_id) VALUES
-(1, 'Cho Tôi Xin Một Vé Đi Tuổi Thơ', 2022, 95000, 85, NULL, 'cho_toi_xin_mot_ve_di_tuoi_tho.jpg', 'Tác phẩm kinh điển về tuổi thơ hồn nhiên trong sáng của nhà văn Nguyễn Nhật Ánh.', 1, 1, 'Văn học, Tuổi thơ, Nguyễn Nhật Ánh', 1),
-(2, 'Mắt Biếc', 2023, 110000, 97, NULL, 'mat_biec.jpg', 'Câu chuyện tình buồn man mác của Ngạn và Hà Lan gắn với làng Đo Đo.', 1, 1, 'Văn học, Tình cảm, Nguyễn Nhật Ánh', 1),
-(3, 'Cánh Đồng Bất Tận', 2021, 85000, 38, NULL, 'canh_dong_bat_tan.jpg', 'Tập truyện ngắn đoạt nhiều giải thưởng danh giá của nhà văn Nguyễn Ngọc Tư.', 1, 1, 'Truyện ngắn, Hiện thực, Miền Tây', 1),
-(4, 'Dế Mèn Phiêu Lưu Ký', 2022, 60000, 49, NULL, 'de_men_phieu_luu_ky.jpg', 'Cuốn sách thiếu nhi gối đầu giường của nhiều thế hệ độc giả Việt Nam.', 1, 1, 'Thiếu nhi, Phiêu lưu, Kinh điển', 2),
-(5, 'Số Đỏ', 2020, 75000, 48, NULL, 'so_do.jpg', 'Kiệt tác văn học hiện thực trào phúng đỉnh cao của Vũ Trọng Phụng.', 1, 1, 'Văn học, Trào phúng, Hiện thực', 8),
-(6, 'Chí Phèo', 2021, 65000, 38, NULL, 'chi_pheo.jpg', 'Tập truyện ngắn bất hủ của Nam Cao viết về người nông dân trước cách mạng.', 1, 1, 'Văn học, Hiện thực, Nam Cao', 8),
-(7, 'Rừng Na Uy', 2020, 145000, 44, 'Trịnh Lữ', 'rung_na_uy.jpg', 'Tiểu thuyết nổi tiếng nhất của Haruki Murakami lay động hàng triệu trái tim.', 1, 1, 'Tiểu thuyết, Tình cảm, Nhật Bản', 3),
-(8, 'Hoàng Tử Bé', 2022, 70000, 58, 'Trịnh Thu Hồng', 'hoang_tu_be.jpg', 'Cuốn sách triết lý sâu sắc và trong trẻo dành cho cả trẻ em và người lớn.', 1, 1, 'Kinh điển, Triết lý, Pháp', 3),
-(9, 'Harry Potter và Hòn Đá Phù Thủy', 2021, 155000, 48, 'Lý Lan', 'harry_potter_1.jpg', 'Tập đầu tiên mở ra thế giới phù thủy kỳ diệu tại trường Hogwarts.', 1, 1, 'Giả tưởng, Phép thuật, Thiếu nhi', 1),
-(10, 'Sherlock Holmes Toàn Tập - Tập 1', 2020, 180000, 40, 'Đỗ Tư Nghĩa', 'sherlock_holmes_1.jpg', 'Bộ truyện trinh thám kinh điển thế giới với thám tử tài ba Sherlock Holmes.', 1, 1, 'Trinh thám, Kinh điển, Arthur Conan Doyle', 3),
-(11, 'Clean Code - Mã Sạch', 2021, 230000, 43, 'Phạm Bình', 'clean_code.jpg', 'Cẩm nang hướng dẫn viết code chuyên nghiệp, dễ đọc và dễ bảo trì.', 1, 2, 'Lập trình, Clean Code, Phần mềm', 6),
-(12, 'Design Patterns: Gang of Four', 2020, 280000, 34, 'Nguyễn Văn Tuấn', 'design_patterns.jpg', '23 mẫu thiết kế hướng đối tượng kinh điển trong kỹ nghệ phần mềm.', 1, 2, 'Kiến trúc phần mềm, Design Patterns, OOP', 6),
-(13, 'Refactoring: Improving Code Design', 2022, 250000, 38, 'Trần Quang', 'refactoring.jpg', 'Tái cấu trúc mã nguồn nâng cao chất lượng dự án phần mềm.', 1, 2, 'Lập trình, Refactoring, Software Engineering', 6),
-(14, 'Introduction to Algorithms', 2021, 350000, 29, 'Lê Hữu', 'intro_to_algorithms.jpg', 'Giáo trình thuật toán và cấu trúc dữ liệu toàn diện nhất thế giới.', 1, 2, 'Thuật toán, Khoa học máy tính, IT', 6),
-(15, 'Lập Trình Java Căn Bản Đến Nâng Cao', 2023, 160000, 59, NULL, 'java_core.jpg', 'Học lập trình Java thực chiến từ cơ bản đến ứng dụng phần mềm nâng cao.', 1, 2, 'Java, Lập trình, Giáo trình', 5),
-(16, 'Thám Tử Lừng Danh Conan - Tập 100', 2022, 35000, 105, 'Nguyễn Hương', 'conan_100.jpg', 'Cột mốc tập 100 của thám tử nhí lừng danh Conan Edogawa.', 1, 3, 'Manga, Trinh thám, Conan', 2),
-(17, 'Doraemon Tuyển Tập Tranh Màu - Tập 1', 2021, 45000, 72, 'Kim Đồng Books', 'doraemon_color_1.jpg', 'Chú mèo máy thông minh đến từ thế kỷ 22 với các bảo bối kỳ diệu.', 1, 3, 'Manga, Thiếu nhi, Doraemon', 2),
-(18, 'One Piece - Tập 100', 2022, 35000, 101, 'Kim Đồng Books', 'one_piece_100.jpg', 'Hành trình tìm kiếm kho báu vĩ đại của Vua Hải Tặc tương lai Monkey D. Luffy.', 1, 3, 'Manga, Phiêu lưu, Hành động', 2),
-(19, 'Dragon Ball - 7 Viên Ngọc Rồng - Tập 1', 2020, 35000, 86, 'Kim Đồng Books', 'dragon_ball_1.jpg', 'Tác phẩm huyền thoại của họa sĩ đại tài Akira Toriyama.', 1, 3, 'Manga, Hành động, Võ thuật', 2),
-(20, 'Đắc Nhân Tâm', 2021, 95000, 146, 'Nguyễn Hiến Lê', 'dac_nhan_tam.jpg', 'Nghệ thuật thu phục lòng người và giao tiếp đỉnh cao của Dale Carnegie.', 1, 4, 'Kỹ năng sống, Giao tiếp, Dale Carnegie', 4),
-(21, 'Nhà Giả Kim', 2020, 85000, 77, 'Lê Chu Cầu', 'nha_gia_kim.jpg', 'Hành trình đi tìm kho báu và thực hiện vận mệnh cuộc đời của chàng Santiago.', 1, 4, 'Triết lý, Tiểu thuyết, Paulo Coelho', 3),
-(22, 'Atomic Habits - Thay Đổi Tí Hon', 2022, 165000, 108, 'Hà Nguyễn', 'atomic_habits.jpg', 'Cách xây dựng thói quen tốt và từ bỏ thói quen xấu từng bước nhỏ.', 1, 4, 'Kỹ năng sống, Năng suất, Thói quen', 6),
-(23, 'Quẳng Gánh Lo Đi Và Vui Sống', 2021, 90000, 50, 'Nguyễn Hiến Lê', 'quang_ganh_lo_di.jpg', 'Bí quyết giải tỏa căng thẳng và sống vui vẻ trọn vẹn mỗi ngày.', 1, 4, 'Kỹ năng sống, Tâm lý, Dale Carnegie', 4),
-(24, 'Tuổi Trẻ Đáng Giá Bao Nhiêu', 2021, 90000, 58, NULL, 'tuoi_tre_dang_gia_bao_nhieu.jpg', 'Cuốn sách truyền cảm hứng sống và học tập cho hàng triệu bạn trẻ Việt Nam.', 1, 4, 'Kỹ năng sống, Tuổi trẻ, Phát triển bản thân', 3),
-(25, 'English Grammar in Use', 2022, 195000, 49, NULL, 'grammar_in_use.jpg', 'Bộ sách ngữ pháp tiếng Anh chuẩn Cambridge được tin cậy nhất toàn cầu.', 1, 5, 'Tiếng Anh, Ngữ pháp, Cambridge', 5),
-(26, 'Luyện Thi IELTS General & Academic', 2023, 210000, 40, 'IELTS Team', 'ielts_practice.jpg', 'Tổng hợp đề thi thử và chiến lược làm bài IELTS 8.0 chuyên sâu.', 1, 5, 'IELTS, Ngoại ngữ, Luyện thi', 5),
-(27, 'Tự Học 2000 Từ Vựng Tiếng Anh', 2022, 120000, 45, 'Vũ Thùy Linh', 'tu_hoc_tu_vung.jpg', 'Phương pháp nhớ từ vựng tiếng Anh giao tiếp nhanh và lâu qua ngữ cảnh.', 1, 5, 'Tiếng Anh, Từ vựng, Giao tiếp', 7),
-(28, 'Dám Bị Ghét', 2021, 125000, 54, 'Trịnh Lữ', 'dam_bi_ghet.jpg', 'Tâm lý học Alfred Adler về tự do và dũng khí thay đổi bản thân.', 1, 6, 'Tâm lý học, Triết học, Phát triển cá nhân', 3),
-(29, 'Thiên Tài Bên Trái Kẻ Điên Bên Phải', 2022, 140000, 50, 'Thu Hương', 'thien_tai_ben_trai.jpg', 'Góc nhìn độc đáo về thế giới quan của những bệnh nhân tâm thần.', 1, 6, 'Tâm lý học, Tư duy, Xã hội', 7),
-(30, 'Đọc Vị Bất Kỳ Ai', 2021, 105000, 60, 'Quỳnh Lê', 'doc_vi_bat_ky_ai.jpg', 'Phương pháp tâm lý học để thấu hiểu suy nghĩ và động cơ của người đối diện.', 1, 6, 'Tâm lý, Giao tiếp, David Lieberman', 4),
-(31, 'Tâm Lý Học Tội Phạm', 2022, 135000, 45, NULL, 'tam_ly_hoc_toi_pham.jpg', 'Phân tích hành vi, động cơ và tâm lý tội phạm học hiện đại.', 1, 6, 'Tâm lý, Tội phạm học, Xã hội', 7),
-(32, 'Tâm Lý Học Về Tiền', 2022, 175000, 63, 'Huy Hoàng', 'the_psychology_of_money.jpg', 'Những bài học vĩnh cửu về sự giàu có, lòng tham và hạnh phúc tài chính.', 1, 7, 'Tài chính cá nhân, Tâm lý, Kinh tế', 6),
-(33, 'Cha Giàu Cha Nghèo - Tập 1', 2021, 115000, 72, 'Hà Linh', 'cha_giau_cha_ngheo_1.jpg', 'Tư duy tài chính xuất chúng thay đổi cuộc đời và cách tiền làm việc cho bạn.', 1, 7, 'Tài chính cá nhân, Làm giàu, Robert Kiyosaki', 4),
-(34, 'Nhà Đầu Tư Thông Minh', 2020, 260000, 39, 'Trần Thảo', 'nha_dau_tu_thong_minh.jpg', 'Kinh thánh về đầu tư giá trị của Benjamin Graham được Warren Buffett khuyên đọc.', 1, 7, 'Đầu tư, Chứng khoán, Kinh tế', 6),
-(35, 'Sổ Tay Lập Trình Pascal Cũ (Ngừng xuất bản)', 2010, 45000, 0, NULL, 'pascal_old.jpg', 'Tài liệu ngôn ngữ Pascal cũ của những năm 2000 không còn lưu hành.', 0, 2, 'Lập trình cũ, Lịch sử, Ngừng bán', 5);
+INSERT INTO book (book_id, book_name, publication_year, cover_price, selling_price, quantity, translator, image, description, status, category_id, tag_detail, supplier_id) VALUES
+(1, 'Cho Tôi Xin Một Vé Đi Tuổi Thơ', 2022, 95000, 95000, 85, NULL, 'cho_toi_xin_mot_ve_di_tuoi_tho.jpg', 'Tác phẩm kinh điển về tuổi thơ hồn nhiên trong sáng của nhà văn Nguyễn Nhật Ánh.', 1, 1, 'Văn học, Tuổi thơ, Nguyễn Nhật Ánh', 1),
+(2, 'Mắt Biếc', 2023, 110000, 110000, 97, NULL, 'mat_biec.jpg', 'Câu chuyện tình buồn man mác của Ngạn và Hà Lan gắn với làng Đo Đo.', 1, 1, 'Văn học, Tình cảm, Nguyễn Nhật Ánh', 1),
+(3, 'Cánh Đồng Bất Tận', 2021, 85000, 85000, 38, NULL, 'canh_dong_bat_tan.jpg', 'Tập truyện ngắn đoạt nhiều giải thưởng danh giá của nhà văn Nguyễn Ngọc Tư.', 1, 1, 'Truyện ngắn, Hiện thực, Miền Tây', 1),
+(4, 'Dế Mèn Phiêu Lưu Ký', 2022, 60000, 60000, 49, NULL, 'de_men_phieu_luu_ky.jpg', 'Cuốn sách thiếu nhi gối đầu giường của nhiều thế hệ độc giả Việt Nam.', 1, 1, 'Thiếu nhi, Phiêu lưu, Kinh điển', 2),
+(5, 'Số Đỏ', 2020, 75000, 75000, 48, NULL, 'so_do.jpg', 'Kiệt tác văn học hiện thực trào phúng đỉnh cao của Vũ Trọng Phụng.', 1, 1, 'Văn học, Trào phúng, Hiện thực', 8),
+(6, 'Chí Phèo', 2021, 65000, 65000, 38, NULL, 'chi_pheo.jpg', 'Tập truyện ngắn bất hủ của Nam Cao viết về người nông dân trước cách mạng.', 1, 1, 'Văn học, Hiện thực, Nam Cao', 8),
+(7, 'Rừng Na Uy', 2020, 145000, 145000, 44, 'Trịnh Lữ', 'rung_na_uy.jpg', 'Tiểu thuyết nổi tiếng nhất của Haruki Murakami lay động hàng triệu trái tim.', 1, 1, 'Tiểu thuyết, Tình cảm, Nhật Bản', 3),
+(8, 'Hoàng Tử Bé', 2022, 70000, 70000, 58, 'Trịnh Thu Hồng', 'hoang_tu_be.jpg', 'Cuốn sách triết lý sâu sắc và trong trẻo dành cho cả trẻ em và người lớn.', 1, 1, 'Kinh điển, Triết lý, Pháp', 3),
+(9, 'Harry Potter và Hòn Đá Phù Thủy', 2021, 155000, 155000, 48, 'Lý Lan', 'harry_potter_1.jpg', 'Tập đầu tiên mở ra thế giới phù thủy kỳ diệu tại trường Hogwarts.', 1, 1, 'Giả tưởng, Phép thuật, Thiếu nhi', 1),
+(10, 'Sherlock Holmes Toàn Tập - Tập 1', 2020, 180000, 180000, 40, 'Đỗ Tư Nghĩa', 'sherlock_holmes_1.jpg', 'Bộ truyện trinh thám kinh điển thế giới với thám tử tài ba Sherlock Holmes.', 1, 1, 'Trinh thám, Kinh điển, Arthur Conan Doyle', 3),
+(11, 'Clean Code - Mã Sạch', 2021, 230000, 230000, 43, 'Phạm Bình', 'clean_code.jpg', 'Cẩm nang hướng dẫn viết code chuyên nghiệp, dễ đọc và dễ bảo trì.', 1, 2, 'Lập trình, Clean Code, Phần mềm', 6),
+(12, 'Design Patterns: Gang of Four', 2020, 280000, 280000, 34, 'Nguyễn Văn Tuấn', 'design_patterns.jpg', '23 mẫu thiết kế hướng đối tượng kinh điển trong kỹ nghệ phần mềm.', 1, 2, 'Kiến trúc phần mềm, Design Patterns, OOP', 6),
+(13, 'Refactoring: Improving Code Design', 2022, 250000, 250000, 38, 'Trần Quang', 'refactoring.jpg', 'Tái cấu trúc mã nguồn nâng cao chất lượng dự án phần mềm.', 1, 2, 'Lập trình, Refactoring, Software Engineering', 6),
+(14, 'Introduction to Algorithms', 2021, 350000, 350000, 29, 'Lê Hữu', 'intro_to_algorithms.jpg', 'Giáo trình thuật toán và cấu trúc dữ liệu toàn diện nhất thế giới.', 1, 2, 'Thuật toán, Khoa học máy tính, IT', 6),
+(15, 'Lập Trình Java Căn Bản Đến Nâng Cao', 2023, 160000, 160000, 59, NULL, 'java_core.jpg', 'Học lập trình Java thực chiến từ cơ bản đến ứng dụng phần mềm nâng cao.', 1, 2, 'Java, Lập trình, Giáo trình', 5),
+(16, 'Thám Tử Lừng Danh Conan - Tập 100', 2022, 35000, 35000, 105, 'Nguyễn Hương', 'conan_100.jpg', 'Cột mốc tập 100 của thám tử nhí lừng danh Conan Edogawa.', 1, 3, 'Manga, Trinh thám, Conan', 2),
+(17, 'Doraemon Tuyển Tập Tranh Màu - Tập 1', 2021, 45000, 45000, 72, 'Kim Đồng Books', 'doraemon_color_1.jpg', 'Chú mèo máy thông minh đến từ thế kỷ 22 với các bảo bối kỳ diệu.', 1, 3, 'Manga, Thiếu nhi, Doraemon', 2),
+(18, 'One Piece - Tập 100', 2022, 35000, 35000, 101, 'Kim Đồng Books', 'one_piece_100.jpg', 'Hành trình tìm kiếm kho báu vĩ đại của Vua Hải Tặc tương lai Monkey D. Luffy.', 1, 3, 'Manga, Phiêu lưu, Hành động', 2),
+(19, 'Dragon Ball - 7 Viên Ngọc Rồng - Tập 1', 2020, 35000, 35000, 86, 'Kim Đồng Books', 'dragon_ball_1.jpg', 'Tác phẩm huyền thoại của họa sĩ đại tài Akira Toriyama.', 1, 3, 'Manga, Hành động, Võ thuật', 2),
+(20, 'Đắc Nhân Tâm', 2021, 95000, 95000, 146, 'Nguyễn Hiến Lê', 'dac_nhan_tam.jpg', 'Nghệ thuật thu phục lòng người và giao tiếp đỉnh cao của Dale Carnegie.', 1, 4, 'Kỹ năng sống, Giao tiếp, Dale Carnegie', 4),
+(21, 'Nhà Giả Kim', 2020, 85000, 85000, 77, 'Lê Chu Cầu', 'nha_gia_kim.jpg', 'Hành trình đi tìm kho báu và thực hiện vận mệnh cuộc đời của chàng Santiago.', 1, 4, 'Triết lý, Tiểu thuyết, Paulo Coelho', 3),
+(22, 'Atomic Habits - Thay Đổi Tí Hon', 2022, 165000, 165000, 108, 'Hà Nguyễn', 'atomic_habits.jpg', 'Cách xây dựng thói quen tốt và từ bỏ thói quen xấu từng bước nhỏ.', 1, 4, 'Kỹ năng sống, Năng suất, Thói quen', 6),
+(23, 'Quẳng Gánh Lo Đi Và Vui Sống', 2021, 90000, 90000, 50, 'Nguyễn Hiến Lê', 'quang_ganh_lo_di.jpg', 'Bí quyết giải tỏa căng thẳng và sống vui vẻ trọn vẹn mỗi ngày.', 1, 4, 'Kỹ năng sống, Tâm lý, Dale Carnegie', 4),
+(24, 'Tuổi Trẻ Đáng Giá Bao Nhiêu', 2021, 90000, 90000, 58, NULL, 'tuoi_tre_dang_gia_bao_nhieu.jpg', 'Cuốn sách truyền cảm hứng sống và học tập cho hàng triệu bạn trẻ Việt Nam.', 1, 4, 'Kỹ năng sống, Tuổi trẻ, Phát triển bản thân', 3),
+(25, 'English Grammar in Use', 2022, 195000, 195000, 49, NULL, 'grammar_in_use.jpg', 'Bộ sách ngữ pháp tiếng Anh chuẩn Cambridge được tin cậy nhất toàn cầu.', 1, 5, 'Tiếng Anh, Ngữ pháp, Cambridge', 5),
+(26, 'Luyện Thi IELTS General & Academic', 2023, 210000, 210000, 40, 'IELTS Team', 'ielts_practice.jpg', 'Tổng hợp đề thi thử và chiến lược làm bài IELTS 8.0 chuyên sâu.', 1, 5, 'IELTS, Ngoại ngữ, Luyện thi', 5),
+(27, 'Tự Học 2000 Từ Vựng Tiếng Anh', 2022, 120000, 120000, 45, 'Vũ Thùy Linh', 'tu_hoc_tu_vung.jpg', 'Phương pháp nhớ từ vựng tiếng Anh giao tiếp nhanh và lâu qua ngữ cảnh.', 1, 5, 'Tiếng Anh, Từ vựng, Giao tiếp', 7),
+(28, 'Dám Bị Ghét', 2021, 125000, 125000, 54, 'Trịnh Lữ', 'dam_bi_ghet.jpg', 'Tâm lý học Alfred Adler về tự do và dũng khí thay đổi bản thân.', 1, 6, 'Tâm lý học, Triết học, Phát triển cá nhân', 3),
+(29, 'Thiên Tài Bên Trái Kẻ Điên Bên Phải', 2022, 140000, 140000, 50, 'Thu Hương', 'thien_tai_ben_trai.jpg', 'Góc nhìn độc đáo về thế giới quan của những bệnh nhân tâm thần.', 1, 6, 'Tâm lý học, Tư duy, Xã hội', 7),
+(30, 'Đọc Vị Bất Kỳ Ai', 2021, 105000, 105000, 60, 'Quỳnh Lê', 'doc_vi_bat_ky_ai.jpg', 'Phương pháp tâm lý học để thấu hiểu suy nghĩ và động cơ của người đối diện.', 1, 6, 'Tâm lý, Giao tiếp, David Lieberman', 4),
+(31, 'Tâm Lý Học Tội Phạm', 2022, 135000, 135000, 45, NULL, 'tam_ly_hoc_toi_pham.jpg', 'Phân tích hành vi, động cơ và tâm lý tội phạm học hiện đại.', 1, 6, 'Tâm lý, Tội phạm học, Xã hội', 7),
+(32, 'Tâm Lý Học Về Tiền', 2022, 175000, 175000, 63, 'Huy Hoàng', 'the_psychology_of_money.jpg', 'Những bài học vĩnh cửu về sự giàu có, lòng tham và hạnh phúc tài chính.', 1, 7, 'Tài chính cá nhân, Tâm lý, Kinh tế', 6),
+(33, 'Cha Giàu Cha Nghèo - Tập 1', 2021, 115000, 115000, 72, 'Hà Linh', 'cha_giau_cha_ngheo_1.jpg', 'Tư duy tài chính xuất chúng thay đổi cuộc đời và cách tiền làm việc cho bạn.', 1, 7, 'Tài chính cá nhân, Làm giàu, Robert Kiyosaki', 4),
+(34, 'Nhà Đầu Tư Thông Minh', 2020, 260000, 260000, 39, 'Trần Thảo', 'nha_dau_tu_thong_minh.jpg', 'Kinh thánh về đầu tư giá trị của Benjamin Graham được Warren Buffett khuyên đọc.', 1, 7, 'Đầu tư, Chứng khoán, Kinh tế', 6),
+(35, 'Sổ Tay Lập Trình Pascal Cũ (Ngừng xuất bản)', 2010, 45000, 45000, 0, NULL, 'pascal_old.jpg', 'Tài liệu ngôn ngữ Pascal cũ của những năm 2000 không còn lưu hành.', 0, 2, 'Lập trình cũ, Lịch sử, Ngừng bán', 5);
 
 -- 12. QUAN HỆ SÁCH - TÁC GIẢ
 INSERT INTO book_author (book_id, author_id) VALUES

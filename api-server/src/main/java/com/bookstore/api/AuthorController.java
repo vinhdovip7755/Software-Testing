@@ -2,15 +2,17 @@ package com.bookstore.api;
 
 import com.bookstore.bus.AuthorBUS;
 import com.bookstore.dto.AuthorDTO;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -34,9 +36,12 @@ public class AuthorController {
     @PostMapping
     public ResponseEntity<String> addAuthor(
             @RequestHeader("Authorization") String authorization,
-            @RequestBody AuthorDTO author
+            @RequestBody(required = false) AuthorDTO author
     ) {
         sessionStore.requireAction(authorization, "MANAGE_AUTHOR");
+        if (author == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin tác giả không hợp lệ.");
+        }
         return ApiResponses.fromBusinessMessage(authorBUS.addAuthor(author));
     }
 
@@ -44,9 +49,12 @@ public class AuthorController {
     public ResponseEntity<String> updateAuthor(
             @RequestHeader("Authorization") String authorization,
             @PathVariable("id") int id,
-            @RequestBody AuthorDTO author
+            @RequestBody(required = false) AuthorDTO author
     ) {
         sessionStore.requireAction(authorization, "MANAGE_AUTHOR");
+        if (id <= 0 || author == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin tác giả không hợp lệ.");
+        }
         author.setAuthorId(id);
         return ApiResponses.fromBusinessMessage(authorBUS.updateAuthor(author));
     }
