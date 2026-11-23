@@ -129,7 +129,7 @@ function Invoke-LoginProcess([string]$ArgCase, [string]$LogFile, [int]$TimeoutMs
             "-Dbookstore.api.base-url=$apiBaseUrl",
             "-Dbookstore.otp.mode=$otpMode",
             "-Dbookstore.otp.waitSec=$ManualOtpWaitSec",
-            "-Dbookstore.otp.file=$otpFile",
+            ('-Dbookstore.otp.file="' + $otpFile + '"'),
             '-cp', ('"' + $classes + ';' + $jar + '"'),
             'LoginUiTest', $ArgCase
         ) `
@@ -181,10 +181,15 @@ try {
         $apiBaseUrl = "http://127.0.0.1:$apiPort"
         if ($ManualOtp) {
             Write-Host "Starting dedicated test BookStore API server on port $apiPort (REAL Gmail SMTP: $($env:BOOKSTORE_SMTP_USERNAME))..."
-            $apiArgs = @("-Dserver.port=$apiPort", '-jar', $apiJar)
+            $apiArgs = @("-Dserver.port=$apiPort", '-jar', ('"' + $apiJar + '"'))
         } else {
             Write-Host "Starting dedicated test BookStore API server on port $apiPort (OTP capture enabled)..."
-            $apiArgs = @("-Dserver.port=$apiPort", "-Dbookstore.otp.test-out=$otpFile", '-jar', $apiJar)
+            $apiArgs = @(
+                "-Dserver.port=$apiPort",
+                ('-Dbookstore.otp.test-out="' + $otpFile + '"'),
+                '-jar',
+                ('"' + $apiJar + '"')
+            )
         }
         $startedApiServer = Start-Process -FilePath $java `
             -ArgumentList $apiArgs `
