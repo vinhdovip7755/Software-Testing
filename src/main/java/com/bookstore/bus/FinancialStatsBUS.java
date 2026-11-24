@@ -64,54 +64,41 @@ public class FinancialStatsBUS {
     }
 
     public QuyDoanhThuSummary getQuyDoanhThuSummary(int nam) {
-        List<FinancialStatsDTO> dataTheoThang = getThongKeTheoThang(nam);
-        if (dataTheoThang.isEmpty()) {
-            return null;
+    List<FinancialStatsDTO> data = getThongKeTheoThang(nam);        // 1
+    double[] tong = new double[4];                                 // 1
+
+    List<Double> mucCao = java.util.Arrays.asList(                 // 1
+            Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
+            Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
+
+    List<Double> mucThap = java.util.Arrays.asList(                // 1
+            Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
+            Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+
+    QuyDoanhThuSummary ketQua = null;                              // 1
+
+    for (FinancialStatsDTO item : data) {                          // 2
+        int thang = extractMonth(item.getThoiGian());              // 3
+
+        if (thang >= 1 && thang <= 12) {                           // 4
+            int i = (thang - 1) / 3;                               // 5
+            tong[i] += item.getDoanhThu();                         // 5
+
+            mucCao.set(i, tong[i]);                                // 5
+            mucThap.set(i, tong[i]);                               // 5
+
+            double max = java.util.Collections.max(mucCao);        // 5
+            double min = java.util.Collections.min(mucThap);       // 5
+
+            ketQua = new QuyDoanhThuSummary(                       // 5
+                    nam,
+                    mucCao.indexOf(max) + 1, max,
+                    mucThap.indexOf(min) + 1, min);
         }
-
-        double[] doanhThuTheoQuy = new double[4];
-        boolean[] coDuLieuQuy = new boolean[4];
-        for (FinancialStatsDTO item : dataTheoThang) {
-            int thang = extractMonth(item.getThoiGian());
-            if (thang <= 0) {
-                continue;
-            }
-            int indexQuy = (thang - 1) / 3;
-            doanhThuTheoQuy[indexQuy] += item.getDoanhThu();
-            coDuLieuQuy[indexQuy] = true;
-        }
-
-        int quyMax = -1;
-        int quyMin = -1;
-        double doanhThuMax = Double.NEGATIVE_INFINITY;
-        double doanhThuMin = Double.POSITIVE_INFINITY;
-
-        for (int i = 0; i < 4; i++) {
-            if (!coDuLieuQuy[i]) {
-                continue;
-            }
-
-            double doanhThu = doanhThuTheoQuy[i];
-            int quy = i + 1;
-
-
-            if (doanhThu > doanhThuMax) {
-                doanhThuMax = doanhThu;
-                quyMax = quy;
-            }
-
-            if (doanhThu < doanhThuMin) {
-                doanhThuMin = doanhThu;
-                quyMin = quy;
-            }
-        }
-
-        if (quyMax == -1 || quyMin == -1) {
-            return null;
-        }
-
-        return new QuyDoanhThuSummary(nam, quyMax, doanhThuMax, quyMin, doanhThuMin);
     }
+
+    return ketQua;                                                 // 6
+}                                                                  // 7
 
     private int extractMonth(String thoiGian) {
         if (thoiGian == null) {

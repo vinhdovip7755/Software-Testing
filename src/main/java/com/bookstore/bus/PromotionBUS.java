@@ -42,56 +42,74 @@ public class PromotionBUS {
     }
 
     public List<PromotionDTO> search(String keyword, String type) {
-        List<PromotionDTO> all = selectAllPromotionsWithEffectiveStatus();
-        if (keyword == null || keyword.isEmpty()) {
-            return all;
-        }
-
-        List<PromotionDTO> result = new ArrayList<>();
-        String lowerKeyword = keyword.toLowerCase();
-
-        for (PromotionDTO p : all) {
-            boolean match;
-            switch (type) {
-                case "Tên":
-                    match = p.getPromotionName() != null
-                            && p.getPromotionName().toLowerCase().contains(lowerKeyword);
-                    break;
-                case "Phần trăm":
-                    try {
-                        double percent = Double.parseDouble(lowerKeyword);
-                        match = Double.isFinite(percent) && (p.getPercent() == percent);
-                    } catch (Exception e) {
-                        match = false;
-                    }
-                    break;
-                case "Thời gian":
-                    try {
-                        String[] dates = lowerKeyword.split("\\|", -1);
-                        long startLimit = (dates.length == 0 || dates[0].isBlank())
-                                ? Long.MIN_VALUE
-                                : Timestamp.valueOf(LocalDate.parse(dates[0].trim()).atStartOfDay()).getTime();
-                        long endLimit = (dates.length < 2 || dates[1].isBlank())
-                                ? Long.MAX_VALUE
-                                : Timestamp.valueOf(LocalDate.parse(dates[1].trim()).atTime(23, 59, 59, 999_000_000)).getTime();
-                        match = p.getStartDate() != null && p.getEndDate() != null
-                                && p.getStartDate().getTime() >= startLimit
-                                && p.getEndDate().getTime() <= endLimit;
-                    } catch (Exception e) {
-                        match = false;
-                    }
-                    break;
-                default:
-                    match = false;
-                    break;
-            }
-
-            if (match) {
-                result.add(p);
-            }
-        }
-        return result;
+    List<PromotionDTO> all = selectAllPromotionsWithEffectiveStatus();
+    if (keyword == null || keyword.isEmpty()) {
+        return all;
     }
+    List<PromotionDTO> result = new ArrayList<>();
+    String key = keyword.toLowerCase();
+    switch (type) {
+        case "Tên": {
+            for (PromotionDTO p : all) {
+                String name = p.getPromotionName();
+                if (name != null && name.toLowerCase().contains(key)) {
+                    result.add(p);
+                }
+            }
+            break;
+        }
+        case "Phần trăm": {
+            double percent;
+            try {
+                percent = Double.parseDouble(key);
+            } catch (NumberFormatException e) {
+                return result;
+            }
+            if (!Double.isFinite(percent)) { 
+                return result; 
+            }
+            for (PromotionDTO p : all) {
+                if (p.getPercent() == percent) {
+                    result.add(p);
+                }
+            }
+            break;
+        }
+        case "Thời gian": {
+            String[] dates = key.split("\\|", -1);
+            long startLimit = Long.MIN_VALUE;
+            long endLimit = Long.MAX_VALUE;
+            try {
+                if (!dates[0].isBlank()) { 
+                    startLimit = Timestamp.valueOf( 
+                            LocalDate.parse(dates[0].trim())
+                                     .atStartOfDay()
+                    ).getTime();
+                }
+                if (dates.length >= 2 && !dates[1].isBlank()) {
+                    endLimit = Timestamp.valueOf( 
+                            LocalDate.parse(dates[1].trim())
+                                     .atTime(23, 59, 59, 999_000_000)
+                    ).getTime();
+                }
+            } catch (java.time.DateTimeException | IllegalArgumentException e) {
+                return result;
+            }
+            for (PromotionDTO p : all) {
+                if (p.getStartDate() != null 
+                        && p.getEndDate() != null
+                        && p.getStartDate().getTime() >= startLimit
+                        && p.getEndDate().getTime() <= endLimit) {
+                    result.add(p); 
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    return result; 
+}  
 
     public void updateAutoStatus() {
         List<PromotionDTO> all = promotionDAO.selectAllPromotions();
@@ -100,7 +118,6 @@ public class PromotionBUS {
             if (p.getEndDate() == null) {
                 continue;
             }
-            // Only expire active promotions past their end date; never re-enable manually disabled promotions (status = 0).
             if (p.getStatus() == 1 && now.after(p.getEndDate())) {
                 p.setStatus(0);
                 promotionDAO.updateStatus(p);
