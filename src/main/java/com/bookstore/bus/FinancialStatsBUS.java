@@ -64,41 +64,41 @@ public class FinancialStatsBUS {
     }
 
     public QuyDoanhThuSummary getQuyDoanhThuSummary(int nam) {
-    List<FinancialStatsDTO> data = getThongKeTheoThang(nam);        // 1
-    double[] tong = new double[4];                                 // 1
+    List<FinancialStatsDTO> data = getThongKeTheoThang(nam);         
+    double[] tong = new double[4];                                  
 
-    List<Double> mucCao = java.util.Arrays.asList(                 // 1
+    List<Double> mucCao = java.util.Arrays.asList(                  
             Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
             Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY);
 
-    List<Double> mucThap = java.util.Arrays.asList(                // 1
+    List<Double> mucThap = java.util.Arrays.asList(                 
             Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
             Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
 
-    QuyDoanhThuSummary ketQua = null;                              // 1
+    QuyDoanhThuSummary ketQua = null;                               
 
-    for (FinancialStatsDTO item : data) {                          // 2
-        int thang = extractMonth(item.getThoiGian());              // 3
+    for (FinancialStatsDTO item : data) {                           
+        int thang = extractMonth(item.getThoiGian());               
 
-        if (thang >= 1 && thang <= 12) {                           // 4
-            int i = (thang - 1) / 3;                               // 5
-            tong[i] += item.getDoanhThu();                         // 5
+        if (thang >= 1 && thang <= 12) {                            
+            int i = (thang - 1) / 3;                                
+            tong[i] += item.getDoanhThu();                          
 
-            mucCao.set(i, tong[i]);                                // 5
-            mucThap.set(i, tong[i]);                               // 5
+            mucCao.set(i, tong[i]);                                 
+            mucThap.set(i, tong[i]);                                
 
-            double max = java.util.Collections.max(mucCao);        // 5
-            double min = java.util.Collections.min(mucThap);       // 5
+            double max = java.util.Collections.max(mucCao);         
+            double min = java.util.Collections.min(mucThap);        
 
-            ketQua = new QuyDoanhThuSummary(                       // 5
+            ketQua = new QuyDoanhThuSummary(
                     nam,
                     mucCao.indexOf(max) + 1, max,
                     mucThap.indexOf(min) + 1, min);
         }
     }
 
-    return ketQua;                                                 // 6
-}                                                                  // 7
+    return ketQua;
+}
 
     private int extractMonth(String thoiGian) {
         if (thoiGian == null) {
