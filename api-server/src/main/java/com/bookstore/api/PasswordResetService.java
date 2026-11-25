@@ -156,36 +156,28 @@ public class PasswordResetService {
         }
     }
 
+    public void verifyOtp(String email, String otp) {
+        String normalizedEmail = normalizeEmail(email);
+        if (!isValidOtpRequest(normalizedEmail, otp)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email hoặc mã OTP sai định dạng.");
+        }
+
+        ResetCode resetCode = findResetCode(normalizedEmail);
+        synchronized (resetCode) {
+            checkOtp(normalizedEmail, otp, resetCode);
+        }
+    }
+
     public String confirmReset(String email, String otp, String newPassword) {
         String normalizedEmail = normalizeEmail(email);
-        if (normalizedEmail == null || !EMAIL_PATTERN.matcher(normalizedEmail).matches()
-                || otp == null || !otp.matches("^\\d{6}$")
+        if (!isValidOtpRequest(normalizedEmail, otp)
                 || newPassword == null || newPassword.isBlank() || newPassword.trim().length() < 4) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thông tin đặt lại mật khẩu không hợp lệ.");
         }
 
-        ResetCode resetCode = codes.get(normalizedEmail);
-        if (resetCode == null) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã OTP không hợp lệ hoặc đã hết hạn.");
-        }
+        ResetCode resetCode = findResetCode(normalizedEmail);
         synchronized (resetCode) {
-            if (codes.get(normalizedEmail) != resetCode || resetCode.isPending()) {
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã OTP không hợp lệ hoặc đã hết hạn.");
-            }
-            if (!resetCode.expiresAt().isAfter(clock.instant())) {
-                codes.remove(normalizedEmail, resetCode);
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã OTP không hợp lệ hoặc đã hết hạn.");
-            }
-            if (!MessageDigest.isEqual(
-                    resetCode.otp().getBytes(StandardCharsets.UTF_8),
-                    otp.getBytes(StandardCharsets.UTF_8))) {
-                resetCode.incrementAttempts();
-                if (resetCode.attempts() >= MAX_ATTEMPTS) {
-                    codes.remove(normalizedEmail, resetCode);
-                }
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã OTP không chính xác.");
-            }
-
+            checkOtp(normalizedEmail, otp, resetCode);
             String result = passwordResetter.apply(normalizedEmail, newPassword);
             if (!"OK".equals(result)) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, result);
@@ -194,6 +186,41 @@ public class PasswordResetService {
             onPasswordReset.accept(normalizedEmail);
             return result;
         }
+    }
+
+    private static boolean isValidOtpRequest(String email, String otp) {
+        return email != null && EMAIL_PATTERN.matcher(email).matches()
+                && otp != null && otp.matches("[0-9]{6}");
+    }
+
+    private ResetCode findResetCode(String email) {
+        ResetCode resetCode = codes.get(email);
+        if (resetCode == null) {
+            throw invalidOtp();
+        }
+        return resetCode;
+    }
+
+    private void checkOtp(String email, String otp, ResetCode resetCode) {
+        if (codes.get(email) != resetCode || resetCode.isPending()) {
+            throw invalidOtp();
+        }
+        if (!resetCode.expiresAt().isAfter(clock.instant())) {
+            codes.remove(email, resetCode);
+            throw invalidOtp();
+        }
+        if (!MessageDigest.isEqual(
+                resetCode.otp().getBytes(StandardCharsets.UTF_8), otp.getBytes(StandardCharsets.UTF_8))) {
+            resetCode.incrementAttempts();
+            if (resetCode.attempts() >= MAX_ATTEMPTS) {
+                codes.remove(email, resetCode);
+            }
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã OTP không chính xác.");
+        }
+    }
+
+    private static ResponseStatusException invalidOtp() {
+        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Mã OTP không hợp lệ hoặc đã hết hạn.");
     }
 
     private static final class ResetCode {

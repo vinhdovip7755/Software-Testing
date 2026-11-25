@@ -22,6 +22,15 @@ public class PasswordResetController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/verify")
+    public ResponseEntity<Void> verifyOtp(@RequestBody(required = false) PasswordResetRequestDTO request) {
+        passwordResetService.verifyOtp(
+                request == null ? null : request.email(),
+                request == null ? null : request.otp()
+        );
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/confirm")
     public ResponseEntity<Void> confirmReset(@RequestBody(required = false) PasswordResetRequestDTO request) {
         passwordResetService.confirmReset(

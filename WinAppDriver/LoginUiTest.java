@@ -441,62 +441,56 @@ public class LoginUiTest {
 
     // --- 7 Offline UI Login Cases (do not require API server) ---
 
+    private void expectFieldFeedback(Window window, JTextComponent field, String message) throws Exception {
+        String feedbackName = field.getName() + ".feedback";
+        control(window, JLabel.class,
+                label -> feedbackName.equals(label.getName()) && message.equals(label.getText()),
+                message.isBlank() ? "xóa lỗi tại " + field.getName() : message);
+    }
+
     private void emptyEmail(boolean dismissAfter) throws Exception {
-        clearField(emailField());
+        JTextField email = emailField();
+        clearField(email);
         clearField(passwordField());
         submitByButton();
-        JDialog warning = dialog(login, "Cảnh báo");
-        control(warning, JLabel.class, l -> "Vui lòng nhập Email!".equals(l.getText()), "cảnh báo email trống");
-        if (dismissAfter) dismissDialog(warning, "nút OK email trống");
-        else pauseStep();
+        expectFieldFeedback(login, email, "Vui lòng nhập Email!");
+        if (!dismissAfter) pauseStep();
     }
 
     private void whitespaceEmail(boolean dismissAfter) throws Exception {
-        JTextField ef = emailField();
-        clearField(ef);
-        clearField(passwordField());
-        type(ef, "   ");
-        submitByButton();
-        JDialog warning = dialog(login, "Cảnh báo");
-        control(warning, JLabel.class, l -> "Vui lòng nhập Email!".equals(l.getText()), "cảnh báo email chỉ có khoảng trắng");
-        if (dismissAfter) dismissDialog(warning, "nút OK email khoảng trắng");
-        else pauseStep();
+        JTextField email = emailField();
+        clearField(email);
+        type(email, "   ");
+        expectFieldFeedback(login, email, "Vui lòng nhập Email!");
+        if (!dismissAfter) pauseStep();
     }
 
     private void invalidEmailNoAt(boolean dismissAfter) throws Exception {
-        JTextField ef = emailField();
-        clearField(ef);
-        clearField(passwordField());
-        type(ef, "abc_invalid_mail");
-        submitByButton();
-        JDialog warning = dialog(login, "Cảnh báo");
-        control(warning, JLabel.class, l -> "Định dạng Email không hợp lệ!".equals(l.getText()), "cảnh báo email thiếu @");
-        if (dismissAfter) dismissDialog(warning, "nút OK email thiếu @");
-        else pauseStep();
+        JTextField email = emailField();
+        clearField(email);
+        type(email, "abc_invalid_mail");
+        expectFieldFeedback(login, email, "Định dạng Email không hợp lệ!");
+        if (!dismissAfter) pauseStep();
     }
 
     private void invalidEmailBadDomain(boolean dismissAfter) throws Exception {
-        JTextField ef = emailField();
-        clearField(ef);
-        clearField(passwordField());
-        type(ef, "abc@khongco");
-        submitByButton();
-        JDialog warning = dialog(login, "Cảnh báo");
-        control(warning, JLabel.class, l -> "Định dạng Email không hợp lệ!".equals(l.getText()), "cảnh báo email sai tên miền");
-        if (dismissAfter) dismissDialog(warning, "nút OK email sai tên miền");
-        else pauseStep();
+        JTextField email = emailField();
+        clearField(email);
+        type(email, "abc@khongco");
+        expectFieldFeedback(login, email, "Định dạng Email không hợp lệ!");
+        type(email, ".com");
+        expectFieldFeedback(login, email, " ");
+        if (!dismissAfter) pauseStep();
     }
 
     private void emptyPassword(boolean dismissAfter) throws Exception {
-        JTextField ef = emailField();
-        clearField(ef);
-        type(ef, env("BOOKSTORE_TEST_EMAIL", "vinhyt7755@gmail.com"));
-        clearField(passwordField());
-        submitByButton();
-        JDialog warning = dialog(login, "Cảnh báo");
-        control(warning, JLabel.class, l -> "Vui lòng nhập mật khẩu!".equals(l.getText()), "cảnh báo thiếu mật khẩu");
-        if (dismissAfter) dismissDialog(warning, "nút OK thiếu mật khẩu");
-        else pauseStep();
+        clearField(emailField());
+        type(emailField(), env("BOOKSTORE_TEST_EMAIL", "vinhyt7755@gmail.com"));
+        JPasswordField password = passwordField();
+        clearField(password);
+        type(password, "   ");
+        expectFieldFeedback(login, password, "Vui lòng nhập mật khẩu!");
+        if (!dismissAfter) pauseStep();
     }
 
     private void togglePasswordVisibility() throws Exception {
@@ -543,23 +537,14 @@ public class LoginUiTest {
                 throw new AssertionError("Các trường bước 2 phải bị khóa trước khi gửi OTP");
             }
 
-            // 1) Empty email -> Cảnh báo: Vui lòng nhập Email!
-            JButton sendOtpBtn = control(forgotDlg, JButton.class, b -> "Nhận mã OTP".equals(b.getText()), "nút Nhận mã OTP");
-            type(sendOtpBtn, " ", false);
-            JDialog warnEmpty = dialog(forgotDlg, "Cảnh báo");
-            control(warnEmpty, JLabel.class, l -> "Vui lòng nhập Email!".equals(l.getText()), "cảnh báo quên mật khẩu thiếu email");
-            dismissDialog(warnEmpty, "nút OK quên mật khẩu thiếu email");
-
-            // 2) Invalid email -> Lỗi: Email không đúng định dạng! (and no duplicate focusLost popup)
             JTextField forgotEmail = control(forgotDlg, JTextField.class,
-                    t -> "Nhập email của bạn".equals(t.getClientProperty(FlatClientProperties.PLACEHOLDER_TEXT)),
-                    "ô email khôi phục mật khẩu");
-            clearField(forgotEmail);
-            type(forgotEmail, "abc_invalid_mail");
+                    t -> "reset.email".equals(t.getName()), "ô email khôi phục mật khẩu");
+            JButton sendOtpBtn = control(forgotDlg, JButton.class,
+                    b -> "Nhận mã OTP".equals(b.getText()), "nút Nhận mã OTP");
             type(sendOtpBtn, " ", false);
-            JDialog errInvalid = dialog(forgotDlg, "Lỗi");
-            control(errInvalid, JLabel.class, l -> "Email không đúng định dạng!".equals(l.getText()), "lỗi email khôi phục sai định dạng");
-            dismissDialog(errInvalid, "nút OK lỗi email khôi phục");
+            expectFieldFeedback(forgotDlg, forgotEmail, "Vui lòng nhập Email!");
+            type(forgotEmail, "abc_invalid_mail");
+            expectFieldFeedback(forgotDlg, forgotEmail, "Định dạng Email không hợp lệ!");
         } finally {
             ui(() -> {
                 disposeOwnedDialogsOnEdt(forgotDlg);
@@ -618,84 +603,30 @@ public class LoginUiTest {
             JButton sendOtpBtn = control(forgotDlg, JButton.class, b -> "Nhận mã OTP".equals(b.getText()), "nút Nhận mã OTP");
             JButton resetBtn = control(forgotDlg, JButton.class, b -> "Đổi mật khẩu".equals(b.getText()), "nút Đổi mật khẩu");
 
-            // 1) Request OTP with valid non-existent email (API returns 204 without SMTP/DB side effects)
-            clearField(forgotEmail);
+            JButton verifyOtpBtn = control(forgotDlg, JButton.class,
+                    b -> "Xác minh OTP".equals(b.getText()), "nút xác minh OTP");
+
             type(forgotEmail, "notfound_99999@bookstore.vn");
             type(sendOtpBtn, " ", false);
-            JDialog otpSentDlg = dialog(forgotDlg, "Thành công");
-            control(otpSentDlg, JLabel.class,
-                    l -> "Nếu email có trong hệ thống, mã OTP sẽ được gửi đến địa chỉ đó.".equals(l.getText()),
-                    "thông báo gửi OTP thành công");
-            dismissDialog(otpSentDlg, "nút OK gửi OTP");
-
-            await("mở khóa các trường bước 2 sau khi gửi OTP", () ->
-                    !forgotEmail.isEditable()
-                            && otpField.isEnabled()
-                            && newPassField.isEnabled()
-                            && confirmPassField.isEnabled()
-                            && resetBtn.isEnabled()
-                            && !sendOtpBtn.isEnabled() ? true : null);
+            await("nhập OTP sau khi yêu cầu mã", () ->
+                    !forgotEmail.isEditable() && otpField.isEnabled() && verifyOtpBtn.isEnabled()
+                            && !newPassField.isEnabled() && !confirmPassField.isEnabled()
+                            && !resetBtn.isEnabled() && !sendOtpBtn.isEnabled() ? true : null);
             await("nút gửi lại OTP bắt đầu đếm ngược", () ->
-                    sendOtpBtn.getText() != null && sendOtpBtn.getText().startsWith("Gửi lại sau ") ? true : null);
+                    sendOtpBtn.getText().startsWith("Gửi lại sau ") ? true : null);
 
-            // 2) Step 2 empty fields -> Cảnh báo
-            type(resetBtn, " ", false);
-            JDialog warnMissing = dialog(forgotDlg, "Cảnh báo");
-            control(warnMissing, JLabel.class,
-                    l -> "Vui lòng nhập đầy đủ mã OTP và mật khẩu mới!".equals(l.getText()),
-                    "cảnh báo thiếu OTP hoặc mật khẩu mới");
-            dismissDialog(warnMissing, "nút OK thiếu bước 2");
-
-            // 3) Invalid OTP format (5 digits) -> Cảnh báo
+            type(verifyOtpBtn, " ", false);
+            expectFieldFeedback(forgotDlg, otpField, "Vui lòng nhập mã OTP!");
             type(otpField, "12345");
-            type(newPassField, "Abc12345");
-            type(confirmPassField, "Abc12345");
-            type(resetBtn, " ", false);
-            JDialog warnBadOtp = dialog(forgotDlg, "Cảnh báo");
-            control(warnBadOtp, JLabel.class,
-                    l -> "Mã OTP phải gồm đúng 6 chữ số!".equals(l.getText()),
-                    "cảnh báo OTP không đủ 6 chữ số");
-            dismissDialog(warnBadOtp, "nút OK OTP sai định dạng");
+            expectFieldFeedback(forgotDlg, otpField, "Mã OTP phải gồm đúng 6 chữ số!");
+            type(otpField, "6");
+            expectFieldFeedback(forgotDlg, otpField, " ");
 
-            // 4) Password confirm mismatch -> Lỗi
-            clearField(otpField);
-            type(otpField, "123456");
-            clearField(confirmPassField);
-            type(confirmPassField, "Xyz12345");
-            type(resetBtn, " ", false);
-            JDialog errMismatch = dialog(forgotDlg, "Lỗi");
-            control(errMismatch, JLabel.class,
-                    l -> "Mật khẩu xác nhận không khớp!".equals(l.getText()),
-                    "lỗi xác nhận mật khẩu không khớp");
-            dismissDialog(errMismatch, "nút OK mật khẩu không khớp");
-
-            // 5) Toggle eye icons on both password fields
-            toggleForgotPasswordEye(newPassField, "nút con mắt mật khẩu mới");
-            toggleForgotPasswordEye(confirmPassField, "nút con mắt xác nhận mật khẩu mới");
-
-            // 6) Password too short (< 4 chars) -> API 400 -> Thất bại
-            clearField(newPassField);
-            type(newPassField, "123");
-            clearField(confirmPassField);
-            type(confirmPassField, "123");
-            type(resetBtn, " ", false);
-            JDialog errShortPass = dialog(forgotDlg, "Thất bại");
-            control(errShortPass, JLabel.class,
-                    l -> "Thông tin đặt lại mật khẩu không hợp lệ.".equals(l.getText()),
-                    "lỗi API mật khẩu quá ngắn");
-            dismissDialog(errShortPass, "nút OK mật khẩu quá ngắn");
-
-            // 7) Invalid/expired OTP -> API 422 -> Thất bại
-            clearField(newPassField);
-            type(newPassField, "Abc12345");
-            clearField(confirmPassField);
-            type(confirmPassField, "Abc12345");
-            type(resetBtn, " ", false);
-            JDialog errInvalidOtp = dialog(forgotDlg, "Thất bại");
-            control(errInvalidOtp, JLabel.class,
-                    l -> "Mã OTP không hợp lệ hoặc đã hết hạn.".equals(l.getText()),
-                    "lỗi API OTP không hợp lệ hoặc hết hạn");
-            dismissDialog(errInvalidOtp, "nút OK OTP không hợp lệ");
+            type(verifyOtpBtn, " ", false);
+            expectFieldFeedback(forgotDlg, otpField, "Mã OTP không hợp lệ hoặc đã hết hạn.");
+            if (ui(() -> newPassField.isEnabled() || confirmPassField.isEnabled() || resetBtn.isEnabled())) {
+                throw new AssertionError("Chỉ mở bước đặt mật khẩu mới sau khi xác minh OTP thành công");
+            }
         } finally {
             ui(() -> {
                 disposeOwnedDialogsOnEdt(forgotDlg);
@@ -842,40 +773,41 @@ public class LoginUiTest {
                 JButton sendOtpBtn = control(forgotDlg, JButton.class, b -> "Nhận mã OTP".equals(b.getText()), "nút Nhận mã OTP");
                 JButton resetBtn = control(forgotDlg, JButton.class, b -> "Đổi mật khẩu".equals(b.getText()), "nút Đổi mật khẩu");
 
-                // 1) Request real 6-digit OTP for existing test account
-                clearField(forgotEmail);
+                JButton verifyOtpBtn = control(forgotDlg, JButton.class,
+                        b -> "Xác minh OTP".equals(b.getText()), "nút xác minh OTP");
                 type(forgotEmail, email);
                 type(sendOtpBtn, " ", false);
-                JDialog otpSentDlg = dialog(forgotDlg, "Thành công");
-                control(otpSentDlg, JLabel.class,
-                        l -> "Nếu email có trong hệ thống, mã OTP sẽ được gửi đến địa chỉ đó.".equals(l.getText()),
-                        "thông báo gửi OTP thành công");
-                dismissDialog(otpSentDlg, "nút OK gửi OTP");
-
-                await("mở khóa các trường bước 2 sau khi gửi OTP thật", () ->
-                        !forgotEmail.isEditable()
-                                && otpField.isEnabled()
-                                && newPassField.isEnabled()
-                                && confirmPassField.isEnabled()
-                                && resetBtn.isEnabled() ? true : null);
-
+                await("cho phép xác minh OTP", () -> verifyOtpBtn.isEnabled() ? true : null);
                 String realOtp = obtainOtp(forgotDlg, email);
-                String wrongOtp = alterOtp(realOtp);
 
-                // 2) Wrong OTP (attempt 1/5) -> API 422 -> Thất bại: Mã OTP không chính xác.
-                type(otpField, wrongOtp);
-                type(newPassField, newPassword);
-                type(confirmPassField, newPassword);
-                type(resetBtn, " ", false);
-                JDialog errWrongOtp = dialog(forgotDlg, "Thất bại");
-                control(errWrongOtp, JLabel.class,
-                        l -> "Mã OTP không chính xác.".equals(l.getText()),
-                        "lỗi nhập sai mã OTP");
-                dismissDialog(errWrongOtp, "nút OK sai mã OTP");
+                type(otpField, alterOtp(realOtp));
+                type(verifyOtpBtn, " ", false);
+                expectFieldFeedback(forgotDlg, otpField, "Mã OTP không chính xác.");
+                if (ui(() -> newPassField.isEnabled() || confirmPassField.isEnabled() || resetBtn.isEnabled())) {
+                    throw new AssertionError("Mã OTP sai không được mở bước đặt mật khẩu mới");
+                }
 
-                // 3) Correct OTP -> API 204 -> Thành công: Đổi mật khẩu thành công! Vui lòng đăng nhập lại.
                 clearField(otpField);
                 type(otpField, realOtp);
+                type(verifyOtpBtn, " ", false);
+                expectFieldFeedback(forgotDlg, otpField, "Mã OTP đã được xác minh.");
+                await("mở các ô mật khẩu mới", () ->
+                        !otpField.isEditable() && newPassField.isEnabled()
+                                && confirmPassField.isEnabled() && resetBtn.isEnabled() ? true : null);
+
+                type(newPassField, "123");
+                expectFieldFeedback(forgotDlg, newPassField, "Mật khẩu mới phải có ít nhất 4 ký tự!");
+                clearField(newPassField);
+                type(newPassField, newPassword);
+
+                type(confirmPassField, "Xyz12345");
+                expectFieldFeedback(forgotDlg, confirmPassField, "Mật khẩu xác nhận không khớp!");
+                clearField(confirmPassField);
+                type(confirmPassField, newPassword);
+                expectFieldFeedback(forgotDlg, confirmPassField, " ");
+                toggleForgotPasswordEye(newPassField, "nút con mắt mật khẩu mới");
+                toggleForgotPasswordEye(confirmPassField, "nút con mắt xác nhận mật khẩu mới");
+
                 resetAttempted = true;
                 type(resetBtn, " ", false);
                 JDialog resetOk = dialog(forgotDlg, "Thành công");

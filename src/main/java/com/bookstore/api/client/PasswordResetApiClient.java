@@ -7,6 +7,10 @@ public final class PasswordResetApiClient {
         ApiClient.postNoContent("/api/auth/password-reset/request", new PasswordResetRequestDTO(email, null, null));
     }
 
+    public void verifyOtp(String email, String otp) {
+        ApiClient.postNoContent("/api/auth/password-reset/verify", new PasswordResetRequestDTO(email, otp, null));
+    }
+
     public void resetPassword(String email, String otp, String newPassword) {
         ApiClient.postNoContent(
                 "/api/auth/password-reset/confirm",

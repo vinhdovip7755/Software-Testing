@@ -8,7 +8,8 @@ Thư mục này chứa trọn bộ cấu hình kiểm thử tự động RESTful
 
 | Tệp tin / Đường dẫn | Mô tả chi tiết |
 | :--- | :--- |
-| `BookStore_API.postman_collection.json` | **Postman Collection v2.1.0** gồm **21 Folder nghiệp vụ** và **107 Request**, bao phủ **100% toàn bộ 84 endpoint** hiện có trong `api-server` (`49 GET`, `20 POST`, `14 PUT`, `1 DELETE`), kèm kịch bản âm tính, phân quyền RBAC và chuỗi liên hoàn E2E. Đã test **100% PASS (377/377 assertions)**. |
+| `BookStore_POS_All.postman_collection.json` | Bộ kiểm thử tổng hợp luồng bán hàng POS. Xem [hướng dẫn và dữ liệu chuẩn bị](POS_SALES_ADDITIONS.md). |
+| `BookStore_POS_Security.postman_collection.json` | Bộ kiểm thử bảo mật POS chạy riêng. Xem [hướng dẫn](POS_SECURITY.md). |
 | `BookStore_API_Local.postman_environment.json` | **Postman Environment** chứa biến môi trường `baseUrl`, tài khoản theo từng vai trò RBAC (`Quản lý`, `Admin`, `Nhân viên Nhập hàng`, `Nhân viên Bán hàng`), các biến Bearer Token động và tham số ID mẫu. |
 | `docs/10_Kiem_Thu_API_RESTful_API_Testing/API_Test_Cases_Specification.md` | **Đặc tả chi tiết 188 Test Cases** chuẩn IEEE 829 phân loại theo 20 phân hệ và 5 mức nghiệp vụ. |
 | `docs/10_Kiem_Thu_API_RESTful_API_Testing/BookStore_API_TestCases_Specification.xlsx` | **File bảng tính Excel 3 Sheets** (Dashboard, Chi tiết 188 Test Cases có màu sắc và AutoFilter, E2E Workflows) tiện nộp bài và in ấn. |
@@ -21,7 +22,7 @@ Thư mục này chứa trọn bộ cấu hình kiểm thử tự động RESTful
 
 ---
 
-## 2. Độ bao phủ 21 Phân hệ & Phương thức HTTP
+## 2. Phạm vi của bộ kiểm thử API trước đây
 
 1. **01. Kiểm tra Sức khỏe Hệ thống (`HealthController`)**: `GET /api/health`
 2. **02. Xác thực & Phiên đăng nhập (`AuthController`)**: `POST /api/auth/login` (4 vai trò RBAC), `POST /api/auth/logout`
@@ -59,11 +60,11 @@ Thư mục này chứa trọn bộ cấu hình kiểm thử tự động RESTful
 ### Bước 2: Import Collection & Environment vào Postman
 1. Mở **Postman** -> nhấn nút **Import** ở góc trên bên trái.
 2. Kéo thả 2 file trong thư mục `postman/`:
-   - `BookStore_API.postman_collection.json`
+   - `BookStore_POS_All.postman_collection.json`
    - `BookStore_API_Local.postman_environment.json`
 3. Ở góc trên bên phải giao diện Postman (ô chọn **Environment**), chọn **`BookStore API - Local Development (127.0.0.1:8080)`**.
 
 ### Bước 3: Thực thi kiểm thử tự động
-1. Bấm chuột phải vào Collection `BookStore Management System - REST API Testing Suite` -> chọn **Run collection**.
+1. Chuẩn bị dữ liệu kiểm thử theo [hướng dẫn POS](POS_SALES_ADDITIONS.md). Trên collection **BookStore POS | Kiểm thử bán hàng**, chọn **Run collection**.
 2. Chọn **Run type: Functional** (Iterations: 1).
-3. Bấm nút cam **Run BookStore Management System...**. Toàn bộ 107 Requests sẽ được thực thi tuần tự và hiển thị kết quả **100% PASS (377/377 assertions)**.
+3. Bấm **Run** để chạy các ca POS và xem kết quả trong Collection Runner.

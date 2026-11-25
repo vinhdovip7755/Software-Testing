@@ -2,7 +2,7 @@
   "info": {
     "name": "BookStore POS | Kiểm thử bán hàng",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Chỉ kiểm thử bán hàng: tạo đơn, thanh toán, giỏ hàng, tồn kho, khách hàng và quyền tạo đơn. Bỏ tra cứu hóa đơn độc lập TC_BILL_13/14; gộp số lượng âm vào SEC08; dùng chung phiên bán hàng. Đăng nhập/đăng xuất là bước chuẩn bị kiểm tra quyền tạo đơn. Đọc hóa đơn sau bán để xác nhận dữ liệu lưu. Dùng environment BookStore_API_Local. bookId đang bán, giá dương, tồn sách và lô ít nhất 7 cuốn; customerId có chiết khấu; missingCustomerId chưa tồn tại. inactiveBookId có thể để trống để tự tìm sách ngừng bán. Chạy trên DB test, không có giao dịch song song hoặc đổi giá. Các ca thành công tạo hóa đơn và giảm tồn kho. Bổ sung 8 ca đầu vào/thanh toán/tồn kho BH01, BH03, BH05, BH06, BH07A/B, BH08, BH09. Tự chọn sách thử từ API: cần ít nhất 2 sách đang bán có giá dương và tồn >=3, cùng 1 sách đang bán tồn 0. Thiếu dữ liệu sẽ báo assertion chuẩn bị thất bại và bỏ qua request phụ thuộc. Ca mới tạo thêm 2 hóa đơn khi đạt (tổng 7 hóa đơn toàn bộ collection). Bỏ các ca đổi điểm vì nghiệp vụ chưa hỗ trợ. Chưa đưa các ca mua hết kho, thay đổi dữ liệu lô, đồng thời và quy tắc chưa thống nhất vào lượt chạy chung."
+    "description": "Bộ chạy tổng hợp POS. Dùng environment BookStore_API_Local và DB test. Chọn bookId đang bán, giá dương, tồn sách và lô ít nhất 5 cuốn; customerPhone là thành viên có chiết khấu và đơn mua 2 cuốn phải phát sinh điểm. Cần ít nhất hai sách đang bán còn đủ tồn để chạy ca nhiều dòng. Có thể để trống inactiveBookId để tự tìm sách ngừng bán. Không chạy song song hoặc đổi giá, khuyến mãi trong lượt test. Chạy đủ và đạt dự kiến tạo 5 hóa đơn. Xem POS_SALES_ADDITIONS.md để biết các ca đã gộp."
   },
   "variable": [
     {
@@ -40,13 +40,8 @@
       "type": "string"
     },
     {
-      "key": "outOfStockQuantity",
-      "value": "999999",
-      "type": "string"
-    },
-    {
-      "key": "pointsUsed",
-      "value": "999999",
+      "key": "customerPhone",
+      "value": "",
       "type": "string"
     }
   ],
@@ -103,12 +98,13 @@
               "} else {",
               "    pm.execution.setNextRequest(null);",
               "}",
+              "pm.collectionVariables.unset(\"securitySalesToken\");",
+              "pm.collectionVariables.unset(\"securityBaseline\");",
+              "pm.collectionVariables.unset(\"securityTamperedBillId\");",
               "if (pm.response.code === 200 && pm.response.json().accessToken) {",
               "  const data = pm.response.json();",
               "  pm.collectionVariables.set(\"securitySalesToken\", data.accessToken);",
               "  pm.collectionVariables.set(\"securityEmployeeId\", data.employee.employeeId);",
-              "  pm.collectionVariables.unset(\"securityBaseline\");",
-              "  pm.collectionVariables.unset(\"securityTamperedBillId\");",
               "}"
             ]
           }
@@ -117,7 +113,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_01 - Tạo đơn cho khách lẻ trả tiền mặt [201]",
+      "name": "TC_BILL_01 - Kiểm tổng tiền có VAT cho khách lẻ [201]",
       "request": {
         "method": "POST",
         "header": [
@@ -150,7 +146,7 @@
             }
           }
         },
-        "description": "API có thể trả earnedPoints dương trên hóa đơn khách lẻ. Đối chiếu tồn kho giảm 1 và điểm khách hàng không đổi.",
+        "description": "Kiểm nhánh khách lẻ và tổng tiền sau VAT. Hóa đơn này đồng thời là dữ liệu đối chứng cho SEC17.",
         "auth": {
           "type": "noauth"
         }
@@ -176,6 +172,26 @@
               "    });",
               "    pm.test(\"Hóa đơn ghi khách lẻ\", () => pm.expect(receipt.customerName).to.eql(\"Khách lẻ\"));",
               "    pm.collectionVariables.set(\"billsReceiptId\", receipt.billId);",
+              "}",
+              "function roundVnd(amount) {",
+              "  const lower = Math.floor(amount);",
+              "  return amount - lower === 0.5 ? lower + lower % 2 : Math.round(amount);",
+              "}",
+              "function subtotalAfterPromotion(receipt) {",
+              "  pm.expect(receipt.details, 'Danh sách dòng sách').to.be.an('array').that.is.not.empty;",
+              "  return receipt.details.reduce((sum, line) => {",
+              "    pm.expect(Number.isFinite(line.totalPrice), 'details[].totalPrice phải là số hữu hạn').to.eql(true);",
+              "    return sum + line.totalPrice;",
+              "  }, 0);",
+              "}",
+              "",
+              "if (pm.response.code === 201) {",
+              "  const receipt = pm.response.json();",
+              "  pm.test('Khách lẻ trả tổng tiền có VAT và không giảm theo hạng', () => {",
+              "    const subtotal = subtotalAfterPromotion(receipt);",
+              "    pm.expect(receipt.totalBillPrice).to.eql(roundVnd(subtotal * (1 + receipt.tax)));",
+              "  });",
+              "  pm.collectionVariables.set('securityBaseline', JSON.stringify(receipt));",
               "}"
             ]
           }
@@ -184,7 +200,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_02 - Tạo đơn cho khách thành viên được giảm giá [201]",
+      "name": "TC_BILL_02 - Kiểm chiết khấu hạng và cộng điểm thành viên [201]",
       "request": {
         "method": "POST",
         "header": [
@@ -210,41 +226,98 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"customerId\": {{customerId}},\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 2\n    }\n  ]\n}",
+          "raw": "{\n  \"customerId\": {{posMemberId}},\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 2\n    }\n  ]\n}",
           "options": {
             "raw": {
               "language": "json"
             }
           }
         },
-        "description": "Ghi mức chiết khấu và số điểm của khách trước khi mua. Đối chiếu tổng tiền sau khuyến mãi, chiết khấu hạng và VAT. Tồn giảm 2 và số dư điểm tăng đúng earnedPoints.",
+        "description": "Đặt customerPhone là số điện thoại của thành viên có chiết khấu dương. Đọc hạng và điểm trước khi bán, sau đó kiểm tổng tiền và điểm đã cộng.",
         "auth": {
           "type": "noauth"
         }
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const base = pm.variables.replaceIn('{{baseUrl}}');",
+              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('billsRunToken')};",
+              "",
+              "const customerUrl = base + '/api/customers/phone/' + encodeURIComponent(pm.variables.get('customerPhone') || '');",
+              "",
+              "function missingFixture(reason) {",
+              "  pm.test('Chuẩn bị dữ liệu', () => { throw new Error(reason); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "",
+              "if (!pm.variables.get('customerPhone')) {",
+              "  missingFixture('Cần customerPhone của thành viên có chiết khấu dương.');",
+              "} else {",
+              "  pm.sendRequest({url: customerUrl, header: headers}, (error, response) => {",
+              "    if (error || !response || response.code !== 200) return missingFixture('Không tra được khách qua customerPhone.');",
+              "    const customer = response.json();",
+              "    if (!(customer.customerId > 0) || !Number.isInteger(customer.point)) {",
+              "      return missingFixture('Dữ liệu thành viên hoặc điểm hiện tại không hợp lệ.');",
+              "    }",
+              "    pm.sendRequest({url: base + '/api/membership-ranks/by-points/' + customer.point, header: headers}, (rankError, rankResponse) => {",
+              "      if (rankError || !rankResponse || rankResponse.code !== 200) return missingFixture('Không tra được hạng thành viên.');",
+              "      const discount = rankResponse.json().discountPercent;",
+              "      if (!(discount > 0 && discount <= 100)) return missingFixture('Thành viên phải có chiết khấu dương.');",
+              "      pm.variables.set('posMemberId', customer.customerId);",
+              "      pm.variables.set('posMemberBefore', JSON.stringify(customer));",
+              "      pm.variables.set('posMemberDiscount', discount);",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+              "",
+              "const base = pm.variables.replaceIn('{{baseUrl}}');",
+              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('billsRunToken')};",
+              "",
+              "const customerUrl = base + '/api/customers/phone/' + encodeURIComponent(pm.variables.get('customerPhone') || '');",
+              "",
+              "function roundVnd(amount) {",
+              "  const lower = Math.floor(amount);",
+              "  return amount - lower === 0.5 ? lower + lower % 2 : Math.round(amount);",
+              "}",
+              "function subtotalAfterPromotion(receipt) {",
+              "  pm.expect(receipt.details, 'Danh sách dòng sách').to.be.an('array').that.is.not.empty;",
+              "  return receipt.details.reduce((sum, line) => {",
+              "    pm.expect(Number.isFinite(line.totalPrice), 'details[].totalPrice phải là số hữu hạn').to.eql(true);",
+              "    return sum + line.totalPrice;",
+              "  }, 0);",
+              "}",
+              "",
               "if (pm.response.code === 201) {",
-              "    const receipt = pm.response.json();",
-              "    pm.test(\"Hóa đơn và dòng sách hợp lệ\", () => {",
-              "        pm.expect(receipt.billId).to.be.above(0);",
-              "        pm.expect(receipt.totalBillPrice).to.be.above(0);",
-              "        pm.expect(receipt.tax).to.be.a(\"number\").within(0, 1);",
-              "        pm.expect(receipt.earnedPoints).to.be.a(\"number\").at.least(0);",
-              "        pm.expect(receipt.details).to.have.lengthOf(1);",
-              "        const sent = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
-              "        pm.expect(receipt.details[0].bookId).to.eql(sent.details[0].bookId);",
-              "        pm.expect(receipt.details[0].quantity).to.eql(sent.details[0].quantity);",
+              "  const receipt = pm.response.json();",
+              "  const customer = JSON.parse(pm.variables.get('posMemberBefore'));",
+              "  const discount = Number(pm.variables.get('posMemberDiscount'));",
+              "  pm.test('Áp dụng chiết khấu hạng trước VAT', () => {",
+              "    pm.expect(receipt.customerName).to.eql(customer.customerName);",
+              "    const subtotal = subtotalAfterPromotion(receipt);",
+              "    const expected = roundVnd(subtotal * (1 - discount / 100) * (1 + receipt.tax));",
+              "    pm.expect(receipt.totalBillPrice).to.eql(expected);",
+              "  });",
+              "  pm.sendRequest({url: customerUrl, header: headers}, (error, response) => {",
+              "    pm.test('Điểm thành viên tăng đúng số điểm trên hóa đơn', () => {",
+              "      pm.expect(error).to.not.exist;",
+              "      pm.expect(response.code).to.eql(200);",
+              "      pm.expect(receipt.earnedPoints, 'Dữ liệu thử phải phát sinh điểm').to.be.above(0);",
+              "      pm.expect(response.json().point).to.eql(customer.point + receipt.earnedPoints);",
               "    });",
-              "    pm.test(\"Hóa đơn ghi tên thành viên\", () => {",
-              "        pm.expect(receipt.customerName).to.be.a(\"string\").and.not.empty;",
-              "        pm.expect(receipt.customerName).not.to.eql(\"Khách lẻ\");",
-              "    });",
+              "  });",
               "}"
             ]
           }
@@ -253,7 +326,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_03 - Tạo đơn thanh toán chuyển khoản [201]",
+      "name": "TC_BILL_03 - Kiểm phương thức chuyển khoản trên hóa đơn đã lưu [201]",
       "request": {
         "method": "POST",
         "header": [
@@ -279,14 +352,14 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"customerId\": {{customerId}},\n  \"paymentMethodId\": 2,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    }\n  ]\n}",
+          "raw": "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 2,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": 1\n    }\n  ]\n}",
           "options": {
             "raw": {
               "language": "json"
             }
           }
         },
-        "description": "",
+        "description": "Dùng khách lẻ để cô lập phương thức thanh toán. Đọc lại hóa đơn và kiểm paymentMethodId = 2.",
         "auth": {
           "type": "noauth"
         }
@@ -329,7 +402,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_04 - Xem chi tiết đơn vừa bán [200]",
+      "name": "TC_BILL_04 - Đọc chi tiết hóa đơn vừa tạo",
       "request": {
         "method": "GET",
         "header": [
@@ -378,7 +451,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_05 - Từ chối tạo đơn không có sách [400]",
+      "name": "TC_BILL_05 - Giỏ hàng rỗng",
       "request": {
         "method": "POST",
         "header": [
@@ -431,7 +504,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_06 - Từ chối tạo đơn có hai dòng trùng mã sách [400]",
+      "name": "TC_BILL_06 - Hai dòng trùng mã sách",
       "request": {
         "method": "POST",
         "header": [
@@ -484,7 +557,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_07 - Từ chối bán số lượng vượt tồn kho [409]",
+      "name": "TC_BILL_07 - Đặt nhiều hơn tồn đúng một cuốn và giữ nguyên tồn [409]",
       "request": {
         "method": "POST",
         "header": [
@@ -510,26 +583,66 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": {{outOfStockQuantity}}\n    }\n  ]\n}",
+          "raw": "{\n  \"customerId\": 0,\n  \"paymentMethodId\": 1,\n  \"details\": [\n    {\n      \"bookId\": {{bookId}},\n      \"quantity\": {{posStockPlusOne}}\n    }\n  ]\n}",
           "options": {
             "raw": {
               "language": "json"
             }
           }
         },
-        "description": "Đặt outOfStockQuantity lớn hơn tồn thực tế. Kiểm tra tồn và số hóa đơn không đổi.",
+        "description": "Đọc tồn sách đang bán trước khi gửi, thử đặt đúng tồn + 1 và xác nhận tồn không đổi.",
         "auth": {
           "type": "noauth"
         }
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const base = pm.variables.replaceIn('{{baseUrl}}');",
+              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('billsRunToken')};",
+              "",
+              "const bookUrl = pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}');",
+              "",
+              "function missingFixture(reason) {",
+              "  pm.test('Chuẩn bị dữ liệu', () => { throw new Error(reason); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "",
+              "pm.sendRequest({url: bookUrl, header: headers}, (error, response) => {",
+              "  if (error || !response || response.code !== 200) return missingFixture('Không đọc được sách thử.');",
+              "  const book = response.json();",
+              "  if (book.status !== 1 || !Number.isInteger(book.quantity) || book.quantity < 0 || book.quantity >= 2147483647) {",
+              "    return missingFixture('Cần mã sách đang bán có số tồn hợp lệ.');",
+              "  }",
+              "  pm.variables.set('posStockBefore', book.quantity);",
+              "  pm.variables.set('posStockPlusOne', book.quantity + 1);",
+              "});"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
-              "pm.test(\"Thông báo nghiệp vụ\", () => pm.expect(pm.response.json().message).to.eql(\"Không thể hoàn tất hóa đơn; vui lòng kiểm tra tồn kho và thử lại.\"));"
+              "pm.test(\"Thông báo nghiệp vụ\", () => pm.expect(pm.response.json().message).to.eql(\"Không thể hoàn tất hóa đơn; vui lòng kiểm tra tồn kho và thử lại.\"));",
+              "const base = pm.variables.replaceIn('{{baseUrl}}');",
+              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('billsRunToken')};",
+              "",
+              "const bookUrl = pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}');",
+              "",
+              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
+              "pm.sendRequest({url: bookUrl, header: headers}, (error, response) => {",
+              "  pm.test('Tồn kho không đổi sau khi từ chối', () => {",
+              "    pm.expect(error).to.not.exist;",
+              "    pm.expect(response.code).to.eql(200);",
+              "    pm.expect(response.json().quantity).to.eql(Number(pm.variables.get('posStockBefore')));",
+              "  });",
+              "});"
             ]
           }
         }
@@ -537,7 +650,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_08 - Từ chối bán sách đã ngừng bán [400]",
+      "name": "TC_BILL_08 - Sách ngừng bán",
       "request": {
         "method": "POST",
         "header": [
@@ -570,44 +683,44 @@
             }
           }
         },
-        "description": "Điền ID dương của sách có thật với status=0.",
+        "description": "Chọn sách có thật với status = 0. Nếu nhập inactiveBookId, script kiểm tra trạng thái của chính sách đó trước khi gửi.",
         "auth": {
           "type": "noauth"
         }
       },
       "event": [
         {
+          "listen": "prerequest",
           "script": {
+            "type": "text/javascript",
             "exec": [
-              "const id = Number(pm.variables.get(\"inactiveBookId\"));",
-              "if (!Number.isSafeInteger(id) || id <= 0) {",
-              "    pm.sendRequest({",
-              "        url: pm.variables.replaceIn(\"{{baseUrl}}/api/books\"),",
-              "        method: \"GET\",",
-              "        header: { Authorization: \"Bearer \" + pm.collectionVariables.get(\"billsRunToken\") }",
-              "    }, function (err, response) {",
-              "        if (err || response.code !== 200) {",
-              "            throw new Error(\"Không lấy được danh sách sách. Hãy đặt inactiveBookId là ID sách status=0.\");",
-              "        }",
-              "        const book = response.json().find(b => b.status === 0 && b.bookId > 0);",
-              "        if (!book) {",
-              "            throw new Error(\"DB chưa có sách ngừng bán (status=0). Hãy chuẩn bị dữ liệu TC_BILL_08.\");",
-              "        }",
-              "        pm.variables.set(\"inactiveBookId\", book.bookId);",
-              "    });",
-              "}"
-            ],
-            "type": "text/javascript"
-          },
-          "listen": "prerequest"
+              "const base = pm.variables.replaceIn('{{baseUrl}}');",
+              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('billsRunToken')};",
+              "",
+              "function missingFixture(reason) {",
+              "  pm.test('Chuẩn bị dữ liệu', () => { throw new Error(reason); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "",
+              "const configured = String(pm.variables.get('inactiveBookId') || '').trim();",
+              "pm.sendRequest({url: base + '/api/books', header: headers}, (error, response) => {",
+              "  if (error || !response || response.code !== 200) return missingFixture('Không đọc được danh sách sách.');",
+              "  const book = response.json().find(item => item.status === 0 && item.bookId > 0 &&",
+              "    (!configured || item.bookId === Number(configured)));",
+              "  if (!book) return missingFixture('Cần sách có thật với status = 0 để chạy TC_BILL_08.');",
+              "  pm.variables.set('inactiveBookId', book.bookId);",
+              "});"
+            ]
+          }
         },
         {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
-              "pm.test(\"Thông báo nghiệp vụ\", () => pm.expect(pm.response.json().message).to.eql(\"Sách không tồn tại hoặc đã ngừng bán.\"));"
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "",
+              "pm.test('Thông báo nghiệp vụ', () => pm.expect(pm.response.json().message).to.eql(\"Sách không tồn tại hoặc đã ngừng bán.\"));"
             ]
           }
         }
@@ -615,7 +728,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_09 - Từ chối bán sách có số lượng bằng 0 [400]",
+      "name": "TC_BILL_09 - Từ chối số lượng không dương tại biên 0 [400]",
       "request": {
         "method": "POST",
         "header": [
@@ -648,19 +761,46 @@
             }
           }
         },
-        "description": "",
+        "description": "Chọn quantity = 0 làm giá trị biên đại diện cho nhóm số lượng không dương. Kiểm tồn kho không bị thay đổi.",
         "auth": {
           "type": "noauth"
         }
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.variables.unset('securityStockBefore');",
+              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
+              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
+              " pm.test('Đọc tồn kho trước request: HTTP 200', () => {",
+              "   pm.expect(err, 'Lỗi kết nối khi đọc sách').to.not.exist;",
+              "   pm.expect(res && res.code, 'GET /api/books/{{bookId}}').to.eql(200);",
+              " });",
+              " if (!err && res && res.code === 200) pm.variables.set('securityStockBefore',res.json().quantity);",
+              "});"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
-              "pm.test(\"Thông báo nghiệp vụ\", () => pm.expect(pm.response.json().message).to.eql(\"Thông tin sách trong hóa đơn không hợp lệ.\"));"
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Thông báo nghiệp vụ', () => pm.expect(pm.response.json().message).to.eql(\"Thông tin sách trong hóa đơn không hợp lệ.\"));",
+              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
+              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
+              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
+              " pm.test('Tồn kho không thay đổi khi từ chối', () => {",
+              "   pm.expect(err).to.not.exist;",
+              "   pm.expect(res.code).to.eql(200);",
+              "   pm.expect(pm.variables.get('securityStockBefore')).to.be.a('number');",
+              "   pm.expect(res.json().quantity).to.eql(pm.variables.get('securityStockBefore'));",
+              " });",
+              "});"
             ]
           }
         }
@@ -668,7 +808,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_10 - Từ chối phương thức thanh toán không hợp lệ [400]",
+      "name": "TC_BILL_10 - Phương thức thanh toán bằng 0",
       "request": {
         "method": "POST",
         "header": [
@@ -721,7 +861,7 @@
       "response": []
     },
     {
-      "name": "TC_BILL_11 - Từ chối tạo đơn cho mã khách hàng không tồn tại [404]",
+      "name": "TC_BILL_11 - Khách hàng không tồn tại",
       "request": {
         "method": "POST",
         "header": [
@@ -831,7 +971,7 @@
       ]
     },
     {
-      "name": "SEC01 - Chưa đăng nhập gửi yêu cầu tạo đơn - Bị từ chối [401]",
+      "name": "SEC01 - Chưa đăng nhập, không gửi Authorization",
       "request": {
         "method": "POST",
         "auth": {
@@ -895,7 +1035,7 @@
       ]
     },
     {
-      "name": "SEC02 - Dùng token giả gửi yêu cầu tạo đơn - Bị từ chối [401]",
+      "name": "SEC02 - Token giả mạo",
       "request": {
         "method": "POST",
         "auth": {
@@ -963,211 +1103,7 @@
       ]
     },
     {
-      "name": "SEC03 - Không điền token gửi yêu cầu tạo đơn - Bị từ chối [401]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer "
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bookId}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.variables.unset('securityStockBefore');",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Đọc tồn kho trước request: HTTP 200', () => {",
-              "   pm.expect(err, 'Lỗi kết nối khi đọc sách').to.not.exist;",
-              "   pm.expect(res && res.code, 'GET /api/books/{{bookId}}').to.eql(200);",
-              " });",
-              " if (!err && res && res.code === 200) pm.variables.set('securityStockBefore',res.json().quantity);",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
-              "pm.test('Thông báo lỗi rõ ràng', () => pm.expect(pm.response.json().message).to.be.a('string').and.not.empty);",
-              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Tồn kho không thay đổi khi từ chối', () => {",
-              "   pm.expect(err).to.not.exist;",
-              "   pm.expect(res.code).to.eql(200);",
-              "   pm.expect(pm.variables.get('securityStockBefore')).to.be.a('number');",
-              "   pm.expect(res.json().quantity).to.eql(pm.variables.get('securityStockBefore'));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "SEC04 - Dùng sai kiểu xác thực gửi yêu cầu tạo đơn - Bị từ chối [401]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Basic invalid-token"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bookId}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.variables.unset('securityStockBefore');",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Đọc tồn kho trước request: HTTP 200', () => {",
-              "   pm.expect(err, 'Lỗi kết nối khi đọc sách').to.not.exist;",
-              "   pm.expect(res && res.code, 'GET /api/books/{{bookId}}').to.eql(200);",
-              " });",
-              " if (!err && res && res.code === 200) pm.variables.set('securityStockBefore',res.json().quantity);",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
-              "pm.test('Thông báo lỗi rõ ràng', () => pm.expect(pm.response.json().message).to.be.a('string').and.not.empty);",
-              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Tồn kho không thay đổi khi từ chối', () => {",
-              "   pm.expect(err).to.not.exist;",
-              "   pm.expect(res.code).to.eql(200);",
-              "   pm.expect(pm.variables.get('securityStockBefore')).to.be.a('number');",
-              "   pm.expect(res.json().quantity).to.eql(pm.variables.get('securityStockBefore'));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "SEC05 - Đã đăng nhập nhưng không có quyền bán hàng - Không được tạo đơn [403]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securityWarehouseToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bookId}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.variables.unset('securityStockBefore');",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Đọc tồn kho trước request: HTTP 200', () => {",
-              "   pm.expect(err, 'Lỗi kết nối khi đọc sách').to.not.exist;",
-              "   pm.expect(res && res.code, 'GET /api/books/{{bookId}}').to.eql(200);",
-              " });",
-              " if (!err && res && res.code === 200) pm.variables.set('securityStockBefore',res.json().quantity);",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
-              "pm.test('Thông báo lỗi rõ ràng', () => pm.expect(pm.response.json().message).to.be.a('string').and.not.empty);",
-              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Tồn kho không thay đổi khi từ chối', () => {",
-              "   pm.expect(err).to.not.exist;",
-              "   pm.expect(res.code).to.eql(200);",
-              "   pm.expect(pm.variables.get('securityStockBefore')).to.be.a('number');",
-              "   pm.expect(res.json().quantity).to.eql(pm.variables.get('securityStockBefore'));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "SEC06 - Không có quyền bán hàng, tự sửa quyền trong request - Vẫn bị từ chối [403]",
+      "name": "SEC06 - Từ chối tài khoản không có quyền dù body khai quyền bán hàng [403]",
       "request": {
         "method": "POST",
         "auth": {
@@ -1235,7 +1171,7 @@
       ]
     },
     {
-      "name": "Chuẩn bị 03 - Đăng nhập phiên riêng để thử tạo đơn sau đăng xuất [200]",
+      "name": "Chuẩn bị 03 - Đăng nhập phiên thử thu hồi [200]",
       "request": {
         "method": "POST",
         "auth": {
@@ -1288,7 +1224,7 @@
       ]
     },
     {
-      "name": "Chuẩn bị 04 - Đăng xuất phiên riêng trước khi thử tạo đơn [204]",
+      "name": "Chuẩn bị 04 - Đăng xuất phiên thử thu hồi [204]",
       "request": {
         "method": "POST",
         "auth": {
@@ -1319,7 +1255,7 @@
       ]
     },
     {
-      "name": "SEC07 - Đã đăng xuất nhưng dùng lại token để tạo đơn - Bị từ chối [401]",
+      "name": "SEC07 - Dùng lại token sau đăng xuất",
       "request": {
         "method": "POST",
         "auth": {
@@ -1387,143 +1323,7 @@
       ]
     },
     {
-      "name": "SEC08 - Gửi số lượng âm để tăng tồn kho - Bị từ chối [400]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bookId}},\"quantity\":-1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.variables.unset('securityStockBefore');",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Đọc tồn kho trước request: HTTP 200', () => {",
-              "   pm.expect(err, 'Lỗi kết nối khi đọc sách').to.not.exist;",
-              "   pm.expect(res && res.code, 'GET /api/books/{{bookId}}').to.eql(200);",
-              " });",
-              " if (!err && res && res.code === 200) pm.variables.set('securityStockBefore',res.json().quantity);",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
-              "pm.test('Thông báo lỗi rõ ràng', () => pm.expect(pm.response.json().message).to.be.a('string').and.not.empty);",
-              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Tồn kho không thay đổi khi từ chối', () => {",
-              "   pm.expect(err).to.not.exist;",
-              "   pm.expect(res.code).to.eql(200);",
-              "   pm.expect(pm.variables.get('securityStockBefore')).to.be.a('number');",
-              "   pm.expect(res.json().quantity).to.eql(pm.variables.get('securityStockBefore'));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "SEC09 - Gửi cùng sách với số lượng dương và âm - Bị từ chối [400]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bookId}},\"quantity\":2},{\"bookId\":{{bookId}},\"quantity\":-1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.variables.unset('securityStockBefore');",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Đọc tồn kho trước request: HTTP 200', () => {",
-              "   pm.expect(err, 'Lỗi kết nối khi đọc sách').to.not.exist;",
-              "   pm.expect(res && res.code, 'GET /api/books/{{bookId}}').to.eql(200);",
-              " });",
-              " if (!err && res && res.code === 200) pm.variables.set('securityStockBefore',res.json().quantity);",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
-              "pm.test('Thông báo lỗi rõ ràng', () => pm.expect(pm.response.json().message).to.be.a('string').and.not.empty);",
-              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Tồn kho không thay đổi khi từ chối', () => {",
-              "   pm.expect(err).to.not.exist;",
-              "   pm.expect(res.code).to.eql(200);",
-              "   pm.expect(pm.variables.get('securityStockBefore')).to.be.a('number');",
-              "   pm.expect(res.json().quantity).to.eql(pm.variables.get('securityStockBefore'));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "SEC10 - Gửi số lượng lớn vượt giới hạn dữ liệu - Bị từ chối [400]",
+      "name": "SEC10 - Số lượng vượt kiểu int",
       "request": {
         "method": "POST",
         "auth": {
@@ -1591,7 +1391,7 @@
       ]
     },
     {
-      "name": "SEC11 - Chèn câu lệnh SQL vào mã sách - Bị từ chối [400]",
+      "name": "SEC11 - SQL injection vào mã sách",
       "request": {
         "method": "POST",
         "auth": {
@@ -1659,7 +1459,7 @@
       ]
     },
     {
-      "name": "SEC12 - Gửi dòng sách rỗng trong giỏ hàng - Bị từ chối [400]",
+      "name": "SEC12 - Dòng giỏ hàng null",
       "request": {
         "method": "POST",
         "auth": {
@@ -1727,7 +1527,7 @@
       ]
     },
     {
-      "name": "SEC13 - Gửi mã khách hàng là số âm - Bị từ chối [400]",
+      "name": "SEC13 - Khách hàng âm",
       "request": {
         "method": "POST",
         "auth": {
@@ -1795,122 +1595,7 @@
       ]
     },
     {
-      "name": "SEC14 - Tạo đơn không gửi phương thức thanh toán - Bị từ chối [400]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"details\":[{\"bookId\":{{bookId}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.variables.unset('securityStockBefore');",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Đọc tồn kho trước request: HTTP 200', () => {",
-              "   pm.expect(err, 'Lỗi kết nối khi đọc sách').to.not.exist;",
-              "   pm.expect(res && res.code, 'GET /api/books/{{bookId}}').to.eql(200);",
-              " });",
-              " if (!err && res && res.code === 200) pm.variables.set('securityStockBefore',res.json().quantity);",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
-              "pm.test('Thông báo lỗi rõ ràng', () => pm.expect(pm.response.json().message).to.be.a('string').and.not.empty);",
-              "pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));",
-              "pm.sendRequest({url:pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}'),method:'GET',",
-              " header:{Authorization:pm.variables.replaceIn('Bearer {{securitySalesToken}}')}}, (err,res) => {",
-              " pm.test('Tồn kho không thay đổi khi từ chối', () => {",
-              "   pm.expect(err).to.not.exist;",
-              "   pm.expect(res.code).to.eql(200);",
-              "   pm.expect(pm.variables.get('securityStockBefore')).to.be.a('number');",
-              "   pm.expect(res.json().quantity).to.eql(pm.variables.get('securityStockBefore'));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Chuẩn bị 05 - Tạo đơn giá đúng để so sánh với đơn bị sửa dữ liệu [201]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bookId}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
-              "if (pm.response.code !== 201) pm.execution.setNextRequest(null);",
-              "else {",
-              " const receipt = pm.response.json();",
-              " pm.test('Sách đối chứng có giá dương', () => pm.expect(receipt.totalBillPrice).to.be.above(0));",
-              " if (!(receipt.totalBillPrice > 0)) pm.execution.setNextRequest(null);",
-              " pm.collectionVariables.set('securityBaseline', JSON.stringify(receipt));",
-              "}"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "SEC17 - Tự sửa giá, thuế, điểm và người bán - Server vẫn tính đơn đúng [201]",
+      "name": "SEC17 - Giả giá, tổng tiền, VAT, khuyến mãi, điểm và người lập đơn (giảm tồn 1)",
       "request": {
         "method": "POST",
         "auth": {
@@ -1939,6 +1624,20 @@
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function missingFixture(reason) {",
+              "  pm.test('Chuẩn bị dữ liệu', () => { throw new Error(reason); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "",
+              "if (!pm.collectionVariables.get('securityBaseline')) missingFixture('Cần hóa đơn đối chứng từ TC_BILL_01.');"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
@@ -1962,7 +1661,7 @@
       ]
     },
     {
-      "name": "SEC18 - Đọc lại đơn để xác nhận đúng người bán và số tiền [200]",
+      "name": "SEC18 - Kiểm tra người lập và giá trị hóa đơn đã lưu",
       "request": {
         "method": "GET",
         "auth": {
@@ -1982,6 +1681,20 @@
       },
       "event": [
         {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "function missingFixture(reason) {",
+              "  pm.test('Chuẩn bị dữ liệu', () => { throw new Error(reason); });",
+              "  pm.execution.skipRequest();",
+              "}",
+              "",
+              "if (!pm.collectionVariables.get('securityTamperedBillId')) missingFixture('Cần mã hóa đơn từ SEC17.');"
+            ]
+          }
+        },
+        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
@@ -1994,115 +1707,6 @@
               " for (const key of ['totalBillPrice','tax','earnedPoints']) {",
               "   pm.test('Dữ liệu lưu không bị giả: ' + key, () => pm.expect(bill[key]).to.eql(baseline[key]));",
               " }",
-              "}"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "BH01 - Thanh toán bằng thẻ và lưu đúng phương thức [201]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":3,\"details\":[{\"bookId\":{{bhBookA}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('securitySalesToken')};",
-              "const url = pm.variables.replaceIn('{{baseUrl}}');",
-              "pm.variables.unset('bhSnapshot');",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res) => {",
-              " if (err || !res || res.code !== 200) {",
-              "   pm.test('Chuẩn bị: đọc được danh sách sách', () => { throw new Error('GET /api/books thất bại'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " const books=res.json();",
-              " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"normal\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH01', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
-              " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
-              " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
-              "   if (e || !r || r.code!==200) {",
-              "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
-              "     pm.execution.skipRequest(); return;",
-              "   }",
-              "   pm.variables.set('bhBillsBefore',JSON.stringify(r.json().map(b=>b.billId).sort((a,b)=>a-b)));",
-              " });",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
-              "const headers={Authorization:'Bearer '+pm.collectionVariables.get('securitySalesToken')};",
-              "const url=pm.variables.replaceIn('{{baseUrl}}');",
-              "const snapshot=JSON.parse(pm.variables.get('bhSnapshot'));",
-              "const sent=JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res)=>{",
-              " pm.test('Trừ đúng số lượng từng sách',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   const actual=res.json();",
-              "   for(const before of snapshot){",
-              "     const line=sent.details.find(d=>d && d.bookId===before.bookId);",
-              "     const sold=(line ? line.quantity : 0);",
-              "     pm.expect(actual.find(b=>b.bookId===before.bookId).quantity,'Sách '+before.bookId).to.eql(before.quantity-sold);",
-              "   }",
-              " });",
-              "});",
-              "",
-              "if(pm.response.code===201){",
-              " const receipt=pm.response.json();",
-              " pm.test('Lưu đủ các dòng sách đã mua',()=>{",
-              "   pm.expect(receipt.details.map(d=>({bookId:d.bookId,quantity:d.quantity}))).to.eql(sent.details);",
-              " });",
-              " pm.sendRequest({url:url+'/api/bills/'+receipt.billId,header:headers},(err,res)=>{",
-              "   pm.test('Lưu đúng phương thức thanh toán và người bán',()=>{",
-              "     pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "     pm.expect(res.json().paymentMethodId).to.eql(sent.paymentMethodId);",
-              "     pm.expect(res.json().employeeId).to.eql(Number(pm.collectionVariables.get('securityEmployeeId')));",
-              "   });",
-              " });",
-              " ",
               "}"
             ]
           }
@@ -2153,26 +1757,17 @@
               " }",
               " const books=res.json();",
               " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"multi\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH03', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
+              " if (active.length < 2) {",
+              "   pm.test('Chuẩn bị dữ liệu BH03', () => { throw new Error('Cần 2 sách đang bán giá dương, tồn ít nhất 3.'); });",
               "   pm.execution.skipRequest(); return;",
               " }",
               " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
+              " if (2 === 2) {",
+              "   pm.variables.set('bhBookB',active[1].bookId);",
+              "   pm.variables.set('bhTooMany',active[1].quantity+1);",
+              " }",
               " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
-              " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
-              "   if (e || !r || r.code!==200) {",
-              "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
-              "     pm.execution.skipRequest(); return;",
-              "   }",
-              "   pm.variables.set('bhBillsBefore',JSON.stringify(r.json().map(b=>b.billId).sort((a,b)=>a-b)));",
-              " });",
+              "",
               "});"
             ]
           }
@@ -2211,113 +1806,8 @@
               "     pm.expect(res.json().employeeId).to.eql(Number(pm.collectionVariables.get('securityEmployeeId')));",
               "   });",
               " });",
-              " ",
-              "}"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "BH05 - Sách đang bán nhưng hết hàng - Từ chối tạo đơn [409]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bhEmptyBook}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('securitySalesToken')};",
-              "const url = pm.variables.replaceIn('{{baseUrl}}');",
-              "pm.variables.unset('bhSnapshot');",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res) => {",
-              " if (err || !res || res.code !== 200) {",
-              "   pm.test('Chuẩn bị: đọc được danh sách sách', () => { throw new Error('GET /api/books thất bại'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " const books=res.json();",
-              " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"empty\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH05', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
-              " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
-              " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
-              "   if (e || !r || r.code!==200) {",
-              "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
-              "     pm.execution.skipRequest(); return;",
-              "   }",
-              "   pm.variables.set('bhBillsBefore',JSON.stringify(r.json().map(b=>b.billId).sort((a,b)=>a-b)));",
-              " });",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
-              "const headers={Authorization:'Bearer '+pm.collectionVariables.get('securitySalesToken')};",
-              "const url=pm.variables.replaceIn('{{baseUrl}}');",
-              "const snapshot=JSON.parse(pm.variables.get('bhSnapshot'));",
-              "const sent=JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res)=>{",
-              " pm.test('Từ chối đơn không làm thay đổi tồn kho',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   const actual=res.json();",
-              "   for(const before of snapshot){",
-              "     const line=sent.details.find(d=>d && d.bookId===before.bookId);",
-              "     const sold=0;",
-              "     pm.expect(actual.find(b=>b.bookId===before.bookId).quantity,'Sách '+before.bookId).to.eql(before.quantity-sold);",
-              "   }",
-              " });",
-              "});",
               "",
-              "pm.test('Có thông báo và không trả mã hóa đơn mới',()=>{",
-              " pm.expect(pm.response.json().message).to.be.a('string').and.not.empty;",
-              " pm.expect(pm.response.json()).not.to.have.property('billId');",
-              "});",
-              "pm.sendRequest({url:url+'/api/bills',header:headers}, (err,res)=>{",
-              " pm.test('Không lưu hóa đơn khi từ chối',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   pm.expect(res.json().map(b=>b.billId).sort((a,b)=>a-b)).to.eql(JSON.parse(pm.variables.get('bhBillsBefore')));",
-              " });",
-              "});"
+              "}"
             ]
           }
         }
@@ -2367,334 +1857,17 @@
               " }",
               " const books=res.json();",
               " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"normal\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH06', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
+              " if (active.length < 1) {",
+              "   pm.test('Chuẩn bị dữ liệu BH06', () => { throw new Error('Cần 1 sách đang bán giá dương, tồn ít nhất 3.'); });",
               "   pm.execution.skipRequest(); return;",
               " }",
               " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
+              " if (1 === 2) {",
+              "   pm.variables.set('bhBookB',active[1].bookId);",
+              "   pm.variables.set('bhTooMany',active[1].quantity+1);",
+              " }",
               " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
-              " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
-              "   if (e || !r || r.code!==200) {",
-              "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
-              "     pm.execution.skipRequest(); return;",
-              "   }",
-              "   pm.variables.set('bhBillsBefore',JSON.stringify(r.json().map(b=>b.billId).sort((a,b)=>a-b)));",
-              " });",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
-              "const headers={Authorization:'Bearer '+pm.collectionVariables.get('securitySalesToken')};",
-              "const url=pm.variables.replaceIn('{{baseUrl}}');",
-              "const snapshot=JSON.parse(pm.variables.get('bhSnapshot'));",
-              "const sent=JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res)=>{",
-              " pm.test('Từ chối đơn không làm thay đổi tồn kho',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   const actual=res.json();",
-              "   for(const before of snapshot){",
-              "     const line=sent.details.find(d=>d && d.bookId===before.bookId);",
-              "     const sold=0;",
-              "     pm.expect(actual.find(b=>b.bookId===before.bookId).quantity,'Sách '+before.bookId).to.eql(before.quantity-sold);",
-              "   }",
-              " });",
-              "});",
               "",
-              "pm.test('Có thông báo và không trả mã hóa đơn mới',()=>{",
-              " pm.expect(pm.response.json().message).to.be.a('string').and.not.empty;",
-              " pm.expect(pm.response.json()).not.to.have.property('billId');",
-              "});",
-              "pm.sendRequest({url:url+'/api/bills',header:headers}, (err,res)=>{",
-              " pm.test('Không lưu hóa đơn khi từ chối',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   pm.expect(res.json().map(b=>b.billId).sort((a,b)=>a-b)).to.eql(JSON.parse(pm.variables.get('bhBillsBefore')));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "BH07A - Thiếu số lượng sách - Từ chối tạo đơn [400]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bhBookA}}}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('securitySalesToken')};",
-              "const url = pm.variables.replaceIn('{{baseUrl}}');",
-              "pm.variables.unset('bhSnapshot');",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res) => {",
-              " if (err || !res || res.code !== 200) {",
-              "   pm.test('Chuẩn bị: đọc được danh sách sách', () => { throw new Error('GET /api/books thất bại'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " const books=res.json();",
-              " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"normal\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH07A', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
-              " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
-              " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
-              "   if (e || !r || r.code!==200) {",
-              "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
-              "     pm.execution.skipRequest(); return;",
-              "   }",
-              "   pm.variables.set('bhBillsBefore',JSON.stringify(r.json().map(b=>b.billId).sort((a,b)=>a-b)));",
-              " });",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
-              "const headers={Authorization:'Bearer '+pm.collectionVariables.get('securitySalesToken')};",
-              "const url=pm.variables.replaceIn('{{baseUrl}}');",
-              "const snapshot=JSON.parse(pm.variables.get('bhSnapshot'));",
-              "const sent=JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res)=>{",
-              " pm.test('Từ chối đơn không làm thay đổi tồn kho',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   const actual=res.json();",
-              "   for(const before of snapshot){",
-              "     const line=sent.details.find(d=>d && d.bookId===before.bookId);",
-              "     const sold=0;",
-              "     pm.expect(actual.find(b=>b.bookId===before.bookId).quantity,'Sách '+before.bookId).to.eql(before.quantity-sold);",
-              "   }",
-              " });",
-              "});",
-              "",
-              "pm.test('Có thông báo và không trả mã hóa đơn mới',()=>{",
-              " pm.expect(pm.response.json().message).to.be.a('string').and.not.empty;",
-              " pm.expect(pm.response.json()).not.to.have.property('billId');",
-              "});",
-              "pm.sendRequest({url:url+'/api/bills',header:headers}, (err,res)=>{",
-              " pm.test('Không lưu hóa đơn khi từ chối',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   pm.expect(res.json().map(b=>b.billId).sort((a,b)=>a-b)).to.eql(JSON.parse(pm.variables.get('bhBillsBefore')));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "BH07B - Số lượng null - Từ chối tạo đơn [400]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bhBookA}},\"quantity\":null}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('securitySalesToken')};",
-              "const url = pm.variables.replaceIn('{{baseUrl}}');",
-              "pm.variables.unset('bhSnapshot');",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res) => {",
-              " if (err || !res || res.code !== 200) {",
-              "   pm.test('Chuẩn bị: đọc được danh sách sách', () => { throw new Error('GET /api/books thất bại'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " const books=res.json();",
-              " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"normal\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH07B', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
-              " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
-              " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
-              "   if (e || !r || r.code!==200) {",
-              "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
-              "     pm.execution.skipRequest(); return;",
-              "   }",
-              "   pm.variables.set('bhBillsBefore',JSON.stringify(r.json().map(b=>b.billId).sort((a,b)=>a-b)));",
-              " });",
-              "});"
-            ]
-          }
-        },
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
-              "const headers={Authorization:'Bearer '+pm.collectionVariables.get('securitySalesToken')};",
-              "const url=pm.variables.replaceIn('{{baseUrl}}');",
-              "const snapshot=JSON.parse(pm.variables.get('bhSnapshot'));",
-              "const sent=JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res)=>{",
-              " pm.test('Từ chối đơn không làm thay đổi tồn kho',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   const actual=res.json();",
-              "   for(const before of snapshot){",
-              "     const line=sent.details.find(d=>d && d.bookId===before.bookId);",
-              "     const sold=0;",
-              "     pm.expect(actual.find(b=>b.bookId===before.bookId).quantity,'Sách '+before.bookId).to.eql(before.quantity-sold);",
-              "   }",
-              " });",
-              "});",
-              "",
-              "pm.test('Có thông báo và không trả mã hóa đơn mới',()=>{",
-              " pm.expect(pm.response.json().message).to.be.a('string').and.not.empty;",
-              " pm.expect(pm.response.json()).not.to.have.property('billId');",
-              "});",
-              "pm.sendRequest({url:url+'/api/bills',header:headers}, (err,res)=>{",
-              " pm.test('Không lưu hóa đơn khi từ chối',()=>{",
-              "   pm.expect(err).not.to.exist; pm.expect(res.code).to.eql(200);",
-              "   pm.expect(res.json().map(b=>b.billId).sort((a,b)=>a-b)).to.eql(JSON.parse(pm.variables.get('bhBillsBefore')));",
-              " });",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "BH08 - Mã sách chưa tồn tại - Từ chối tạo đơn [400]",
-      "request": {
-        "method": "POST",
-        "auth": {
-          "type": "noauth"
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          },
-          {
-            "key": "Authorization",
-            "value": "Bearer {{securitySalesToken}}"
-          }
-        ],
-        "url": "{{baseUrl}}/api/bills",
-        "body": {
-          "mode": "raw",
-          "raw": "{\"customerId\":0,\"paymentMethodId\":1,\"details\":[{\"bookId\":{{bhMissingBook}},\"quantity\":1}]}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('securitySalesToken')};",
-              "const url = pm.variables.replaceIn('{{baseUrl}}');",
-              "pm.variables.unset('bhSnapshot');",
-              "pm.sendRequest({url:url+'/api/books',header:headers}, (err,res) => {",
-              " if (err || !res || res.code !== 200) {",
-              "   pm.test('Chuẩn bị: đọc được danh sách sách', () => { throw new Error('GET /api/books thất bại'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " const books=res.json();",
-              " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"normal\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH08', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
-              "   pm.execution.skipRequest(); return;",
-              " }",
-              " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
-              " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
               " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
               "   if (e || !r || r.code!==200) {",
               "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
@@ -2787,19 +1960,17 @@
               " }",
               " const books=res.json();",
               " const active=books.filter(b=>b.status===1 && b.quantity>=3 && b.sellingPrice>0).sort((a,b)=>a.bookId-b.bookId);",
-              " const empty=books.find(b=>b.status===1 && b.quantity===0);",
-              " const mode=\"rollback\";",
-              " const ready=active.length >= (mode==='multi' || mode==='rollback' ? 2 : 1) && (mode!=='empty' || !!empty);",
-              " if (!ready) {",
-              "   pm.test('Chuẩn bị dữ liệu BH09', () => { throw new Error('Cần sách đang bán giá dương tồn >=3; ca nhiều sách cần 2 mã; ca hết hàng cần sách tồn 0.'); });",
+              " if (active.length < 2) {",
+              "   pm.test('Chuẩn bị dữ liệu BH09', () => { throw new Error('Cần 2 sách đang bán giá dương, tồn ít nhất 3.'); });",
               "   pm.execution.skipRequest(); return;",
               " }",
               " pm.variables.set('bhBookA',active[0].bookId);",
-              " pm.variables.set('bhBookB',active[1] ? active[1].bookId : active[0].bookId);",
-              " pm.variables.set('bhTooMany',active[1] ? active[1].quantity+1 : 1);",
-              " pm.variables.set('bhEmptyBook',empty ? empty.bookId : 0);",
-              " pm.variables.set('bhMissingBook',Math.max(...books.map(b=>b.bookId))+1);",
+              " if (2 === 2) {",
+              "   pm.variables.set('bhBookB',active[1].bookId);",
+              "   pm.variables.set('bhTooMany',active[1].quantity+1);",
+              " }",
               " pm.variables.set('bhSnapshot',JSON.stringify(books.map(b=>({bookId:b.bookId,quantity:b.quantity}))));",
+              "",
               " pm.sendRequest({url:url+'/api/bills',header:headers}, (e,r) => {",
               "   if (e || !r || r.code!==200) {",
               "     pm.test('Chuẩn bị: đọc được danh sách hóa đơn', () => { throw new Error('GET /api/bills thất bại'); });",
@@ -2849,7 +2020,7 @@
       ]
     },
     {
-      "name": "Kết thúc - Đăng xuất tài khoản bán hàng [204]",
+      "name": "Dọn phiên bán hàng",
       "request": {
         "method": "POST",
         "auth": {
@@ -2880,7 +2051,7 @@
       ]
     },
     {
-      "name": "Kết thúc - Đăng xuất tài khoản nhân viên kho [204]",
+      "name": "Dọn phiên kho",
       "request": {
         "method": "POST",
         "auth": {

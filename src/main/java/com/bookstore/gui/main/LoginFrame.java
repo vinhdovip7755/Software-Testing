@@ -13,6 +13,8 @@ public class LoginFrame extends JFrame {
     private JTextField txtUsername;
     private JPasswordField txtPassword;
     private JButton btnLogin;
+    private InlineFieldValidation emailValidation;
+    private InlineFieldValidation passwordValidation;
     private final AuthApiClient authApiClient = new AuthApiClient();
 
     public LoginFrame() {
@@ -42,34 +44,17 @@ public class LoginFrame extends JFrame {
 
         txtUsername = new JTextField();
         txtUsername.setName("login.email");
-                txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Email của bạn");
+        txtUsername.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Email của bạn");
         styleField(txtUsername);
-        txtUsername.addFocusListener(new java.awt.event.FocusAdapter() {
-            @Override
-            public void focusLost(java.awt.event.FocusEvent e) {
-                if (e.isTemporary()) return;
-                String username = txtUsername.getText().trim();
-                if (!username.isEmpty() && !username.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
-                    txtUsername.putClientProperty(FlatClientProperties.OUTLINE, "error");
-                    txtUsername.setToolTipText("Định dạng Email không hợp lệ!");
-                } else {
-                    txtUsername.putClientProperty(FlatClientProperties.OUTLINE, null);
-                    txtUsername.setToolTipText(null);
-                }
-            }
-        });
+        emailValidation = new InlineFieldValidation(txtUsername,
+                () -> InlineFieldValidation.emailError(txtUsername.getText()));
 
         txtPassword = new JPasswordField();
         txtPassword.setName("login.password");
         txtPassword.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Mật khẩu");
         styleField(txtPassword);
-        txtPassword.putClientProperty(FlatClientProperties.STYLE,
-                "arc: 10;" +
-                "borderColor: #CCCCCC;" +
-                "focusWidth: 1;" +
-                "margin: 5,10,5,10;" +
-                "showClearButton: true"
-        );
+        passwordValidation = new InlineFieldValidation(txtPassword, () ->
+                new String(txtPassword.getPassword()).isBlank() ? "Vui lòng nhập mật khẩu!" : null);
 
         char defaultEcho = txtPassword.getEchoChar();
         JToggleButton btnToggleEye = new JToggleButton();
@@ -120,9 +105,9 @@ public class LoginFrame extends JFrame {
 
         loginCard.add(lbTitle);
         loginCard.add(Box.createVerticalStrut(30));
-        loginCard.add(createInputGroup("Email:", txtUsername));
+        loginCard.add(createInputGroup("Email:", txtUsername, emailValidation));
         loginCard.add(Box.createVerticalStrut(15));
-        loginCard.add(createInputGroup("Mật khẩu:", txtPassword));
+        loginCard.add(createInputGroup("Mật khẩu:", txtPassword, passwordValidation));
         loginCard.add(Box.createVerticalStrut(8));
         loginCard.add(forgotPasswordPanel);
         loginCard.add(Box.createVerticalStrut(20));
@@ -142,17 +127,19 @@ public class LoginFrame extends JFrame {
         });
     }
 
-    private JPanel createInputGroup(String labelText, JComponent field) {
+    private JPanel createInputGroup(String labelText, JComponent field, InlineFieldValidation validation) {
         JPanel panel = new JPanel(new BorderLayout(0, 5));
         panel.setBackground(Color.WHITE);
         panel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        panel.setMaximumSize(new Dimension(1000, 70));
+        panel.setMaximumSize(new Dimension(1000, 90));
 
         JLabel label = new JLabel(labelText);
         label.setFont(new Font(AppConstant.FONT_NAME, Font.BOLD, 14));
+        label.setLabelFor(field);
 
         panel.add(label, BorderLayout.NORTH);
         panel.add(field, BorderLayout.CENTER);
+        panel.add(validation.feedback(), BorderLayout.SOUTH);
 
         return panel;
     }
@@ -169,27 +156,18 @@ public class LoginFrame extends JFrame {
     }
 
     private void handleLogin() {
+        if (!emailValidation.validate()) {
+            txtUsername.requestFocusInWindow();
+            return;
+        }
+
+        if (!passwordValidation.validate()) {
+            txtPassword.requestFocusInWindow();
+            return;
+        }
+
         String username = txtUsername.getText().trim();
         String password = new String(txtPassword.getPassword());
-
-        if (username.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập Email!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-            txtUsername.requestFocus();
-            return;
-        }
-
-        if (!username.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
-            JOptionPane.showMessageDialog(this, "Định dạng Email không hợp lệ!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-            txtUsername.requestFocus();
-            return;
-        }
-
-        if (password.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập mật khẩu!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-            txtPassword.requestFocus();
-            return;
-        }
-
         try {
             com.bookstore.api.contract.ApiSessionDTO session = authApiClient.login(username, password);
             EmployeeDTO employee = session.getEmployee();

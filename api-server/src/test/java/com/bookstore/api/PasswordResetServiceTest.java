@@ -37,6 +37,8 @@ class PasswordResetServiceTest {
         );
 
         service.requestOtp("reader@example.com");
+        service.verifyOtp("reader@example.com", "123456");
+        assertEquals(0, resetCount.get());
         assertEquals("OK", service.confirmReset("reader@example.com", "123456", "new-pass"));
 
         ResponseStatusException reusedOtp = assertThrows(
@@ -44,6 +46,7 @@ class PasswordResetServiceTest {
                 () -> service.confirmReset("reader@example.com", "123456", "another-pass")
         );
         assertEquals(422, reusedOtp.getStatusCode().value());
+        assertThrows(ResponseStatusException.class, () -> service.verifyOtp("reader@example.com", "123456"));
         assertEquals(1, resetCount.get());
     }
 
@@ -88,12 +91,16 @@ class PasswordResetServiceTest {
         );
         service.requestOtp("reader@example.com");
 
-        for (int attempt = 0; attempt < 5; attempt++) {
+        for (int attempt = 0; attempt < 4; attempt++) {
             assertThrows(
                     ResponseStatusException.class,
-                    () -> service.confirmReset("reader@example.com", "000000", "new-pass")
+                    () -> service.verifyOtp("reader@example.com", "000000")
             );
         }
+        assertThrows(
+                ResponseStatusException.class,
+                () -> service.confirmReset("reader@example.com", "000000", "new-pass")
+        );
         assertThrows(
                 ResponseStatusException.class,
                 () -> service.confirmReset("reader@example.com", "123456", "new-pass")
