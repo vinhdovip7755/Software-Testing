@@ -1,6 +1,6 @@
 # Bộ kiểm thử bán hàng POS
 
-Import `BookStore_POS_All.postman_collection.json`, chọn **Replace** nếu Postman hỏi, rồi chọn environment `BookStore_API_Local`. Dùng cơ sở dữ liệu kiểm thử và đặt `baseUrl` theo cổng API. Hai collection Bills và Security dùng để chạy riêng từng nhóm. Khi tổng hợp kết quả POS, lấy số ca từ collection All.
+Import `BookStore_POS_All.postman_collection.json`, chọn **Replace** nếu Postman hỏi, rồi chọn environment `BookStore_API_Local`. Dùng cơ sở dữ liệu kiểm thử và đặt `baseUrl` theo cổng API. Dùng `BookStore_POS_Security.postman_collection.json` để chạy riêng các ca bảo mật. Khi tổng hợp kết quả POS, lấy số ca từ collection All.
 
 ## Các ca đã gộp
 

@@ -444,9 +444,9 @@ Mỗi test case trong tài liệu này được phân bổ chặt chẽ theo 5 t
 
 ## 5. HƯỚNG DẪN THỰC THI & TÍCH HỢP BÁO CÁO
 
-1. **Thực thi trên Postman:** Toàn bộ các test case trên đã được ánh xạ tương ứng vào bộ sưu tập [BookStore_API.postman_collection.json](file:///d:/Code/Testing/Software-Testing/postman/BookStore_API.postman_collection.json).
+1. **Thực thi trên Postman:** Các ca bán hàng POS hiện có trong [BookStore_POS_All.postman_collection.json](../BookStore_POS_All.postman_collection.json). Xem [hướng dẫn chuẩn bị dữ liệu](../POS_SALES_ADDITIONS.md).
 2. **Chạy tự động bằng Collection Runner:**
-   - Mở Postman -> Chọn Collection `BookStore Management System - REST API Testing Suite`.
+   - Mở Postman và chọn collection **BookStore POS | Kiểm thử bán hàng**.
    - Chọn Environment: `BookStore API - Local Development (127.0.0.1:8080)`.
-   - Chọn Run type: **`Functional`** -> Bấm **Run** để kiểm thử tự động toàn bộ kịch bản.
+   - Chọn Run type: **`Functional`** -> Bấm **Run** để chạy các ca POS.
 3. **Sử dụng làm minh chứng báo cáo:** Tester và sinh viên có thể trích dẫn trực tiếp bảng 188 Test Cases này vào báo cáo Đồ án / Bài tập lớn môn Kiểm thử Phần mềm (Software Testing).

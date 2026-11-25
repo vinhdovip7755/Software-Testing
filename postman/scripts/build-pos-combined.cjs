@@ -3,7 +3,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const read = name => JSON.parse(fs.readFileSync(path.join(root, name), 'utf8'));
-const bills = read('BookStore_POS_Bills_14_TC.import.postman_collection.json');
+const bills = require('./pos-bill-requests.json');
 const security = read('BookStore_POS_Security.postman_collection.json');
 const variables = new Map();
 for (const variable of [...bills.variable, ...security.variable]) {
@@ -56,8 +56,7 @@ findEvent(login, 'test').script.exec.push(
   '  pm.collectionVariables.set("securityEmployeeId", data.employee.employeeId);',
   '}'
 );
-const billCases = bills.item.slice(1).filter(item =>
-  !/^TC_BILL_(12|13|14) /.test(item.name) && item.name !== 'TC_BILL_09 - Số lượng âm');
+const billCases = bills.item.slice(1);
 const byCode = (items, code) => {
   const item = items.find(candidate => candidate.name.startsWith(code + ' - '));
   if (!item) throw new Error('Không tìm thấy request ' + code);
@@ -186,8 +185,7 @@ const index = findEvent(zeroQuantity, 'test').script.exec.findIndex(line => line
 if (index < 0) throw new Error('Thiếu assertion thông báo ở SEC08.');
 findEvent(zeroQuantity, 'test').script.exec.splice(index, 1, message('Thông tin sách trong hóa đơn không hợp lệ.').trim());
 
-// Standalone inputs remain available for focused reruns. Keep one equivalent
-// checkout case in this combined run and reuse the guest receipt as baseline.
+// Keep one equivalent checkout case in this combined run and reuse the guest receipt as baseline.
 const omittedSecurity = new Set(['00', '04', 'SEC03', 'SEC04', 'SEC05', 'SEC08', 'SEC09', 'SEC14', 'SEC15', 'SEC16']);
 const securityCases = security.item.filter(item => !omittedSecurity.has(item.name.split(' - ')[0]));
 byCode(securityCases, 'SEC17').event.unshift(event('prerequest', `
