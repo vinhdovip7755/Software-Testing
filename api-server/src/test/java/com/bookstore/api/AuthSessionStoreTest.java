@@ -83,6 +83,7 @@ class AuthSessionStoreTest {
 
         assertTrue(filter.shouldNotFilter(new MockHttpServletRequest("POST", "/api/auth/login")));
         assertTrue(filter.shouldNotFilter(new MockHttpServletRequest("POST", "/api/auth/password-reset/request")));
+        assertTrue(filter.shouldNotFilter(new MockHttpServletRequest("POST", "/api/auth/password-reset/verify")));
         assertTrue(filter.shouldNotFilter(new MockHttpServletRequest("POST", "/api/auth/password-reset/confirm")));
         assertTrue(filter.shouldNotFilter(new MockHttpServletRequest("GET", "/api/health")));
         assertFalse(filter.shouldNotFilter(new MockHttpServletRequest("GET", "/api/books")));

@@ -9,83 +9,227 @@ const variables = new Map();
 for (const variable of [...bills.variable, ...security.variable]) {
   variables.set(variable.key, variable);
 }
-variables.delete('missingBillId');
+for (const key of ['missingBillId', 'outOfStockQuantity', 'pointsUsed']) variables.delete(key);
 variables.set('baseUrl', {key: 'baseUrl', value: 'http://127.0.0.1:8080', type: 'string'});
+variables.set('customerPhone', {key: 'customerPhone', value: '', type: 'string'});
 
+const event = (listen, code) => ({listen, script: {type: 'text/javascript', exec: code.trim().split('\n')}});
+const findEvent = (item, listen) => item.event.find(e => e.listen === listen);
+const auth = `
+const base = pm.variables.replaceIn('{{baseUrl}}');
+const headers = {Authorization: 'Bearer ' + pm.collectionVariables.get('billsRunToken')};
+`;
+const readBook = `
+const bookUrl = pm.variables.replaceIn('{{baseUrl}}/api/books/{{bookId}}');
+`;
+const stop = `
+function missingFixture(reason) {
+  pm.test('Chuẩn bị dữ liệu', () => { throw new Error(reason); });
+  pm.execution.skipRequest();
+}
+`;
+const roundVnd = `
+function roundVnd(amount) {
+  const lower = Math.floor(amount);
+  return amount - lower === 0.5 ? lower + lower % 2 : Math.round(amount);
+}
+function subtotalAfterPromotion(receipt) {
+  pm.expect(receipt.details, 'Danh sách dòng sách').to.be.an('array').that.is.not.empty;
+  return receipt.details.reduce((sum, line) => {
+    pm.expect(Number.isFinite(line.totalPrice), 'details[].totalPrice phải là số hữu hạn').to.eql(true);
+    return sum + line.totalPrice;
+  }, 0);
+}
+`;
+const message = text => `
+pm.test('Thông báo nghiệp vụ', () => pm.expect(pm.response.json().message).to.eql(${JSON.stringify(text)}));
+`;
 
-// Keep only the checkout flow; reuse its login for authorization tests.
-const login = structuredClone(bills.item[0]);
-login.event.find(e => e.listen === 'test').script.exec.push(
+const login = bills.item[0];
+findEvent(login, 'test').script.exec.push(
+  'pm.collectionVariables.unset("securitySalesToken");',
+  'pm.collectionVariables.unset("securityBaseline");',
+  'pm.collectionVariables.unset("securityTamperedBillId");',
   'if (pm.response.code === 200 && pm.response.json().accessToken) {',
   '  const data = pm.response.json();',
   '  pm.collectionVariables.set("securitySalesToken", data.accessToken);',
   '  pm.collectionVariables.set("securityEmployeeId", data.employee.employeeId);',
-  '  pm.collectionVariables.unset("securityBaseline");',
-  '  pm.collectionVariables.unset("securityTamperedBillId");',
   '}'
 );
-const billCases = bills.item.slice(1).filter(i =>
-  !/^TC_BILL_(12|13|14) /.test(i.name) && i.name !== 'TC_BILL_09 - Số lượng âm');
-const securityCases = security.item.filter(i => !i.name.startsWith('00 -') && !/^SEC(15|16) /.test(i.name));
-const extraCases = require('./pos-sales-extra.cjs')();
+const billCases = bills.item.slice(1).filter(item =>
+  !/^TC_BILL_(12|13|14) /.test(item.name) && item.name !== 'TC_BILL_09 - Số lượng âm');
+const byCode = (items, code) => {
+  const item = items.find(candidate => candidate.name.startsWith(code + ' - '));
+  if (!item) throw new Error('Không tìm thấy request ' + code);
+  return item;
+};
+
+const guest = byCode(billCases, 'TC_BILL_01');
+findEvent(guest, 'test').script.exec.push(...event('test', `
+${roundVnd}
+if (pm.response.code === 201) {
+  const receipt = pm.response.json();
+  pm.test('Khách lẻ trả tổng tiền có VAT và không giảm theo hạng', () => {
+    const subtotal = subtotalAfterPromotion(receipt);
+    pm.expect(receipt.totalBillPrice).to.eql(roundVnd(subtotal * (1 + receipt.tax)));
+  });
+  pm.collectionVariables.set('securityBaseline', JSON.stringify(receipt));
+}
+`).script.exec);
+guest.request.description = 'Kiểm nhánh khách lẻ và tổng tiền sau VAT. Hóa đơn này đồng thời là dữ liệu đối chứng cho SEC17.';
+
+const member = byCode(billCases, 'TC_BILL_02');
+member.request.description = 'Đặt customerPhone là số điện thoại của thành viên có chiết khấu dương. Đọc hạng và điểm trước khi bán, sau đó kiểm tổng tiền và điểm đã cộng.';
+member.request.body.raw = member.request.body.raw.replace('{{customerId}}', '{{posMemberId}}');
+const memberUrl = `
+const customerUrl = base + '/api/customers/phone/' + encodeURIComponent(pm.variables.get('customerPhone') || '');
+`;
+member.event.unshift(event('prerequest', `
+${auth}${memberUrl}${stop}
+if (!pm.variables.get('customerPhone')) {
+  missingFixture('Cần customerPhone của thành viên có chiết khấu dương.');
+} else {
+  pm.sendRequest({url: customerUrl, header: headers}, (error, response) => {
+    if (error || !response || response.code !== 200) return missingFixture('Không tra được khách qua customerPhone.');
+    const customer = response.json();
+    if (!(customer.customerId > 0) || !Number.isInteger(customer.point)) {
+      return missingFixture('Dữ liệu thành viên hoặc điểm hiện tại không hợp lệ.');
+    }
+    pm.sendRequest({url: base + '/api/membership-ranks/by-points/' + customer.point, header: headers}, (rankError, rankResponse) => {
+      if (rankError || !rankResponse || rankResponse.code !== 200) return missingFixture('Không tra được hạng thành viên.');
+      const discount = rankResponse.json().discountPercent;
+      if (!(discount > 0 && discount <= 100)) return missingFixture('Thành viên phải có chiết khấu dương.');
+      pm.variables.set('posMemberId', customer.customerId);
+      pm.variables.set('posMemberBefore', JSON.stringify(customer));
+      pm.variables.set('posMemberDiscount', discount);
+    });
+  });
+}
+`));
+member.event[1] = event('test', `
+pm.test('HTTP 201', () => pm.response.to.have.status(201));
+${auth}${memberUrl}${roundVnd}
+if (pm.response.code === 201) {
+  const receipt = pm.response.json();
+  const customer = JSON.parse(pm.variables.get('posMemberBefore'));
+  const discount = Number(pm.variables.get('posMemberDiscount'));
+  pm.test('Áp dụng chiết khấu hạng trước VAT', () => {
+    pm.expect(receipt.customerName).to.eql(customer.customerName);
+    const subtotal = subtotalAfterPromotion(receipt);
+    const expected = roundVnd(subtotal * (1 - discount / 100) * (1 + receipt.tax));
+    pm.expect(receipt.totalBillPrice).to.eql(expected);
+  });
+  pm.sendRequest({url: customerUrl, header: headers}, (error, response) => {
+    pm.test('Điểm thành viên tăng đúng số điểm trên hóa đơn', () => {
+      pm.expect(error).to.not.exist;
+      pm.expect(response.code).to.eql(200);
+      pm.expect(receipt.earnedPoints, 'Dữ liệu thử phải phát sinh điểm').to.be.above(0);
+      pm.expect(response.json().point).to.eql(customer.point + receipt.earnedPoints);
+    });
+  });
+}
+`);
+
+const transfer = byCode(billCases, 'TC_BILL_03');
+transfer.request.body.raw = transfer.request.body.raw.replace('{{customerId}}', '0');
+transfer.request.description = 'Dùng khách lẻ để cô lập phương thức thanh toán. Đọc lại hóa đơn và kiểm paymentMethodId = 2.';
+
+const stock = byCode(billCases, 'TC_BILL_07');
+stock.request.body.raw = stock.request.body.raw.replace('{{outOfStockQuantity}}', '{{posStockPlusOne}}');
+stock.request.description = 'Đọc tồn sách đang bán trước khi gửi, thử đặt đúng tồn + 1 và xác nhận tồn không đổi.';
+stock.event.unshift(event('prerequest', `
+${auth}${readBook}${stop}
+pm.sendRequest({url: bookUrl, header: headers}, (error, response) => {
+  if (error || !response || response.code !== 200) return missingFixture('Không đọc được sách thử.');
+  const book = response.json();
+  if (book.status !== 1 || !Number.isInteger(book.quantity) || book.quantity < 0 || book.quantity >= 2147483647) {
+    return missingFixture('Cần mã sách đang bán có số tồn hợp lệ.');
+  }
+  pm.variables.set('posStockBefore', book.quantity);
+  pm.variables.set('posStockPlusOne', book.quantity + 1);
+});
+`));
+findEvent(stock, 'test').script.exec.push(...event('test', `
+${auth}${readBook}
+pm.test('Không trả mã hóa đơn mới', () => pm.expect(pm.response.json()).not.to.have.property('billId'));
+pm.sendRequest({url: bookUrl, header: headers}, (error, response) => {
+  pm.test('Tồn kho không đổi sau khi từ chối', () => {
+    pm.expect(error).to.not.exist;
+    pm.expect(response.code).to.eql(200);
+    pm.expect(response.json().quantity).to.eql(Number(pm.variables.get('posStockBefore')));
+  });
+});
+`).script.exec);
+
+const inactive = byCode(billCases, 'TC_BILL_08');
+inactive.request.description = 'Chọn sách có thật với status = 0. Nếu nhập inactiveBookId, script kiểm tra trạng thái của chính sách đó trước khi gửi.';
+inactive.event = [event('prerequest', `
+${auth}${stop}
+const configured = String(pm.variables.get('inactiveBookId') || '').trim();
+pm.sendRequest({url: base + '/api/books', header: headers}, (error, response) => {
+  if (error || !response || response.code !== 200) return missingFixture('Không đọc được danh sách sách.');
+  const book = response.json().find(item => item.status === 0 && item.bookId > 0 &&
+    (!configured || item.bookId === Number(configured)));
+  if (!book) return missingFixture('Cần sách có thật với status = 0 để chạy TC_BILL_08.');
+  pm.variables.set('inactiveBookId', book.bookId);
+});
+`), event('test', `
+pm.test('HTTP 400', () => pm.response.to.have.status(400));
+${message('Sách không tồn tại hoặc đã ngừng bán.')}
+`)];
+
+const zeroQuantity = byCode(billCases, 'TC_BILL_09');
+zeroQuantity.request.description = 'Chọn quantity = 0 làm giá trị biên đại diện cho nhóm số lượng không dương. Kiểm tồn kho không bị thay đổi.';
+const stockRejection = structuredClone(byCode(security.item, 'SEC08').event);
+zeroQuantity.event = stockRejection;
+const index = findEvent(zeroQuantity, 'test').script.exec.findIndex(line => line.includes('Thông báo lỗi rõ ràng'));
+if (index < 0) throw new Error('Thiếu assertion thông báo ở SEC08.');
+findEvent(zeroQuantity, 'test').script.exec.splice(index, 1, message('Thông tin sách trong hóa đơn không hợp lệ.').trim());
+
+// Standalone inputs remain available for focused reruns. Keep one equivalent
+// checkout case in this combined run and reuse the guest receipt as baseline.
+const omittedSecurity = new Set(['00', '04', 'SEC03', 'SEC04', 'SEC05', 'SEC08', 'SEC09', 'SEC14', 'SEC15', 'SEC16']);
+const securityCases = security.item.filter(item => !omittedSecurity.has(item.name.split(' - ')[0]));
+byCode(securityCases, 'SEC17').event.unshift(event('prerequest', `
+${stop}
+if (!pm.collectionVariables.get('securityBaseline')) missingFixture('Cần hóa đơn đối chứng từ TC_BILL_01.');
+`));
+byCode(securityCases, 'SEC18').event.unshift(event('prerequest', `
+${stop}
+if (!pm.collectionVariables.get('securityTamperedBillId')) missingFixture('Cần mã hóa đơn từ SEC17.');
+`));
+
+const cleanup = securityCases.slice(-2);
 const collection = {
   info: {
     name: 'BookStore POS | Kiểm thử bán hàng',
     schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
-    description: 'Chỉ kiểm thử bán hàng: tạo đơn, thanh toán, giỏ hàng, tồn kho, khách hàng và quyền tạo đơn. Bỏ tra cứu hóa đơn độc lập TC_BILL_13/14; gộp số lượng âm vào SEC08; dùng chung phiên bán hàng. Đăng nhập/đăng xuất là bước chuẩn bị kiểm tra quyền tạo đơn. Đọc hóa đơn sau bán để xác nhận dữ liệu lưu. Dùng environment BookStore_API_Local. bookId đang bán, giá dương, tồn sách và lô ít nhất 7 cuốn; customerId có chiết khấu; missingCustomerId chưa tồn tại. inactiveBookId có thể để trống để tự tìm sách ngừng bán. Chạy trên DB test, không có giao dịch song song hoặc đổi giá. Chạy thành công tạo 5 hóa đơn và giảm tồn kho.'
+    description: 'Bộ chạy tổng hợp POS. Dùng environment BookStore_API_Local và DB test. Chọn bookId đang bán, giá dương, tồn sách và lô ít nhất 5 cuốn; customerPhone là thành viên có chiết khấu và đơn mua 2 cuốn phải phát sinh điểm. Cần ít nhất hai sách đang bán còn đủ tồn để chạy ca nhiều dòng. Có thể để trống inactiveBookId để tự tìm sách ngừng bán. Không chạy song song hoặc đổi giá, khuyến mãi trong lượt test. Chạy đủ và đạt dự kiến tạo 5 hóa đơn. Xem POS_SALES_ADDITIONS.md để biết các ca đã gộp.'
   },
   variable: [...variables.values()],
-  item: [login, ...billCases, ...securityCases.slice(0, -2), ...extraCases, ...securityCases.slice(-2)]
+  item: [login, ...billCases, ...securityCases.slice(0, -2), ...require('./pos-sales-extra.cjs')(), ...cleanup]
 };
-collection.info.description += ' Bổ sung 8 ca đầu vào/thanh toán/tồn kho BH01, BH03, BH05, BH06, BH07A/B, BH08, BH09. Tự chọn sách thử từ API: cần ít nhất 2 sách đang bán có giá dương và tồn >=3, cùng 1 sách đang bán tồn 0. Thiếu dữ liệu sẽ báo assertion chuẩn bị thất bại và bỏ qua request phụ thuộc. Ca mới tạo thêm 2 hóa đơn khi đạt (tổng 7 hóa đơn toàn bộ collection). Bỏ các ca đổi điểm vì nghiệp vụ chưa hỗ trợ. Chưa đưa các ca mua hết kho, thay đổi dữ liệu lô, đồng thời và quy tắc chưa thống nhất vào lượt chạy chung.';
-collection.info.description = collection.info.description.replace('Chạy thành công tạo 5 hóa đơn và giảm tồn kho.', 'Các ca thành công tạo hóa đơn và giảm tồn kho.');
-const caseNames = {
-  TC_BILL_01: 'Tạo đơn cho khách lẻ trả tiền mặt',
-  TC_BILL_02: 'Tạo đơn cho khách thành viên được giảm giá',
-  TC_BILL_03: 'Tạo đơn thanh toán chuyển khoản',
-  TC_BILL_04: 'Xem chi tiết đơn vừa bán',
-  TC_BILL_05: 'Từ chối tạo đơn không có sách',
-  TC_BILL_06: 'Từ chối tạo đơn có hai dòng trùng mã sách',
-  TC_BILL_07: 'Từ chối bán số lượng vượt tồn kho',
-  TC_BILL_08: 'Từ chối bán sách đã ngừng bán',
-  TC_BILL_09: 'Từ chối bán sách có số lượng bằng 0',
-  TC_BILL_10: 'Từ chối phương thức thanh toán không hợp lệ',
-  TC_BILL_11: 'Từ chối tạo đơn cho mã khách hàng không tồn tại',
-  TC_BILL_12: 'Từ chối dùng điểm thanh toán vì chưa hỗ trợ đổi điểm',
-  SEC01: 'Chưa đăng nhập gửi yêu cầu tạo đơn - Bị từ chối',
-  SEC02: 'Dùng token giả gửi yêu cầu tạo đơn - Bị từ chối',
-  SEC03: 'Không điền token gửi yêu cầu tạo đơn - Bị từ chối',
-  SEC04: 'Dùng sai kiểu xác thực gửi yêu cầu tạo đơn - Bị từ chối',
-  SEC05: 'Đã đăng nhập nhưng không có quyền bán hàng - Không được tạo đơn',
-  SEC06: 'Không có quyền bán hàng, tự sửa quyền trong request - Vẫn bị từ chối',
-  SEC07: 'Đã đăng xuất nhưng dùng lại token để tạo đơn - Bị từ chối',
-  SEC08: 'Gửi số lượng âm để tăng tồn kho - Bị từ chối',
-  SEC09: 'Gửi cùng sách với số lượng dương và âm - Bị từ chối',
-  SEC10: 'Gửi số lượng lớn vượt giới hạn dữ liệu - Bị từ chối',
-  SEC11: 'Chèn câu lệnh SQL vào mã sách - Bị từ chối',
-  SEC12: 'Gửi dòng sách rỗng trong giỏ hàng - Bị từ chối',
-  SEC13: 'Gửi mã khách hàng là số âm - Bị từ chối',
-  SEC14: 'Tạo đơn không gửi phương thức thanh toán - Bị từ chối',
-  SEC15: 'Gửi số điểm thanh toán âm - Bị từ chối',
-  SEC16: 'Khách lẻ yêu cầu dùng điểm thanh toán - Bị từ chối',
-  SEC17: 'Tự sửa giá, thuế, điểm và người bán - Server vẫn tính đơn đúng',
-  SEC18: 'Đọc lại đơn để xác nhận đúng người bán và số tiền'
-};
-const setupNames = {
+
+const names = {
   '00': 'Chuẩn bị 01 - Đăng nhập tài khoản có quyền bán hàng',
   '01': 'Chuẩn bị 02 - Đăng nhập nhân viên kho không có quyền bán hàng',
-  '02': 'Chuẩn bị 03 - Đăng nhập phiên riêng để thử tạo đơn sau đăng xuất',
-  '03': 'Chuẩn bị 04 - Đăng xuất phiên riêng trước khi thử tạo đơn',
-  '04': 'Chuẩn bị 05 - Tạo đơn giá đúng để so sánh với đơn bị sửa dữ liệu'
+  '02': 'Chuẩn bị 03 - Đăng nhập phiên thử thu hồi',
+  '03': 'Chuẩn bị 04 - Đăng xuất phiên thử thu hồi',
+  TC_BILL_01: 'Kiểm tổng tiền có VAT cho khách lẻ',
+  TC_BILL_02: 'Kiểm chiết khấu hạng và cộng điểm thành viên',
+  TC_BILL_03: 'Kiểm phương thức chuyển khoản trên hóa đơn đã lưu',
+  TC_BILL_07: 'Đặt nhiều hơn tồn đúng một cuốn và giữ nguyên tồn',
+  TC_BILL_09: 'Từ chối số lượng không dương tại biên 0',
+  SEC06: 'Từ chối tài khoản không có quyền dù body khai quyền bán hàng'
 };
 for (const request of collection.item) {
   const code = request.name.split(' - ')[0];
   const status = JSON.stringify(request.event).match(/status\((\d+)\)/)?.[1];
-  if (caseNames[code]) request.name = `${code} - ${caseNames[code]} [${status}]`;
-  else if (setupNames[code]) request.name = `${setupNames[code]} [${status}]`;
-  else if (request.name === 'Dọn phiên bán hàng') request.name = 'Kết thúc - Đăng xuất tài khoản bán hàng [204]';
-  else if (request.name === 'Dọn phiên kho') request.name = 'Kết thúc - Đăng xuất tài khoản nhân viên kho [204]';
-  for (const event of request.event || []) new Function(event.script.exec.join('\n'));
+  if (names[code]) {
+    const title = /^\d/.test(code) ? names[code] : code + ' - ' + names[code];
+    request.name = `${title} [${status}]`;
+  }
+  for (const entry of request.event || []) new Function(entry.script.exec.join('\n'));
 }
 fs.writeFileSync(path.join(root, 'BookStore_POS_All.postman_collection.json'),
   JSON.stringify(collection, null, 2) + '\n');
